@@ -196,6 +196,10 @@ namespace pcit::panther{
 			[[nodiscard]] auto assert_token(Token::Kind kind) -> evo::Result<>;
 			[[nodiscard]] auto expect_token(Token::Kind kind, std::string_view location_str) -> evo::Result<>;
 
+			[[nodiscard]] auto expect_num_left(size_t num) -> evo::Result<>;
+			[[nodiscard]] auto check_num_left(size_t num) -> bool;
+			[[nodiscard]] auto unexpected_eof() -> void;
+
 
 		private:
 			Context& context;

@@ -47,6 +47,8 @@ namespace pcit::panther{
 
 	auto Parser::parse_stmt() -> Result {		
 		const Token& peeked_token = this->reader[this->reader.peek()];
+
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		
 		switch(peeked_token.kind()){
 			case Token::Kind::KEYWORD_VAR:         return this->parse_var_def<AST::VarDef::Kind::VAR>();
@@ -109,9 +111,10 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	template<AST::VarDef::Kind VAR_DEF_KIND>
 	auto Parser::parse_var_def() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
 		if constexpr(VAR_DEF_KIND == AST::VarDef::Kind::VAR){
 			if(this->assert_token(Token::Kind::KEYWORD_VAR).isError()){ return Result::Code::ERROR; }
 
@@ -125,7 +128,7 @@ namespace pcit::panther{
 		const Result ident = this->parse_ident();
 		if(this->check_result(ident, "identifier in variable definition").isError()){ return Result::Code::ERROR; }
 
-
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		auto type = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(":")){
 			if(this->assert_token(Token::lookupKind(":")).isError()){ return Result::Code::ERROR; }
@@ -143,11 +146,13 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
-
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		AST::VarDef::ValueKind value_kind = AST::VarDef::ValueKind::STRUCT_MEMBER;
 		auto value = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 			if(this->assert_token(Token::lookupKind("=")).isError()){ return Result::Code::ERROR; }
+
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_DELETE){
 				this->reader.skip();
@@ -163,6 +168,7 @@ namespace pcit::panther{
 
 					value = message.value();
 
+					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind(")"), "at end of deleted variable message").isError()){
 						return Result::Code::ERROR;
 					}
@@ -180,7 +186,7 @@ namespace pcit::panther{
 				
 		}
 
-
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
 			if(this->assert_token(Token::lookupKind(";")).isError()){ return Result::Code::ERROR; }
 
@@ -212,12 +218,14 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	template<bool MUST_HAVE_BODY>
 	auto Parser::parse_func_def() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		if(this->assert_token(Token::Kind::KEYWORD_FUNC).isError()){ return Result::Code::ERROR; }
 
 		const Token::ID name = this->reader.next();
+
+		if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[name].kind()){
 			case Token::Kind::IDENT:        case Token::Kind::KEYWORD_COPY:   case Token::Kind::KEYWORD_MOVE:
@@ -297,7 +305,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
-
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			auto message = std::optional<AST::Node>();
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 				this->reader.skip();
@@ -309,11 +317,14 @@ namespace pcit::panther{
 
 				message = message_res.value();
 
+				if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+
 				if(this->expect_token(Token::lookupKind(")"), "at end of deleted special method message").isError()){
 					return Result::Code::ERROR;
 				}
 			}
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(";"), "at end of deleted special method").isError()){
 				return Result::Code::ERROR;
 			}
@@ -325,6 +336,8 @@ namespace pcit::panther{
 
 			const Result attributes = this->parse_attribute_block();
 			if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
+
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 
 			if(this->reader[name].kind() != Token::Kind::IDENT){
 				this->context.emitError(
@@ -338,6 +351,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(";"), "at end of function alias").isError()){
 				return Result::Code::ERROR;
 			}
@@ -361,7 +375,7 @@ namespace pcit::panther{
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("->"), "in function definition").isError()){
 			return Result::Code::ERROR;
 		}
@@ -374,11 +388,13 @@ namespace pcit::panther{
 
 
 		// extern / deleting overload
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 			this->reader.skip();
 
 			switch(this->reader[this->reader.next()].kind()){
 				case Token::Kind::KEYWORD_EXTERN: {
+					if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind("("), "after [extern]").isError()){
 						return Result::Code::ERROR;
 					}
@@ -396,6 +412,7 @@ namespace pcit::panther{
 						return Result::Code::ERROR;
 					}
 
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind(";"), "at end of extern function declaration").isError()){
 						return Result::Code::ERROR;
 					}
@@ -414,6 +431,8 @@ namespace pcit::panther{
 				} break;
 
 				case Token::Kind::KEYWORD_DELETE: {
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 					auto message = std::optional<AST::Node>();
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 						this->reader.skip();
@@ -425,6 +444,7 @@ namespace pcit::panther{
 
 						message = message_res.value();
 
+						if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 						if(
 							this->expect_token(
 								Token::lookupKind(")"), "at end of deleted function overload message"
@@ -434,6 +454,7 @@ namespace pcit::panther{
 						}
 					}
 
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind(";"), "at end of deleted function overload").isError()){
 						return Result::Code::ERROR;
 					}
@@ -531,13 +552,14 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_type_def() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		if(this->assert_token(Token::Kind::KEYWORD_TYPE).isError()){ return Result::Code::ERROR; }
 
 		const Result ident = this->parse_ident();
 		if(this->check_result(ident, "identifier in type definition").isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
 
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
 			this->context.emitError(
@@ -568,7 +590,6 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_struct_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_STRUCT).isError()){ return Result::Code::ERROR; }
 
@@ -594,19 +615,20 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_union_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_UNION).isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("{"), "to begin union block").isError()){ return Result::Code::ERROR; }
 
 		auto fields = evo::SmallVector<AST::UnionDef::Field>();
 		auto statements = evo::SmallVector<AST::Node>();
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
 				this->reader.skip();
 				break;
@@ -619,6 +641,7 @@ namespace pcit::panther{
 
 
 			if(field_ident.code() == Result::Code::SUCCESS){ // is field
+				if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(":"), "after identifier in union field").isError()){
 					return Result::Code::ERROR;
 				}
@@ -628,6 +651,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(","), "after type in union field").isError()){
 					return Result::Code::ERROR;
 				}
@@ -662,11 +686,11 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_enum_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_ENUM).isError()){ return Result::Code::ERROR; }
 
 		auto underlying_type = std::optional<AST::Node>();
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 			if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
 
@@ -677,6 +701,7 @@ namespace pcit::panther{
 
 			underlying_type = underlying_type_result.value();
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(")"), "after enum underlying type").isError()){
 				return Result::Code::ERROR;
 			}
@@ -685,12 +710,14 @@ namespace pcit::panther{
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("{"), "to begin enum block").isError()){ return Result::Code::ERROR; }
 
 		auto enumerators = evo::SmallVector<AST::EnumDef::Enumerator>();
 		auto statements = evo::SmallVector<AST::Node>();
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
 				this->reader.skip();
 				break;
@@ -705,6 +732,7 @@ namespace pcit::panther{
 			if(enumerator_ident.code() == Result::Code::SUCCESS){ // is field
 				auto enumerator_value = std::optional<AST::Node>();
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 					this->reader.skip();
 
@@ -716,6 +744,7 @@ namespace pcit::panther{
 					enumerator_value = enumerator_value_result.value();
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(","), "after type in enum enumerator").isError()){
 					return Result::Code::ERROR;
 				}
@@ -754,7 +783,6 @@ namespace pcit::panther{
 	}
 
 
-
 	auto Parser::parse_type_alias(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_ALIAS).isError()){ return Result::Code::ERROR; }
 
@@ -773,13 +801,13 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_interface_def(const AST::Node& ident) -> Result {
 		if(this->assert_token(Token::Kind::KEYWORD_INTERFACE).isError()){ return Result::Code::ERROR; }
 
 		const Result attributes = this->parse_attribute_block();
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("{"), "after [=] in interface definition").isError()){
 			return Result::Code::ERROR;
 		}
@@ -789,6 +817,8 @@ namespace pcit::panther{
 		auto impls = evo::SmallVector<AST::Node>();
 
 		while(this->reader[this->reader.peek()].kind() != Token::lookupKind("}")){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_FUNC: {
 					const Result method = this->parse_func_def<false>();
@@ -822,6 +852,7 @@ namespace pcit::panther{
 			}
 		}
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("}"), "at end of interface definition").isError()){
 			return Result::Code::ERROR;
 		}
@@ -832,9 +863,9 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	template<bool ALLOW_METHOD_IDENTS>
 	auto Parser::parse_interface_impl() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result::Code::ERROR; }
 
 		const Result target = this->parse_type<TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER>();
@@ -843,6 +874,7 @@ namespace pcit::panther{
 		const Result impl_attributes = this->parse_attribute_block();
 		if(impl_attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("{"), "after target interface in interface impl").isError()){
 			return Result::Code::ERROR;
 		}
@@ -851,6 +883,7 @@ namespace pcit::panther{
 		auto methods = evo::SmallVector<AST::InterfaceImpl::Method>();
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
 				if(this->assert_token(Token::lookupKind("}")).isError()){ return Result::Code::ERROR; }
 				break;
@@ -861,6 +894,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+			if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind("="), "after method identifier in interface impl").isError()){
 				return Result::Code::ERROR;
 			}
@@ -892,7 +926,7 @@ namespace pcit::panther{
 					const Result attribute_block = this->parse_attribute_block();
 					if(attribute_block.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
-
+					if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind("->"), "in function definition").isError()){
 						return Result::Code::ERROR;
 					}
@@ -930,6 +964,7 @@ namespace pcit::panther{
 
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind("}")){
@@ -950,8 +985,8 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_return() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_RETURN).isError()){ return Result::Code::ERROR; }
 
@@ -968,6 +1003,7 @@ namespace pcit::panther{
 			label = label_result.value();
 		}
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("...")){
 			expr = this->reader.next();
 		}else{
@@ -979,6 +1015,7 @@ namespace pcit::panther{
 			}
 		}
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [return] statement").isError()){
 			return Result::Code::ERROR;
 		}
@@ -986,8 +1023,9 @@ namespace pcit::panther{
 		return this->source.ast_buffer.createReturn(start_location, label, expr);
 	}
 
-	// TODO(FUTURE): check EOF
+
 	auto Parser::parse_error() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_ERROR).isError()){ return Result::Code::ERROR; }
 
@@ -1004,6 +1042,8 @@ namespace pcit::panther{
 			}
 		}
 
+
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [error] statement").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1012,10 +1052,11 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_unreachable() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_UNREACHABLE).isError()){ return Result::Code::ERROR; }
+
 
 		auto message = std::optional<AST::Node>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
@@ -1026,11 +1067,15 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(")"), "at end of unreachable statement").isError()){
 				return Result::Code::ERROR;
 			}
 
 			message = expr_result.value();
+
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a unreachable statement").isError()){
@@ -1043,8 +1088,10 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_break() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword_token_id = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_BREAK).isError()){ return Result::Code::ERROR; }
+
 
 		auto label = std::optional<Token::ID>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
@@ -1056,6 +1103,8 @@ namespace pcit::panther{
 			}
 
 			label = AST::ASTBuffer::getIdent(label_result.value());
+
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
@@ -1067,8 +1116,10 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_continue() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword_token_id = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_CONTINUE).isError()){ return Result::Code::ERROR; }
+
 
 		auto label = std::optional<Token::ID>();
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
@@ -1080,6 +1131,8 @@ namespace pcit::panther{
 			}
 
 			label = AST::ASTBuffer::getIdent(label_result.value());
+
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		}
 
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [break] statement").isError()){
@@ -1092,12 +1145,14 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_delete() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword_token_id = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
 
 		const Result expr = this->parse_expr();
 		if(this->check_result(expr, "expression in [delete] statement").isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [delete] statement").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1107,9 +1162,9 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	template<bool IS_WHEN>
 	auto Parser::parse_conditional() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword_token_id = this->reader.peek();
 
 
@@ -1118,6 +1173,7 @@ namespace pcit::panther{
 
 		if constexpr(IS_WHEN){
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_SWITCH){
+				if(this->expect_num_left(6).isError()){ return Result::Code::ERROR; }
 				return this->parse_switch<true>();
 			}
 		}
@@ -1129,6 +1185,7 @@ namespace pcit::panther{
 
 		const Result cond = this->parse_expr();
 
+		if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(")"), "in conditional statement").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1142,6 +1199,8 @@ namespace pcit::panther{
 		auto else_block = std::optional<AST::Node>();
 		if(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
 			else_token = this->reader.next();
+
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 
 			const Token::Kind else_if_kind = this->reader[this->reader.peek()].kind();
 
@@ -1216,8 +1275,8 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_while() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID start_location = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_WHILE).isError()){ return Result::Code::ERROR; }
 
@@ -1226,6 +1285,7 @@ namespace pcit::panther{
 		const Result cond = this->parse_expr();
 		if(this->check_result(cond, "condition in while loop").isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(")"), "in while loop").isError()){ return Result::Code::ERROR; }
 
 		const Result block = this->parse_block(BlockLabelRequirement::OPTIONAL);
@@ -1235,8 +1295,8 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_for() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
 		const Token::ID keyword = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_FOR).isError()){ return Result::Code::ERROR; }
 
@@ -1251,6 +1311,7 @@ namespace pcit::panther{
 		}
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
 				if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
 				break;
@@ -1264,6 +1325,7 @@ namespace pcit::panther{
 			iterables.emplace_back(expr_result.value());
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind(")")){
@@ -1290,6 +1352,7 @@ namespace pcit::panther{
 		//////////////////
 		// parameters
 
+		if(this->expect_num_left(9).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("["), "at beginning of for loop parameters block").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1315,6 +1378,7 @@ namespace pcit::panther{
 			index = AST::For::Param(AST::ASTBuffer::getIdent(ident.value()), type.value());
 		}
 
+		if(this->expect_num_left(7).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "after for loop index parameter").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1323,6 +1387,7 @@ namespace pcit::panther{
 		auto values = evo::SmallVector<AST::For::Param>();
 		values.reserve(iterables.size());
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
 				if(this->assert_token(Token::lookupKind("]")).isError()){ return Result::Code::ERROR; }
 				break;
@@ -1334,6 +1399,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+			if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(":"), "after for loop value parameter identifier").isError()){
 				return Result::Code::ERROR;
 			}
@@ -1346,6 +1412,7 @@ namespace pcit::panther{
 
 			bool is_mut = false;
 
+			if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_READ: {
 					this->reader.skip();
@@ -1436,7 +1503,7 @@ namespace pcit::panther{
 		// else block
 
 		auto else_block = std::optional<AST::Node>();
-		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
+		if(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
 			this->reader.skip();
 
 			const Result else_block_result = this->parse_block(BlockLabelRequirement::NOT_ALLOWED);
@@ -1457,12 +1524,14 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	template<bool IS_WHEN>
 	auto Parser::parse_switch() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
 		const Token::ID keyword = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_SWITCH).isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(9).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("("), "before condition in switch statement").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1490,10 +1559,13 @@ namespace pcit::panther{
 
 		bool not_at_end_of_switch = true;
 		while(not_at_end_of_switch){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::Kind::KEYWORD_CASE: {
 					const Token::ID case_token = this->reader.next();
 
+					if(this->expect_num_left(5).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind("("), "before value(s) in switch case").isError()){
 						return Result::Code::ERROR;
 					}
@@ -1501,6 +1573,7 @@ namespace pcit::panther{
 					auto values = evo::SmallVector<AST::Node>();
 
 					while(true){
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
 							if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
 							break;
@@ -1514,6 +1587,7 @@ namespace pcit::panther{
 						values.emplace_back(case_expr.value());
 
 						// check if ending or should continue
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 						if(after_arg_next_token_kind != Token::lookupKind(",")){
 							if(after_arg_next_token_kind != Token::lookupKind(")")){
@@ -1582,9 +1656,10 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	template<bool IS_ERROR_DEFER>
 	auto Parser::parse_defer() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
 		const Token::ID start_location = this->reader.peek();
 
 		if constexpr(IS_ERROR_DEFER){
@@ -1601,6 +1676,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_try_stmt() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
 		if(this->assert_token(Token::Kind::KEYWORD_TRY).isError()){ return Result::Code::ERROR; }
 			
 		const Result attempt_expr = this->parse_term<TermKind::EXPR>();
@@ -1608,21 +1685,26 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
+
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
 			const Token::ID else_token_id = this->reader.next();
 
 			auto except_params = evo::SmallVector<Token::ID>();
 
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
 				if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
 
 				while(true){
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 						if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
 						break;
 					}
 
 
+					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
 						except_params.emplace_back(this->reader.next());
 
@@ -1657,6 +1739,7 @@ namespace pcit::panther{
 			}
 
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(";"), "at end of try/else statement").isError()){
 				return Result::Code::ERROR;
 			}
@@ -1678,8 +1761,11 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_unsafe() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
+		if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
+
 		const Token::ID start_location = this->reader.peek();
 
 		if(this->assert_token(Token::Kind::KEYWORD_UNSAFE).isError()){ return Result::Code::ERROR; }
@@ -1692,9 +1778,10 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	template<bool IS_STMT>
 	auto Parser::parse_asm() -> Result {
+		evo::debugAssert(this->check_num_left(2), "Expected at least 2 left");
+
 		const Token::ID start_token = this->reader.peek();
 
 		if constexpr(IS_STMT){
@@ -1715,6 +1802,8 @@ namespace pcit::panther{
 				break;
 			}
 
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+
 			const Result ident = this->parse_ident();
 			if(this->check_result(ident, "identifier in asm parameter block").isError()){
 				return Result::Code::ERROR;
@@ -1730,6 +1819,8 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+
+			if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
 
 			AST::Asm::Param::Kind kind = AST::Asm::Param::Kind::READ;
 			switch(this->reader[this->reader.next()].kind()){
@@ -1776,6 +1867,8 @@ namespace pcit::panther{
 			);
 
 
+			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+
 			// check if ending or should continue
 			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_param_next_token_kind != Token::lookupKind(",")){
@@ -1796,6 +1889,7 @@ namespace pcit::panther{
 		if(attributes.code() == Result::Code::ERROR){ return Result::Code::ERROR; }
 
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind("->"), "before asm return parameters").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1824,6 +1918,7 @@ namespace pcit::panther{
 						return Result::Code::ERROR;
 					}
 
+					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(Token::lookupKind(":"), "after identifier in asm parameter").isError()){
 						return Result::Code::ERROR;
 					}
@@ -1834,7 +1929,7 @@ namespace pcit::panther{
 						return Result::Code::ERROR;
 					}
 
-
+					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 					if(this->expect_token(
 						Token::Kind::LITERAL_STRING, "asm return parameter constraint string"
 					).isError()){
@@ -1872,6 +1967,14 @@ namespace pcit::panther{
 
 
 		// code
+
+		if constexpr(IS_STMT){
+			if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
+		}else{
+			if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
+		}
+
+
 		if(this->expect_token(Token::lookupKind("{"), "before asm code string").isError()){
 			return Result::Code::ERROR;
 		}
@@ -1895,7 +1998,6 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_assignment() -> Result {
 		const Token::ID start_location = this->reader.peek();
 
@@ -1915,6 +2017,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(";"), "at end of discard assignment").isError()){
 					return Result::Code::ERROR;
 				}
@@ -1928,11 +2031,13 @@ namespace pcit::panther{
 
 				auto assignments = evo::SmallVector<AST::Node>();
 				while(true){
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("]")){
 						if(this->assert_token(Token::lookupKind("]")).isError()){ return Result::Code::ERROR; }
 						break;
 					}
 
+					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 					const Result assignment = [&]() -> Result {
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
 							return AST::Node(AST::Kind::DISCARD, this->reader.next());
@@ -1948,6 +2053,7 @@ namespace pcit::panther{
 
 
 					// check if ending or should continue
+					if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 					const Token::Kind after_ident_next_token_kind = this->reader[this->reader.next()].kind();
 					if(after_ident_next_token_kind != Token::lookupKind(",")){
 						if(after_ident_next_token_kind != Token::lookupKind("]")){
@@ -1970,6 +2076,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
+				if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind("="), "in multiple-assignment").isError()){
 					return Result::Code::ERROR;
 				}
@@ -1979,6 +2086,7 @@ namespace pcit::panther{
 					return Result::Code::ERROR;
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(";"), "at end of multiple-assignment").isError()){
 					return Result::Code::ERROR;
 				}
@@ -1991,6 +2099,12 @@ namespace pcit::panther{
 
 		const Result lhs = this->parse_term<TermKind::EXPR>();
 		if(lhs.code() != Result::Code::SUCCESS){ return lhs; }
+
+
+		if(this->reader.at_end()){
+			this->reader.go_back(start_location);
+			return Result::Code::WRONG_TYPE;
+		}
 
 		const Token::ID op_token_id = this->reader.next();
 		switch(this->reader[op_token_id].kind()){
@@ -2012,6 +2126,7 @@ namespace pcit::panther{
 		const Result rhs = this->parse_expr();
 		if(this->check_result(rhs, "expression value in assignment").isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "at end of assignment").isError()){ return Result::Code::ERROR; }
 
 		return this->source.ast_buffer.createInfix(lhs.value(), op_token_id, rhs.value());
@@ -2019,18 +2134,18 @@ namespace pcit::panther{
 
 
 
-
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_block(BlockLabelRequirement label_requirement) -> Result {
 		const Token::ID start_location = this->reader.peek();
 
-		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("{")){ return Result::Code::WRONG_TYPE; }
-		if(this->assert_token(Token::lookupKind("{")).isError()){ return Result::Code::ERROR; }
+		if(this->check_num_left(2) && this->reader[this->reader.peek()].kind() != Token::lookupKind("{")){
+			return Result::Code::WRONG_TYPE;
+		}
+		this->reader.skip();
 
 		auto label = std::optional<Token::ID>();
 		auto outputs = evo::SmallVector<AST::Block::Output>();
 
-		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
+		if(this->check_num_left(3) && this->reader[this->reader.peek()].kind() == Token::lookupKind("->")){
 			if(label_requirement == BlockLabelRequirement::NOT_ALLOWED){
 				this->reader.go_back(start_location);
 				return Result::Code::WRONG_TYPE;
@@ -2058,6 +2173,7 @@ namespace pcit::panther{
 
 				if(this->assert_token(Token::lookupKind(":")).isError()){ return Result::Code::ERROR; }
 
+				if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 					const Token::ID open_paren_loc = this->reader.peek();
 					if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
@@ -2067,6 +2183,8 @@ namespace pcit::panther{
 							if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
 							break;
 						}
+
+						if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 
 						const Result ident = this->parse_ident();
 						if(this->check_result(ident, "identifier in expression block output parameter").isError()){
@@ -2088,6 +2206,7 @@ namespace pcit::panther{
 						outputs.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 
 						// check if ending or should continue
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 						if(after_arg_next_token_kind != Token::lookupKind(",")){
 							if(after_arg_next_token_kind != Token::lookupKind(")")){
@@ -2141,6 +2260,8 @@ namespace pcit::panther{
 		auto end_location = std::optional<Token::ID>();
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}")){
 				end_location = this->reader.next();
 				break;
@@ -2158,9 +2279,10 @@ namespace pcit::panther{
 	}
 
 
-	// TODO(FUTURE): check EOF
 	template<Parser::TypeKind KIND>
 	auto Parser::parse_type() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		const Token::ID start_location = this->reader.peek();
 		bool is_primitive = true;
 		bool is_type_deducer = false;
@@ -2180,6 +2302,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_TYPE: {
 				is_primitive = false;
 
+				if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
 				if(this->reader[this->reader.peek(1)].kind() != Token::lookupKind("(")){
 					this->expected_but_got(
 						"[(] after type ID converter keyword [type]",
@@ -2218,50 +2341,52 @@ namespace pcit::panther{
 			if(is_primitive){
 				const Token::ID base_type_token_id = this->reader.next();
 
-				const Token& peeked_token = this->reader[this->reader.peek()];
-				if(peeked_token.kind() == Token::lookupKind(".*")){
-					const Diagnostic::Info diagnostics_info = [](){
-						if constexpr(
-							KIND == TypeKind::AS_TYPE
-							|| KIND == TypeKind::TEMPLATE_ARG
-							|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
-						){
-							return Diagnostic::Info(
-								"Did you mean to put parentheses around the preceding [as] operation?"
-							);
-						}else{
-							return Diagnostic::Info("Did you mean pointer ([*]) instead?");
-						}
-					}();
+				if(this->check_num_left(1)){
+					const Token& peeked_token = this->reader[this->reader.peek()];
+					if(peeked_token.kind() == Token::lookupKind(".*")){
+						const Diagnostic::Info diagnostics_info = [](){
+							if constexpr(
+								KIND == TypeKind::AS_TYPE
+								|| KIND == TypeKind::TEMPLATE_ARG
+								|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+							){
+								return Diagnostic::Info(
+									"Did you mean to put parentheses around the preceding [as] operation?"
+								);
+							}else{
+								return Diagnostic::Info("Did you mean pointer ([*]) instead?");
+							}
+						}();
 
-					this->context.emitError(
-						"A dereference operator ([.*]) should not follow a type",
-						Diagnostic::Location::get(this->reader.peek(), this->source),
-						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
-					);
-					return Result(Result::Code::ERROR);
+						this->context.emitError(
+							"A dereference operator ([.*]) should not follow a type",
+							Diagnostic::Location::get(this->reader.peek(), this->source),
+							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
+						);
+						return Result(Result::Code::ERROR);
 
-				}else if(peeked_token.kind() == Token::lookupKind(".?")){
-					const Diagnostic::Info diagnostics_info = [](){
-						if constexpr(
-							KIND == TypeKind::AS_TYPE
-							|| KIND == TypeKind::TEMPLATE_ARG
-							|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
-						){
-							return Diagnostic::Info(
-								"Did you mean to put parentheses around the preceding [as] operation?"
-							);
-						}else{
-							return Diagnostic::Info("Did you mean optional ([?]) instead?");
-						}
-					}();
+					}else if(peeked_token.kind() == Token::lookupKind(".?")){
+						const Diagnostic::Info diagnostics_info = [](){
+							if constexpr(
+								KIND == TypeKind::AS_TYPE
+								|| KIND == TypeKind::TEMPLATE_ARG
+								|| KIND == TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER
+							){
+								return Diagnostic::Info(
+									"Did you mean to put parentheses around the preceding [as] operation?"
+								);
+							}else{
+								return Diagnostic::Info("Did you mean optional ([?]) instead?");
+							}
+						}();
 
-					this->context.emitError(
-						"A unwrap operator ([.?]) should not follow a type",
-						Diagnostic::Location::get(this->reader.peek(), this->source),
-						evo::SmallVector<Diagnostic::Info>{diagnostics_info}
-					);
-					return Result(Result::Code::ERROR);
+						this->context.emitError(
+							"A unwrap operator ([.?]) should not follow a type",
+							Diagnostic::Location::get(this->reader.peek(), this->source),
+							evo::SmallVector<Diagnostic::Info>{diagnostics_info}
+						);
+						return Result(Result::Code::ERROR);
+					}
 				}
 
 				return Result(AST::Node(AST::Kind::PRIMITIVE_TYPE, base_type_token_id));
@@ -2303,6 +2428,7 @@ namespace pcit::panther{
 					return Result(Result::Code::ERROR);
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind(")"), "after expression in TypeID converter").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2325,6 +2451,7 @@ namespace pcit::panther{
 					return Result(Result::Code::ERROR);
 				}
 
+				if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind(":"), "after element type in array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2347,10 +2474,15 @@ namespace pcit::panther{
 							this->reader.skip();
 						}
 
-						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+						if(
+							this->check_num_left(3)
+							&& this->reader[this->reader.peek()].kind() == Token::lookupKind("(")
+						){
 							this->reader.skip();
 
 							while(true){
+								if(this->expect_num_left(2).isError()){ return Result(Result::Code::ERROR); }
+
 								switch(this->reader[this->reader.peek()].kind()){
 									case Token::Kind::DEDUCER: {
 										if constexpr(
@@ -2397,6 +2529,8 @@ namespace pcit::panther{
 										}
 
 										dimensions.emplace_back(dimension.value());
+
+										if(this->expect_num_left(2).isError()){ return Result(Result::Code::ERROR); }
 									} break;
 								}
 
@@ -2406,6 +2540,8 @@ namespace pcit::panther{
 									this->reader.skip();
 								}
 							}
+
+							if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 
 							if(this->expect_token(
 								Token::lookupKind(")"), "at end of array reference dimensions"
@@ -2419,6 +2555,8 @@ namespace pcit::panther{
 
 					default: {
 						while(true){
+							if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
+
 							switch(this->reader[this->reader.peek()].kind()){
 								case Token::Kind::DEDUCER: {
 									if constexpr(
@@ -2458,6 +2596,8 @@ namespace pcit::panther{
 									}
 
 									dimensions.emplace_back(dimension.value());
+
+									if(this->expect_num_left(2).isError()){ return Result(Result::Code::ERROR); }
 								} break;
 							}
 
@@ -2471,7 +2611,7 @@ namespace pcit::panther{
 				}
 
 				auto terminator = std::optional<AST::Node>();
-				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
+				if(this->check_num_left(3) && this->reader[this->reader.peek()].kind() == Token::lookupKind(";")){
 					if(this->assert_token(Token::lookupKind(";")).isError()){ return Result(Result::Code::ERROR); }
 
 					if(
@@ -2498,7 +2638,7 @@ namespace pcit::panther{
 					}
 				}
 
-
+				if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind("]"), "at end of array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2521,14 +2661,16 @@ namespace pcit::panther{
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_FUNC){
 				if(this->assert_token(Token::Kind::KEYWORD_FUNC).isError()){ return Result(Result::Code::ERROR); }
 
+				if(this->expect_num_left(5).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind("("), "parameter type list in function type").isError()){
 					return Result(Result::Code::ERROR);
 				}
 
 				auto params = evo::SmallVector<AST::FuncType::Param>();
 				while(true){
+					if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-						if(this->assert_token(Token::lookupKind(")")).isError()){ return Result(Result::Code::ERROR); }
+						this->reader.skip();
 						break;
 					}
 
@@ -2539,6 +2681,7 @@ namespace pcit::panther{
 					}
 
 
+					if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
 					auto param_kind = std::optional<AST::FuncType::Param::Kind>();
 					switch(this->reader[this->reader.peek()].kind()){
 						case Token::Kind::KEYWORD_READ: {
@@ -2582,6 +2725,7 @@ namespace pcit::panther{
 				const Result attributes = this->parse_attribute_block();
 				if(attributes.code() == Result::Code::ERROR){ return Result(Result::Code::ERROR); }
 
+				if(this->expect_num_left(2).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind("->"), "before return type(s) of function type").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2595,9 +2739,7 @@ namespace pcit::panther{
 
 					while(true){
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
-							if(this->assert_token(Token::lookupKind(")")).isError()){
-								return Result(Result::Code::ERROR);
-							}
+							this->reader.skip();
 							break;
 						}
 
@@ -2611,6 +2753,7 @@ namespace pcit::panther{
 
 
 						// check if ending or should continue
+						if(this->expect_num_left(2).isError()){ return Result(Result::Code::ERROR); }
 						const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
 						if(after_param_next_token_kind != Token::lookupKind(",")){
 							if(after_param_next_token_kind != Token::lookupKind(")")){
@@ -2638,7 +2781,7 @@ namespace pcit::panther{
 
 
 				auto error_types = evo::SmallVector<AST::Node>();
-				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
+				if(this->check_num_left(3) && this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
 					this->reader.skip();
 					while(true){
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
@@ -2688,6 +2831,8 @@ namespace pcit::panther{
 			}else if(this->reader[start_location].kind() == Token::Kind::KEYWORD_IMPL){
 				if(this->assert_token(Token::Kind::KEYWORD_IMPL).isError()){ return Result(Result::Code::ERROR); }
 
+				if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
+
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 					this->reader.skip();
 
@@ -2722,6 +2867,7 @@ namespace pcit::panther{
 					}
 
 
+					if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
 					const Token::ID colon_token = this->reader.next();
 					if(this->reader[colon_token].kind() != Token::lookupKind(":")){
 						this->expected_but_got("[:] after underlying type in interface map", colon_token);
@@ -2746,6 +2892,7 @@ namespace pcit::panther{
 						return Result(Result::Code::ERROR);
 					}
 
+					if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 					if(this->expect_token(Token::lookupKind(")"), "at end of interface pointer map").isError()){
 						return Result(Result::Code::ERROR);
 					}
@@ -2800,6 +2947,7 @@ namespace pcit::panther{
 				}
 
 
+				if(this->expect_num_left(3).isError()){ return Result(Result::Code::ERROR); }
 				const Token::ID colon_token = this->reader.next();
 				if(this->reader[colon_token].kind() != Token::lookupKind(":")){
 					this->expected_but_got("[:] after underlying type in interface map", colon_token);
@@ -2823,6 +2971,7 @@ namespace pcit::panther{
 				}
 
 
+				if(this->expect_num_left(1).isError()){ return Result(Result::Code::ERROR); }
 				if(this->expect_token(Token::lookupKind(")"), "at end of interface map").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2870,6 +3019,7 @@ namespace pcit::panther{
 
 
 		auto qualifiers = evo::SmallVector<AST::Type::Qualifier>();
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		Token::ID potential_backup_location = this->reader.peek();
 		bool continue_looking_for_qualifiers = true;
 		while(continue_looking_for_qualifiers){
@@ -2879,11 +3029,13 @@ namespace pcit::panther{
 			bool is_optional = false;
 			bool is_uninit = false;
 
+			if(this->check_num_left(1) == false){ break; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("*")){
 				continue_looking_for_qualifiers = true;
 				is_ptr = true;
 				potential_backup_location = this->reader.next();
 				
+				if(this->check_num_left(1) == false){ break; }
 				if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_MUT){
 					is_mut = true;
 					potential_backup_location = this->reader.next();
@@ -2894,6 +3046,7 @@ namespace pcit::panther{
 				}
 			}
 
+			if(this->check_num_left(1) == false){ break; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("?")){
 				continue_looking_for_qualifiers = true;
 				is_optional = true;
@@ -2954,7 +3107,6 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_expr() -> Result {
 		Result result = this->parse_uninit();
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
@@ -2965,7 +3117,6 @@ namespace pcit::panther{
 		return this->parse_sub_expr();
 	}
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_sub_expr() -> Result {
 		return this->parse_infix_expr();
 	}
@@ -3012,7 +3163,7 @@ namespace pcit::panther{
 		return -1;
 	}
 
-	// TODO(FUTURE): check EOF
+
 	auto Parser::parse_infix_expr() -> Result {
 		const Result lhs_result = this->parse_prefix_expr();
 		if(lhs_result.code() != Result::Code::SUCCESS){ return lhs_result; }
@@ -3022,6 +3173,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_infix_expr_impl(AST::Node lhs, int prec_level) -> Result {
+		if(this->reader.at_end()){ return lhs; }
+
 		const Token::ID peeked_op_token_id = this->reader.peek();
 		const Token::Kind peeked_op_kind = this->reader[peeked_op_token_id].kind();
 
@@ -3082,8 +3235,9 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_prefix_expr() -> Result {
+		if(this->reader.at_end()){ return Result::Code::WRONG_TYPE; }
+
 		const Token::ID op_token_id = this->reader.peek();
 		const Token::Kind op_token_kind = this->reader[op_token_id].kind();
 
@@ -3121,12 +3275,15 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_new_expr() -> Result {
+		evo::debugAssert(this->reader.at_end() == false, "Expected to not be at EOF");
+
 		const Token::ID keyword_new = this->reader.peek();
 		if(this->assert_token(Token::Kind::KEYWORD_NEW).isError()){ return Result::Code::ERROR; }
 			
 		const Result type = this->parse_type<TypeKind::EXPLICIT>();
 		if(this->check_result(type, "type in new expression").isError()){ return Result::Code::ERROR; }
 
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 		switch(this->reader[this->reader.peek()].kind()){
 			case Token::lookupKind("("): {
 				evo::Result<evo::SmallVector<AST::FuncCall::Arg>> args = this->parse_func_call_args();
@@ -3177,7 +3334,7 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-
+		if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[this->reader.peek()].kind()){
 			case Token::Kind::KEYWORD_ELSE: {
@@ -3189,12 +3346,13 @@ namespace pcit::panther{
 					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
 
 					while(true){
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 							if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
 							break;
 						}
 
-
+						if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
 							except_params.emplace_back(this->reader.next());
 
@@ -3242,12 +3400,14 @@ namespace pcit::panther{
 					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
 
 					while(true){
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 							if(this->assert_token(Token::lookupKind(">")).isError()){ return Result::Code::ERROR; }
 							break;
 						}
 
 
+						if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
 							except_params.emplace_back(this->reader.next());
 
@@ -3261,6 +3421,7 @@ namespace pcit::panther{
 						}
 
 						// check if ending or should continue
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 						if(after_arg_next_token_kind != Token::lookupKind(",")){
 							if(after_arg_next_token_kind != Token::lookupKind(">")){
@@ -3298,7 +3459,6 @@ namespace pcit::panther{
 
 
 
-	// TODO(FUTURE): check EOF
 	template<Parser::TermKind TERM_KIND>
 	auto Parser::parse_term() -> Result {
 		Result output = [&](){
@@ -3318,6 +3478,8 @@ namespace pcit::panther{
 
 		bool should_continue = true;
 		while(should_continue){
+			if(this->check_num_left(1) == false){ return output; }
+
 			switch(this->reader[this->reader.peek()].kind()){
 				case Token::lookupKind("."): {
 					const Token::ID accessor_op_token_id = this->reader.next();	
@@ -3415,6 +3577,7 @@ namespace pcit::panther{
 					bool is_first_expr = true;
 
 					while(true){
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}>")){
 							if(this->assert_token(Token::lookupKind("}>")).isError()){ return Result::Code::ERROR; }
 							break;
@@ -3452,6 +3615,7 @@ namespace pcit::panther{
 						args.emplace_back(arg.value());
 
 						// check if ending or should continue
+						if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 						const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 						if(after_arg_next_token_kind != Token::lookupKind(",")){
 							if(after_arg_next_token_kind != Token::lookupKind("}>")){
@@ -3548,17 +3712,18 @@ namespace pcit::panther{
 		const Result term = this->parse_term<TermKind::EXPR>();
 		if(term.code() != Result::Code::SUCCESS){ return term; }
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "after term statement").isError()){ return Result::Code::ERROR; }
 
 		return term;
 	}
 
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_encapsulated_expr() -> Result {
 		const Result block_expr = this->parse_block(BlockLabelRequirement::REQUIRED);
 		if(block_expr.code() != Result::Code::WRONG_TYPE){ return block_expr; }
 
+		if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
 			return this->parse_atom();
 		}
@@ -3568,6 +3733,7 @@ namespace pcit::panther{
 		const Result inner_expr = this->parse_sub_expr();
 		if(inner_expr.code() != Result::Code::SUCCESS){ return inner_expr; }
 
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind(")")){
 			this->expected_but_got(
 				"either closing [)] around expression or continuation of sub-expression",
@@ -3585,7 +3751,6 @@ namespace pcit::panther{
 		return inner_expr;
 	}
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_atom() -> Result {
 		Result result = this->parse_asm<false>();
 		if(result.code() != Result::Code::WRONG_TYPE){ return result; }
@@ -3608,15 +3773,14 @@ namespace pcit::panther{
 		return Result::Code::WRONG_TYPE;
 	}
 
-	// TODO(FUTURE): check EOF
 	auto Parser::parse_attribute_block() -> Result {
 		auto attributes = evo::SmallVector<AST::AttributeBlock::Attribute>();
 
-		while(this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
+		while(this->reader.at_end() == false && this->reader[this->reader.peek()].kind() == Token::Kind::ATTRIBUTE){
 			const Token::ID attr_token_id = this->reader.next();
 			auto arguments = evo::StaticVector<AST::Node, 2>();
 
-			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+			if(this->check_num_left(1) && this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
 				if(this->assert_token(Token::lookupKind("(")).isError()){ return Result::Code::ERROR; }
 
 				const Result argument_result = this->parse_expr();
@@ -3625,6 +3789,7 @@ namespace pcit::panther{
 				}
 				arguments.emplace_back(argument_result.value());
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind(",")){
 					if(this->assert_token(Token::lookupKind(",")).isError()){ return Result::Code::ERROR; }
 
@@ -3635,6 +3800,7 @@ namespace pcit::panther{
 					arguments.emplace_back(argument2_result.value());
 				}
 
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 				if(this->expect_token(Token::lookupKind(")"), "after attribute argument").isError()){
 					return Result::Code::ERROR;
 				}
@@ -3649,6 +3815,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_ident() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::IDENT){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3657,6 +3825,8 @@ namespace pcit::panther{
 	}
 
 	auto Parser::parse_intrinsic() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::INTRINSIC){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3665,6 +3835,8 @@ namespace pcit::panther{
 	}
 
 	auto Parser::parse_type_this() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::TYPE_THIS){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3673,6 +3845,8 @@ namespace pcit::panther{
 	}
 
 	auto Parser::parse_literal() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		switch(this->reader[this->reader.peek()].kind()){
 			case Token::Kind::LITERAL_BOOL:
 			case Token::Kind::LITERAL_INT:
@@ -3691,6 +3865,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_uninit() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_UNINIT){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3699,6 +3875,8 @@ namespace pcit::panther{
 	}
 
 	auto Parser::parse_zeroinit() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_ZEROINIT){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3707,6 +3885,8 @@ namespace pcit::panther{
 	}
 
 	auto Parser::parse_this() -> Result {
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
 		if(this->reader[this->reader.peek()].kind() != Token::Kind::KEYWORD_THIS){
 			return Result::Code::WRONG_TYPE;
 		}
@@ -3716,9 +3896,8 @@ namespace pcit::panther{
 
 
 
-
 	auto Parser::parse_template_pack() -> Result {
-		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("<{")){
+		if(this->reader.at_end() || this->reader[this->reader.peek()].kind() != Token::lookupKind("<{")){
 			return Result::Code::WRONG_TYPE;
 		}
 
@@ -3728,6 +3907,7 @@ namespace pcit::panther{
 
 		bool param_has_default_value = false;
 		while(true){
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("}>")){
 				if(this->assert_token(Token::lookupKind("}>")).isError()){ return Result::Code::ERROR; }
 				break;
@@ -3741,6 +3921,7 @@ namespace pcit::panther{
 				return Result::Code::ERROR;
 			}
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			if(this->expect_token(Token::lookupKind(":"), "after template parameter identifier").isError()){
 				return Result::Code::ERROR;
 			}
@@ -3751,6 +3932,7 @@ namespace pcit::panther{
 			}
 
 
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			auto default_value = std::optional<AST::Node>();
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 				if(this->assert_token(Token::lookupKind("=")).isError()){ return Result::Code::ERROR; }
@@ -3788,6 +3970,7 @@ namespace pcit::panther{
 
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 			const Token::Kind after_return_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_return_next_token_kind != Token::lookupKind(",")){
 				if(after_return_next_token_kind != Token::lookupKind("}>")){
@@ -3819,12 +4002,14 @@ namespace pcit::panther{
 		auto params = evo::SmallVector<AST::FuncDef::Param>();
 		auto found_variadic_token = std::optional<Token::ID>();
 
+		if(this->expect_num_left(2).isError()){ return evo::resultError; }
 		if(this->expect_token(Token::lookupKind("("), "to open parameter block in function definition").isError()){
 			return evo::resultError;
 		}
 
 		bool param_has_default_value = false;
 		while(true){
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
 				if(this->assert_token(Token::lookupKind(")")).isError()){ return evo::resultError; }
 				break;
@@ -3836,6 +4021,7 @@ namespace pcit::panther{
 			using ParamKind = AST::FuncDef::Param::Kind;
 			auto param_kind = std::optional<ParamKind>();
 
+			if(this->expect_num_left(2).isError()){ return evo::resultError; }
 			if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_THIS){
 				const Token::ID this_token_id = this->reader.next();
 				param_ident = AST::Node(AST::Kind::THIS, this_token_id);
@@ -3858,7 +4044,7 @@ namespace pcit::panther{
 				param_type = type.value();
 			}
 
-
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			if(found_variadic_token.has_value()){
 				this->context.emitError(
 					"Invalid variadic function parameter",
@@ -3869,6 +4055,8 @@ namespace pcit::panther{
 				
 			}else if(this->reader[this->reader.peek()].kind() == Token::lookupKind("...")){
 				found_variadic_token = this->reader.next();
+
+				if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			}
 
 
@@ -3896,6 +4084,7 @@ namespace pcit::panther{
 			const Result attributes = this->parse_attribute_block();
 			if(attributes.code() == Result::Code::ERROR){ return evo::resultError; }
 
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			auto default_value = std::optional<AST::Node>();
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("=")){
 				if(this->assert_token(Token::lookupKind("=")).isError()){ return evo::resultError; }
@@ -3922,6 +4111,7 @@ namespace pcit::panther{
 			params.emplace_back(*param_ident, param_type, *param_kind, attributes.value(), default_value);
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_param_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_param_next_token_kind != Token::lookupKind(",")){
 				if(after_param_next_token_kind != Token::lookupKind(")")){
@@ -3949,6 +4139,7 @@ namespace pcit::panther{
 			: TypeKind::EXPLICIT;
 			
 
+		if(this->expect_num_left(1).isError()){ return evo::resultError; }
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
 			const Result type = this->parse_type<RETURN_TYPE_KIND>();
 			if(this->check_result(type, "Return type in function definition").isError()){ return evo::resultError; }	
@@ -3963,6 +4154,7 @@ namespace pcit::panther{
 		if(this->assert_token(Token::lookupKind("(")).isError()){ return evo::resultError; }
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(")")){
 				if(this->assert_token(Token::lookupKind(")")).isError()){ return evo::resultError; }
 				break;
@@ -3988,6 +4180,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
+			if(this->expect_num_left(3).isError()){ return evo::resultError; }
 			if(this->expect_token(Token::lookupKind(":"), "after function return parameter identifier").isError()){
 				return evo::resultError;
 			}
@@ -4001,6 +4194,7 @@ namespace pcit::panther{
 
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_return_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_return_next_token_kind != Token::lookupKind(",")){
 				if(after_return_next_token_kind != Token::lookupKind(")")){
@@ -4037,12 +4231,13 @@ namespace pcit::panther{
 	auto Parser::parse_func_error_returns() -> evo::Result<evo::SmallVector<AST::FuncDef::Return>> {
 		auto error_returns = evo::SmallVector<AST::FuncDef::Return>();
 
-		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("<")){
+		if(this->reader.at_end() || this->reader[this->reader.peek()].kind() != Token::lookupKind("<")){
 			return error_returns;
 		}
 
 		if(this->assert_token(Token::lookupKind("<")).isError()){ return evo::resultError; }
 
+		if(this->expect_num_left(2).isError()){ return evo::resultError; }
 		if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 			this->context.emitError(
 				"Error returns parameters cannot be empty",
@@ -4071,6 +4266,7 @@ namespace pcit::panther{
 			}
 			error_returns.emplace_back(std::nullopt, single_type.value());
 
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			if(this->expect_token(
 				Token::lookupKind(">"), "at end of single type in function error return parameter block"
 			).isError()){ return evo::resultError; }
@@ -4079,6 +4275,7 @@ namespace pcit::panther{
 		}
 
 		while(true){
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind(">")){
 				if(this->assert_token(Token::lookupKind(">")).isError()){ return evo::resultError; }
 				break;
@@ -4089,6 +4286,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
+			if(this->expect_num_left(2).isError()){ return evo::resultError; }
 			if(this->expect_token(
 				Token::lookupKind(":"), "after function error return parameter identifier"
 			).isError()){
@@ -4104,6 +4302,7 @@ namespace pcit::panther{
 
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_return_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_return_next_token_kind != Token::lookupKind(",")){
 				if(after_return_next_token_kind != Token::lookupKind(">")){
@@ -4123,8 +4322,9 @@ namespace pcit::panther{
 	}
 
 
-
 	auto Parser::parse_func_call_args() -> evo::Result<evo::SmallVector<AST::FuncCall::Arg>> {
+		if(this->expect_num_left(2).isError()){ return evo::resultError; }
+
 		if(this->assert_token(Token::lookupKind("(")).isError()){ return evo::resultError; }
 		
 		auto args = evo::SmallVector<AST::FuncCall::Arg>();
@@ -4136,6 +4336,8 @@ namespace pcit::panther{
 			}
 
 			auto arg_ident = std::optional<Token::ID>();
+
+			if(this->expect_num_left(3).isError()){ return evo::resultError; }
 
 			if(
 				this->reader[this->reader.peek()].kind() == Token::Kind::IDENT &&
@@ -4153,6 +4355,7 @@ namespace pcit::panther{
 			args.emplace_back(arg_ident, expr_result.value());
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind(")")){
@@ -4172,6 +4375,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_array_init() -> evo::Result<evo::SmallVector<AST::Node>> {
+		if(this->expect_num_left(2).isError()){ return evo::resultError; }
+
 		if(this->assert_token(Token::lookupKind("[")).isError()){ return evo::resultError; }
 		
 		auto init_values = evo::SmallVector<AST::Node>();
@@ -4190,6 +4395,7 @@ namespace pcit::panther{
 			init_values.emplace_back(expr.value());
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind("]")){
@@ -4209,6 +4415,8 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_designated_init() -> evo::Result<evo::SmallVector<AST::DesignatedInitNew::MemberInit>> {
+		if(this->expect_num_left(2).isError()){ return evo::resultError; }
+
 		if(this->assert_token(Token::lookupKind("{")).isError()){ return evo::resultError; }
 		
 		auto init_values = evo::SmallVector<AST::DesignatedInitNew::MemberInit>();
@@ -4225,6 +4433,7 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 			
+			if(this->expect_num_left(3).isError()){ return evo::resultError; }
 			if(this->expect_token(Token::lookupKind("="), "after identifier in struct initializer value").isError()){
 				return evo::resultError;
 			}
@@ -4237,6 +4446,7 @@ namespace pcit::panther{
 			init_values.emplace_back(AST::ASTBuffer::getIdent(ident.value()), expr.value());
 
 			// check if ending or should continue
+			if(this->expect_num_left(1).isError()){ return evo::resultError; }
 			const Token::Kind after_arg_next_token_kind = this->reader[this->reader.next()].kind();
 			if(after_arg_next_token_kind != Token::lookupKind(",")){
 				if(after_arg_next_token_kind != Token::lookupKind("}")){
@@ -4322,6 +4532,24 @@ namespace pcit::panther{
 
 		this->expected_but_got(std::format("[{}] {}", kind, location_str), next_token_id);
 		return evo::resultError;
+	}
+
+
+	auto Parser::expect_num_left(size_t num) -> evo::Result<> {
+		if(this->reader.num_left() < num){
+			this->unexpected_eof();
+			return evo::resultError;
+		}
+
+		return evo::Result<>();
+	}
+
+	auto Parser::check_num_left(size_t num) -> bool {
+		return this->reader.num_left() >= num;
+	}
+
+	auto Parser::unexpected_eof() -> void {
+		this->context.emitError("Unexpected end of file", Diagnostic::Location::get(this->reader.last(), this->source));
 	}
 
 

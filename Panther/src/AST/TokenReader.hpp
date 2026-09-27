@@ -24,9 +24,8 @@ namespace pcit::panther{
 			TokenReader(const TokenBuffer& token_buffer) : buffer(token_buffer) {}
 			~TokenReader() = default;
 
-			[[nodiscard]] auto at_end() const -> uint32_t {
-				return this->cursor >= this->buffer.size();
-			}
+			[[nodiscard]] auto at_end() const -> bool { return this->cursor >= this->buffer.size(); }
+			[[nodiscard]] auto num_left() const -> size_t { return this->buffer.size() - this->cursor; }
 
 			[[nodiscard]] auto peek(ptrdiff_t offset = 0) const -> Token::ID {
 				const ptrdiff_t peek_location = ptrdiff_t(this->cursor) + offset;
@@ -65,6 +64,13 @@ namespace pcit::panther{
 			[[nodiscard]] auto go_back(Token::ID id) -> void {
 				evo::debugAssert(id.get() < this->cursor, "id is not before current location");
 				this->cursor = id.get();
+			}
+
+
+
+			[[nodiscard]] auto last() -> Token::ID {
+				evo::debugAssert(this->buffer.size() != 0, "Cannot get last token if buffer has no tokens");
+				return Token::ID(uint32_t(this->buffer.size() - 1));
 			}
 
 	
