@@ -28048,7 +28048,9 @@ namespace pcit::panther{
 				}
 
 			}else if constexpr(std::is_same<IdentIDType, sema::Var::ID>()){
-				if(!variables_in_scope){
+				const sema::Var& sema_var = this->context.getSemaBuffer().getVar(ident_id);
+				
+				if(!variables_in_scope && sema_var.kind != AST::VarDef::Kind::DEF){
 					this->emit_error(
 						std::format("Variable \"{}\" is not accessable in this scope", ident_str),
 						ident,
@@ -28061,7 +28063,6 @@ namespace pcit::panther{
 					return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 				}
 
-				const sema::Var& sema_var = this->context.getSemaBuffer().getVar(ident_id);
 
 
 				using ValueCategory = TermInfo::ValueCategory;

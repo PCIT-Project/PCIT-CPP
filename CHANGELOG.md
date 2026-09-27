@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.394.3"></a>
+## v0.0.394.3
+
+### Panther
+- Fixed `def` variables not being accessable in sub-functions
+
+
+<!---------------------------------->
 <a name="v0.0.394.2"></a>
 ## v0.0.394.2
 
