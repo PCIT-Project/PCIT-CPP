@@ -12835,7 +12835,7 @@ namespace pcit::panther{
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
-						IS_COMPTIME,
+						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
@@ -12863,23 +12863,57 @@ namespace pcit::panther{
 			} break;
 			
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DIMENSIONS: {
-				if constexpr(IS_COMPTIME){
-					this->emit_error(
-						"Comptime value cannot be a call to a function that is not comptime", ast_func_call.target
-					);
-					return Result::ERROR;
-				}else{
-					const BaseType::ArrayRef::ID array_ref_type_id = 
-						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+				const BaseType::ArrayRef::ID array_ref_type_id = 
+					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
 
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+
+
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+				if(may_be_comptime){
+					const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+						fake_term_info.expr.initArrayRefID()
+					);
+
+					const BaseType::ID usize_base_type_id =
+						this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID();
+
+					auto dimensions = evo::SmallVector<sema::Expr>();
+					for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
+						dimensions.emplace_back(
+							sema::Expr(
+								this->context.sema_buffer.createIntValue(
+									core::GenericInt::create<uint64_t>(dimension.as<uint64_t>()), usize_base_type_id
+								)
+							)
+						);
+					}
+
+					const sema::AggregateValue::ID created_aggregate_value_id =
+						this->context.sema_buffer.createAggregateValue(
+							std::move(dimensions),
+							this->context.getTypeManager().getTypeInfo(return_type).baseTypeID(),
+							IS_COMPTIME
+						);
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						return_type,
+						sema::Expr(created_aggregate_value_id)
+					);
+					return Result::SUCCESS;
+
+				}else{
 					const sema::ArrayRefDimensions::ID created_array_ref_dimensions =
 						this->context.sema_buffer.createArrayRefDimensions(fake_term_info.expr, array_ref_type_id);
 
-					const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
-						this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
-					);
-
-					const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
 
 					this->return_term_info(output,
 						TermInfo::ValueCategory::EPHEMERAL,
@@ -19827,7 +19861,10 @@ namespace pcit::panther{
 			} break;
 
 			default: {
-				this->emit_error("Invalid target for indexer", instr.indexer);
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(target.type_id.as<TypeInfo::ID>(), infos, "Target type: ");
+
+				this->emit_error("Invalid target for indexer", instr.indexer, std::move(infos));
 				return Result::ERROR;
 			} break;
 		}
