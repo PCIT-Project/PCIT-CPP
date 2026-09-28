@@ -31,10 +31,10 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto operator==(const ReturnParamAccessorValueStateID&) const -> bool = default;
 	};
 
-	struct OpDeleteThisAccessorValueStateID{ // this.[MEMBER] in overload operator [delete]
+	struct SpecialMemberThisAccessorValueStateID{ // this.[MEMBER] in overload operator [delete] and [move]
 		uint32_t abiIndex;
 
-		[[nodiscard]] auto operator==(const OpDeleteThisAccessorValueStateID&) const -> bool = default;
+		[[nodiscard]] auto operator==(const SpecialMemberThisAccessorValueStateID&) const -> bool = default;
 	};
 
 	struct UninitPtrLocalVar{
@@ -58,8 +58,8 @@ namespace std{
 	};
 
 	template<>
-	struct hash<pcit::panther::sema::OpDeleteThisAccessorValueStateID>{
-		auto operator()(pcit::panther::sema::OpDeleteThisAccessorValueStateID id) const noexcept -> size_t {
+	struct hash<pcit::panther::sema::SpecialMemberThisAccessorValueStateID>{
+		auto operator()(pcit::panther::sema::SpecialMemberThisAccessorValueStateID id) const noexcept -> size_t {
 			return std::hash<uint32_t>{}(id.abiIndex);
 		};
 	};
@@ -209,7 +209,7 @@ namespace pcit::panther::sema{
 				sema::ExceptParamID,
 				sema::ForParamID,
 				ReturnParamAccessorValueStateID,
-				OpDeleteThisAccessorValueStateID,
+				SpecialMemberThisAccessorValueStateID,
 				UninitPtrLocalVar
 			>;
 			enum class ValueState{

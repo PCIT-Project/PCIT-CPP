@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.395.1"></a>
+## v0.0.395.1
+
+### Panther
+- Fixed moving members of `this` in overload to `move` and `delete` needing to be in an unsafe scope
+
+
+<!---------------------------------->
 <a name="v0.0.395.0"></a>
 ## v0.0.395.0
 

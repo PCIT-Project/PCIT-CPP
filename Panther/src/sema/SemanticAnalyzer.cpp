@@ -5430,12 +5430,27 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				switch(this->source.getTokenBuffer()[current_func.name.as<Token::ID>()].kind()){
+
+
+				const Token::Kind current_func_name_token_kind =
+					this->source.getTokenBuffer()[current_func.name.as<Token::ID>()].kind();
+
+				switch(current_func_name_token_kind){
 					case Token::Kind::KEYWORD_NEW: case Token::Kind::KEYWORD_COPY: case Token::Kind::KEYWORD_MOVE: {
 						const TypeInfo& return_type = 
 							this->context.getTypeManager().getTypeInfo(func_type.returnTypes[i].asTypeID());
 						const BaseType::Struct& return_struct_type =
 							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
+
+
+						if(current_func_name_token_kind == Token::Kind::KEYWORD_MOVE){
+							for(uint32_t j = 0; j < return_struct_type.memberVarsABI.size(); j+=1){
+								this->add_ident_value_state(
+									sema::SpecialMemberThisAccessorValueStateID(j), sema::ScopeLevel::ValueState::INIT
+								);
+							}
+						}
+
 
 						SymbolProc::FuncInfo& func_info_mut =
 							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
@@ -5489,7 +5504,7 @@ namespace pcit::panther{
 
 				for(uint32_t i = 0; i < this_struct_type.memberVarsABI.size(); i+=1){
 					this->add_ident_value_state(
-						sema::OpDeleteThisAccessorValueStateID(i), sema::ScopeLevel::ValueState::INIT
+						sema::SpecialMemberThisAccessorValueStateID(i), sema::ScopeLevel::ValueState::INIT
 					);
 				}
 			}
@@ -11111,6 +11126,46 @@ namespace pcit::panther{
 		switch(target.getExpr().kind()){
 			case sema::Expr::Kind::VAR: {
 				// safe, nothing to do...
+			} break;
+
+			case sema::Expr::Kind::ACCESSOR: {
+				if(this->currently_in_unsafe()){ break; }
+
+				const sema::Accessor& accessor =
+					this->context.getSemaBuffer().getAccessor(target.getExpr().accessorID());
+
+				if(accessor.target.kind() != sema::Expr::Kind::PARAM){
+					this->emit_error(
+						"Unsafe move while not in an unsafe scope",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs)
+					);
+					return Result::ERROR;
+				}
+
+				const Token::Kind current_func_name_token_kind = this->source.getTokenBuffer()[
+					this->get_current_func().name.as<Token::ID>()
+				].kind();
+
+				if(current_func_name_token_kind == Token::Kind::KEYWORD_DELETE){
+					// safe
+
+				}else if(current_func_name_token_kind == Token::Kind::KEYWORD_MOVE){
+					const sema::Param& param = this->context.getSemaBuffer().getParam(accessor.target.paramID());
+					if(param.index != 0){
+						this->emit_error(
+							"Unsafe move while not in an unsafe scope",
+							this->source.getASTBuffer().getPrefix(instr.infix.rhs)
+						);
+						return Result::ERROR;
+					}
+
+				}else{
+					this->emit_error(
+						"Unsafe move while not in an unsafe scope",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs)
+					);
+					return Result::ERROR;
+				}
 			} break;
 
 			default: {
@@ -25823,17 +25878,28 @@ namespace pcit::panther{
 										)
 									);
 
-								}else if(
-									this->source.getTokenBuffer()[this->get_current_func().name.as<Token::ID>()].kind()
-										== Token::Kind::KEYWORD_DELETE
-									&& lhs.getExpr().kind() == sema::Expr::Kind::PARAM
-								){
-									return this->get_ident_value_state(
-										sema::OpDeleteThisAccessorValueStateID(uint32_t(i))
-									);
 								}else{
-									return TermInfo::ValueState::NOT_APPLICABLE;
+									const Token::Kind current_func_name_token_kind = this->source.getTokenBuffer()[
+										this->get_current_func().name.as<Token::ID>()
+									].kind();
+
+									if(
+										lhs.getExpr().kind() == sema::Expr::Kind::PARAM
+										&& (
+											current_func_name_token_kind == Token::Kind::KEYWORD_DELETE
+											|| current_func_name_token_kind == Token::Kind::KEYWORD_MOVE
+										)
+									){
+										return this->get_ident_value_state(
+											sema::SpecialMemberThisAccessorValueStateID(uint32_t(i))
+										);
+									}else{
+										return TermInfo::ValueState::NOT_APPLICABLE;
+									}
 								}
+
+
+
 							}
 						}();
 
@@ -29222,7 +29288,7 @@ namespace pcit::panther{
 				|| std::is_same<IDType, sema::ReturnParam::ID>()
 				|| std::is_same<IDType, sema::ErrorReturnParam::ID>()
 				|| std::is_same<IDType, sema::BlockExprOutput::ID>()
-				|| std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()
+				|| std::is_same<IDType, sema::SpecialMemberThisAccessorValueStateID>()
 			){
 				auto type_id = std::optional<TypeInfo::ID>();
 				auto expr = std::optional<evo::Variant<sema::Expr, sema::OpDeleteThisAccessor>>();
@@ -29254,7 +29320,7 @@ namespace pcit::panther{
 					type_id = this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
 					expr = sema::Expr(id);
 
-				}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+				}else if constexpr(std::is_same<IDType, sema::SpecialMemberThisAccessorValueStateID>()){
 					const BaseType::Function& current_func_type =
 						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 					const TypeInfo& this_type =
@@ -29310,7 +29376,7 @@ namespace pcit::panther{
 				|| std::is_same<IDType, sema::ReturnParam::ID>()
 				|| std::is_same<IDType, sema::ErrorReturnParam::ID>()
 				|| std::is_same<IDType, sema::BlockExprOutput::ID>()
-				|| std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()
+				|| std::is_same<IDType, sema::SpecialMemberThisAccessorValueStateID>()
 			){
 				auto type_id = std::optional<TypeInfo::ID>();
 				auto expr = std::optional<evo::Variant<sema::Expr, sema::OpDeleteThisAccessor>>();
@@ -29342,7 +29408,7 @@ namespace pcit::panther{
 					type_id = this->context.getSemaBuffer().getBlockExprOutput(id).typeID;
 					expr = sema::Expr(id);
 
-				}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+				}else if constexpr(std::is_same<IDType, sema::SpecialMemberThisAccessorValueStateID>()){
 					const BaseType::Function& current_func_type =
 						this->context.getTypeManager().getFunction(this->get_current_func().typeID);
 					const TypeInfo& this_type =
@@ -29494,10 +29560,21 @@ namespace pcit::panther{
 						const Token& current_func_name_token =
 							this->source.getTokenBuffer()[current_func_name_token_id];
 
-						if(current_func_name_token.kind() != Token::Kind::KEYWORD_DELETE){ return evo::Result<>(); }
+						if(current_func_name_token.kind() == Token::Kind::KEYWORD_DELETE){
+							// do nothing
+
+						}else if(current_func_name_token.kind() == Token::Kind::KEYWORD_MOVE){
+							const sema::Param& param =
+								this->context.getSemaBuffer().getParam(accessor.target.paramID());
+
+							if(param.index != 0){ return evo::Result<>(); }
+
+						}else{
+							return evo::Result<>();
+						}
 
 						this->set_ident_value_state(
-							sema::OpDeleteThisAccessorValueStateID(accessor.memberABIIndex), value_state
+							sema::SpecialMemberThisAccessorValueStateID(accessor.memberABIIndex), value_state
 						);
 
 						return evo::Result<>();

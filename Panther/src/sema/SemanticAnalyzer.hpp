@@ -1784,7 +1784,7 @@ namespace pcit::panther{
 					}else if constexpr(std::is_same<IDType, sema::ReturnParamAccessorValueStateID>()){
 						return this->get_location(id.id);
 
-					}else if constexpr(std::is_same<IDType, sema::OpDeleteThisAccessorValueStateID>()){
+					}else if constexpr(std::is_same<IDType, sema::SpecialMemberThisAccessorValueStateID>()){
 						return this->get_location(this->get_current_func().params[0].ident.as<Token::ID>());
 
 					}else if constexpr(std::is_same<IDType, sema::UninitPtrLocalVar>()){
