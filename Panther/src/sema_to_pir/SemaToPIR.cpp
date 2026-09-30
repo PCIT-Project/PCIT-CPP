@@ -11806,9 +11806,46 @@ namespace pcit::panther{
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
 
-				const pir::Expr register_value = this->handler.createAdd(
-					lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("ADD")
-				);
+				const pir::Expr register_value = [&]() -> pir::Expr {
+					if(this->context.getConfig().checkedIntegralMath){
+						auto op_res = std::optional<pir::Expr>();
+						auto op_wrapped = std::optional<pir::Expr>();
+
+						if(is_unsigned){
+							const pir::Expr result = this->handler.createUAddWrap(
+								lhs, rhs, this->name("ADD.VALUE"), this->name("ADD.WRAPPED")
+							);
+							op_res = this->handler.extractUAddWrapResult(result);
+							op_wrapped = this->handler.extractUAddWrapWrapped(result);
+
+						}else{
+							const pir::Expr result = this->handler.createSAddWrap(
+								lhs, rhs, this->name("ADD.VALUE"), this->name("ADD.WRAPPED")
+							);
+							op_res = this->handler.extractSAddWrapResult(result);
+							op_wrapped = this->handler.extractSAddWrapWrapped(result);
+						}
+
+						const pir::BasicBlock::ID fail_block = 
+							this->handler.createBasicBlockInline(this->name("ADD.CHECKED.FAIL"));
+						const pir::BasicBlock::ID end_block = 
+							this->handler.createBasicBlockInline(this->name("ADD.CHECKED.SUCCESS"));
+
+						this->handler.createBranch(*op_wrapped, fail_block, end_block);
+
+						this->handler.setTargetBasicBlock(fail_block);
+						this->create_unreachable("Non-modular addition operation wrapped");
+
+						this->handler.setTargetBasicBlock(end_block);
+						return *op_res;
+
+					}else{
+						return this->handler.createAdd(
+							lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("ADD")
+						);
+					}
+				}();
+
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -11932,9 +11969,46 @@ namespace pcit::panther{
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
 
-				const pir::Expr register_value = this->handler.createSub(
-					lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("SUB")
-				);
+
+				const pir::Expr register_value = [&]() -> pir::Expr {
+					if(this->context.getConfig().checkedIntegralMath){
+						auto op_res = std::optional<pir::Expr>();
+						auto op_wrapped = std::optional<pir::Expr>();
+
+						if(is_unsigned){
+							const pir::Expr result = this->handler.createUSubWrap(
+								lhs, rhs, this->name("SUB.VALUE"), this->name("SUB.WRAPPED")
+							);
+							op_res = this->handler.extractUSubWrapResult(result);
+							op_wrapped = this->handler.extractUSubWrapWrapped(result);
+
+						}else{
+							const pir::Expr result = this->handler.createSSubWrap(
+								lhs, rhs, this->name("SUB.VALUE"), this->name("SUB.WRAPPED")
+							);
+							op_res = this->handler.extractSSubWrapResult(result);
+							op_wrapped = this->handler.extractSSubWrapWrapped(result);
+						}
+
+						const pir::BasicBlock::ID fail_block = 
+							this->handler.createBasicBlockInline(this->name("SUB.CHECKED.FAIL"));
+						const pir::BasicBlock::ID end_block = 
+							this->handler.createBasicBlockInline(this->name("SUB.CHECKED.SUCCESS"));
+
+						this->handler.createBranch(*op_wrapped, fail_block, end_block);
+
+						this->handler.setTargetBasicBlock(fail_block);
+						this->create_unreachable("Non-modular addition operation wrapped");
+
+						this->handler.setTargetBasicBlock(end_block);
+						return *op_res;
+
+					}else{
+						return this->handler.createSub(
+							lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("SUB")
+						);
+					}
+				}();
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;
@@ -12058,9 +12132,45 @@ namespace pcit::panther{
 				const pir::Expr lhs = this->get_expr_register(func_call.args[0]);
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
 
-				const pir::Expr register_value = this->handler.createMul(
-					lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("MUL")
-				);
+				const pir::Expr register_value = [&]() -> pir::Expr {
+					if(this->context.getConfig().checkedIntegralMath){
+						auto op_res = std::optional<pir::Expr>();
+						auto op_wrapped = std::optional<pir::Expr>();
+
+						if(is_unsigned){
+							const pir::Expr result = this->handler.createUMulWrap(
+								lhs, rhs, this->name("MUL.VALUE"), this->name("MUL.WRAPPED")
+							);
+							op_res = this->handler.extractUMulWrapResult(result);
+							op_wrapped = this->handler.extractUMulWrapWrapped(result);
+
+						}else{
+							const pir::Expr result = this->handler.createSMulWrap(
+								lhs, rhs, this->name("MUL.VALUE"), this->name("MUL.WRAPPED")
+							);
+							op_res = this->handler.extractSMulWrapResult(result);
+							op_wrapped = this->handler.extractSMulWrapWrapped(result);
+						}
+
+						const pir::BasicBlock::ID fail_block = 
+							this->handler.createBasicBlockInline(this->name("MUL.CHECKED.FAIL"));
+						const pir::BasicBlock::ID end_block = 
+							this->handler.createBasicBlockInline(this->name("MUL.CHECKED.SUCCESS"));
+
+						this->handler.createBranch(*op_wrapped, fail_block, end_block);
+
+						this->handler.setTargetBasicBlock(fail_block);
+						this->create_unreachable("Non-modular addition operation wrapped");
+
+						this->handler.setTargetBasicBlock(end_block);
+						return *op_res;
+
+					}else{
+						return this->handler.createMul(
+							lhs, rhs, !is_unsigned & !may_wrap, is_unsigned & !may_wrap, this->name("MUL")
+						);
+					}
+				}();
 
 				if constexpr(MODE == GetExprMode::REGISTER){
 					return register_value;

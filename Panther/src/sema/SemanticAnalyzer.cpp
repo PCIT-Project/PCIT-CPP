@@ -23040,6 +23040,14 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
+							if(
+								this->currently_in_func()
+								&& this->context.getConfig().checkedIntegralMath
+								&& this->context.getConfig().runtimeErrorMode==Context::Config::RuntimeErrorMode::PANIC
+							){
+								this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+							}
+
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::ADD,
 								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
@@ -23078,6 +23086,14 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
+							if(
+								this->currently_in_func()
+								&& this->context.getConfig().checkedIntegralMath
+								&& this->context.getConfig().runtimeErrorMode==Context::Config::RuntimeErrorMode::PANIC
+							){
+								this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+							}
+
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::SUB,
 								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
@@ -23116,6 +23132,14 @@ namespace pcit::panther{
 						resultant_type = lhs.type_id.as<TypeInfo::ID>();
 
 						if(this->context.getTypeManager().isIntegral(lhs_decayed_type_id)){
+							if(
+								this->currently_in_func()
+								&& this->context.getConfig().checkedIntegralMath
+								&& this->context.getConfig().runtimeErrorMode==Context::Config::RuntimeErrorMode::PANIC
+							){
+								this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+							}
+
 							return this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
 								TemplateIntrinsicFunc::Kind::MUL,
 								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
@@ -26763,7 +26787,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				lhs.isComptime && this->context.getConfig().comptimeRunIfPossible,
+				lhs.isComptime && this->context.getConfig().autoComptime,
 				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
@@ -38535,7 +38559,7 @@ namespace pcit::panther{
 				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 					const bool comptime_run = new_func_type.attributes.isComptime
 						&& got_expr.isComptime
-						&& this->context.getConfig().comptimeRunIfPossible;
+						&& this->context.getConfig().autoComptime;
 
 					if(comptime_run){
 						const evo::Expected<sema::Expr, Result> comptime_call_res =
@@ -38731,7 +38755,7 @@ namespace pcit::panther{
 
 					const bool comptime_run = selected_func_type.attributes.isComptime
 						&& got_expr.isComptime
-						&& this->context.getConfig().comptimeRunIfPossible;
+						&& this->context.getConfig().autoComptime;
 
 					if(comptime_run){
 						const evo::Expected<sema::Expr, Result> comptime_call_res =

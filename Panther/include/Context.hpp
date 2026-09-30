@@ -97,7 +97,8 @@ namespace pcit::panther{
 				bool checkedOptionals;
 				bool checkedUnions;
 				bool checkedIndexing;
-				bool comptimeRunIfPossible;
+				bool checkedIntegralMath;
+				bool autoComptime;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -388,7 +389,8 @@ namespace pcit::panther{
 				bool checkedOptionals;
 				bool checkedUnions;
 				bool checkedIndexing;
-				bool comptimeRunIfPossible;
+				bool checkedIntegralMath;
+				bool autoComptime;
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;

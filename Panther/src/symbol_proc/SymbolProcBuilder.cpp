@@ -3953,7 +3953,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->context.getConfig().comptimeRunIfPossible){
+				if(this->context.getConfig().autoComptime){
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4012,7 +4012,7 @@ namespace pcit::panther{
 				)
 			);
 
-			if(this->context.getConfig().comptimeRunIfPossible){
+			if(this->context.getConfig().autoComptime){
 				const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 				this->add_instruction(
 					this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4218,7 +4218,7 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->context.getConfig().comptimeRunIfPossible){
+						if(this->context.getConfig().autoComptime){
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4269,7 +4269,7 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->context.getConfig().comptimeRunIfPossible){
+						if(this->context.getConfig().autoComptime){
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4312,7 +4312,7 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->context.getConfig().comptimeRunIfPossible){
+						if(this->context.getConfig().autoComptime){
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4395,7 +4395,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4442,7 +4442,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4495,7 +4495,7 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->context.getConfig().comptimeRunIfPossible){
+						if(this->context.getConfig().autoComptime){
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4538,7 +4538,7 @@ namespace pcit::panther{
 							)
 						);
 
-						if(this->context.getConfig().comptimeRunIfPossible){
+						if(this->context.getConfig().autoComptime){
 							const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 							this->add_instruction(
 								this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4587,7 +4587,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4634,7 +4634,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4682,7 +4682,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4730,7 +4730,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4778,7 +4778,7 @@ namespace pcit::panther{
 						)
 					);
 
-					if(this->context.getConfig().comptimeRunIfPossible){
+					if(this->context.getConfig().autoComptime){
 						const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 						this->add_instruction(
 							this->context.symbol_proc_manager.createComptimeFuncCallRun(
@@ -4955,7 +4955,7 @@ namespace pcit::panther{
 					)
 				);
 
-				if(this->context.getConfig().comptimeRunIfPossible){
+				if(this->context.getConfig().autoComptime){
 					const SymbolProc::TermInfoID comptime_res_term_info_id = this->create_term_info();
 					this->add_instruction(
 						this->context.symbol_proc_manager.createComptimeFuncCallRun(

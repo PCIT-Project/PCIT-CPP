@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.396.0"></a>
+## v0.0.396.0
+
+### Panther
+- Added `@build.PantherBuildConfig.checkedIntegralMath`
+- Renamed `@build.PantherBuildConfig.comptimeRunIfPossible` to `@build.PantherBuildConfig.autoComptime`
+
+
+<!---------------------------------->
 <a name="v0.0.395.1"></a>
 ## v0.0.395.1
 
