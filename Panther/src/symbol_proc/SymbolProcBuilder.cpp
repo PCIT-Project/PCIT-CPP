@@ -529,6 +529,11 @@ namespace pcit::panther{
 
 				if(name_token.kind() == Token::Kind::IDENT){
 					return name_token.getString();
+
+				}else if(name_token.kind() == Token::Kind::ESCAPE_IDENT){
+					const std::string_view escape_ident_str = name_token.getString();
+					return std::string_view(escape_ident_str.data() - 2, escape_ident_str.size() + 3);
+
 				}else{
 					return std::string_view();
 				}

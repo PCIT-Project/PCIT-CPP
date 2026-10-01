@@ -72,14 +72,16 @@ namespace pcit::panther{
 
 
 	auto Tokenizer::token_start() -> evo::Result<> {
-		const evo::Result<uint32_t> line_result = this->char_stream.get_line();
-		if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
+		{
+			const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+			if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
 
-		const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
-		if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
+			const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+			if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
 
-		this->current_token_line_start = line_result.value();
-		this->current_token_collumn_start = collumn_result.value();
+			this->current_token_line_start = line_result.value();
+			this->current_token_collumn_start = collumn_result.value();
+		}
 
 
 		switch(this->char_stream.peek()){
@@ -417,7 +419,6 @@ namespace pcit::panther{
 
 			case '0': case '1': case '2': case '3': case '4': case '5': case '6': case '7': case '8': case '9': {
 				return this->tokenize_number_literal();
-				// if(this->tokenize_number_literal()){ return evo::Result<>(); }
 			} break;
 
 			case ':': {
@@ -554,7 +555,92 @@ namespace pcit::panther{
 				return evo::Result<>();
 			} break;
 
-			case '\\': break;
+			case '\\': {
+				if(this->char_stream.ammount_left() == 1 || this->char_stream.peek(1) != '\"'){
+					this->error_unrecognized_character();
+					return evo::Result<>();
+				}
+
+				this->char_stream.skip(2);
+
+				auto token_str = std::string();
+
+				do{
+					if(this->char_stream.at_end()){
+						const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+						if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
+
+						const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+						if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
+
+						this->emit_error(
+							"Unterminated escape identifier",
+							Source::Location(
+								this->source.getID(),
+								this->current_token_line_start, line_result.value(),
+								this->current_token_collumn_start, collumn_result.value()
+							),
+							Diagnostic::Info("Expected a `\"` before the end of the file")
+						);
+						return evo::Result<>();
+					}
+
+					const char peeked_char = this->char_stream.peek();
+					if(peeked_char > 126 || peeked_char < 32){
+						const evo::Result<Source::Location> location = this->get_current_location_point();
+						if(location.isError()){ return evo::resultError; }
+
+						this->emit_error("Invalid character in escape identifier", location.value());
+						return evo::Result<>();
+					}
+
+					this->char_stream.skip(1);
+
+					if(peeked_char != '\\'){
+						token_str += peeked_char;
+
+					}else{
+						if(this->char_stream.at_end()){
+							const evo::Result<uint32_t> line_result = this->char_stream.get_line();
+							if(line_result.isError()){ this->error_line_too_big(); return evo::resultError; }
+
+							const evo::Result<uint32_t> collumn_result = this->char_stream.get_collumn();
+							if(collumn_result.isError()){ this->error_collumn_too_big(); return evo::resultError; }
+
+							this->emit_error(
+								"Unterminated escape identifier",
+								Source::Location(
+									this->source.getID(),
+									this->current_token_line_start, line_result.value(),
+									this->current_token_collumn_start, collumn_result.value()
+								),
+								Diagnostic::Info("Expected a `\"` before the end of the file")
+							);
+							return evo::Result<>();
+						}
+
+						if(this->char_stream.peek() != '"'){
+							const evo::Result<Source::Location> location = this->get_current_location_point();
+							if(location.isError()){ return evo::resultError; }
+
+							this->emit_error(
+								"Invalid escaped character in escape identifier",
+								location.value(),
+								Diagnostic::Info("The only valid escape character in an escape identifier is `\"`")
+							);
+							return evo::Result<>();
+						}
+
+						token_str += '\"';
+						this->char_stream.skip(1);
+					}
+				} while(this->char_stream.peek() != '\"');
+
+				this->char_stream.skip(1);
+
+				this->create_token(Token::Kind::ESCAPE_IDENT, std::move(token_str));
+				return evo::Result<>();
+			} break;
 
 			case ']': {
 				this->char_stream.skip(evo::stringSize("]"));
@@ -1425,8 +1511,9 @@ namespace pcit::panther{
 			}
 
 			this->create_token(Token::Kind::LITERAL_CHAR, literal_value[0]);
+
 		}else{
-			this->create_token(Token::Kind::LITERAL_STRING, literal_value);
+			this->create_token(Token::Kind::LITERAL_STRING, std::move(literal_value));
 		}
 
 

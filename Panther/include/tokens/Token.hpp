@@ -28,6 +28,7 @@ namespace pcit::panther{
 				NONE,
 
 				IDENT,
+				ESCAPE_IDENT,
 				INTRINSIC,
 				ATTRIBUTE,
 				DEDUCER,
@@ -293,7 +294,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto getString() const -> std::string_view {
 				evo::debugAssert(
 					this->_kind == Kind::LITERAL_STRING 
-					|| this->_kind == Kind::IDENT 
+					|| this->_kind == Kind::IDENT
+					|| this->_kind == Kind::ESCAPE_IDENT
 					|| this->_kind == Kind::INTRINSIC
 					|| this->_kind == Kind::ATTRIBUTE
 					|| this->_kind == Kind::DEDUCER,
@@ -409,6 +411,7 @@ namespace pcit::panther{
 					break; case Kind::NONE:                   return "{{NONE}}";
 
 					break; case Kind::IDENT:                  return "IDENTIFIER";
+					break; case Kind::ESCAPE_IDENT:           return "ESCAPE_IDENTIFIER";
 					break; case Kind::INTRINSIC:              return "INTRINSIC";
 					break; case Kind::ATTRIBUTE:              return "ATTRIBUTE";
 					break; case Kind::DEDUCER:                return "DEDUCER";

@@ -15038,12 +15038,24 @@ namespace pcit::panther{
 			if(func.name.is<Token::ID>()){
 				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
 
-				if(name_token.kind() == Token::Kind::IDENT){
-					std::string output = std::format(
-						"{}{}",
-						this->get_parent_name<false>(func.parent, func.sourceID),
-						name_token.getString()
-					);
+				if(name_token.kind() == Token::Kind::IDENT || name_token.kind() == Token::Kind::ESCAPE_IDENT){
+					std::string output = [&]() -> std::string {
+						if(name_token.kind() == Token::Kind::IDENT){
+							return std::format(
+								"{}{}",
+								this->get_parent_name<false>(func.parent, func.sourceID),
+								name_token.getString()
+							);
+							
+						}else{
+							return std::format(
+								"{}?\"{}\"",
+								this->get_parent_name<false>(func.parent, func.sourceID),
+								name_token.getString()
+							);
+						}
+					}();
+
 
 					if(func.templated_func_id.has_value()){
 						const sema::TemplatedFunc& templated_func =
@@ -15429,23 +15441,56 @@ namespace pcit::panther{
 
 			if(func.name.is<Token::ID>()){
 				const Token& name_token = source.getTokenBuffer()[func.name.as<Token::ID>()];
-				if(name_token.kind() == Token::Kind::IDENT){
+				if(name_token.kind() == Token::Kind::IDENT || name_token.kind() == Token::Kind::ESCAPE_IDENT){
 					if(this->data.getConfig().useReadableNames){
 						if constexpr(PIR_STMT_NAME_SAFE){
-							return std::format(
-								"PTHR.f{}.{}{}",
-								func_id.get(),
-								this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
-								name_token.getString()
-							);
+							if(name_token.kind() == Token::Kind::IDENT){
+								return std::format(
+									"PTHR.f{}.{}{}",
+									func_id.get(),
+									this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
+									name_token.getString()
+								);
+								
+							}else{
+								std::string output = std::format(
+									"PTHR.f{}.{}",
+									func_id.get(),
+									this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID)
+								);
+
+								for(char character : name_token.getString()){
+									if(pir::isStandardName(std::string_view(&character, 1))){
+										output += character;
+									}else{
+										output += std::format("_x{:x}", character);
+									}
+								}
+
+								return output;
+							}
+
 
 						}else{
-							std::string output = std::format(
-								"PTHR.f{}-{}{}",
-								func_id.get(),
-								this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
-								name_token.getString()
-							);
+							std::string output = [&]() -> std::string {
+								if(name_token.kind() == Token::Kind::IDENT){
+									return std::format(
+										"PTHR.f{}-{}{}",
+										func_id.get(),
+										this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
+										name_token.getString()
+									);
+									
+								}else{
+									return std::format(
+										"PTHR.f{}-{}?\"{}\"",
+										func_id.get(),
+										this->get_parent_name<PIR_STMT_NAME_SAFE>(func.parent, func.sourceID),
+										name_token.getString()
+									);
+								}								
+							}();
+
 
 							if(func.templated_func_id.has_value()){
 								const sema::TemplatedFunc& templated_func =

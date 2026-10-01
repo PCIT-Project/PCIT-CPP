@@ -3854,7 +3854,7 @@ namespace pcit::panther{
 
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 		switch(name_token.kind()){
-			case Token::Kind::IDENT: {
+			case Token::Kind::IDENT: case Token::Kind::ESCAPE_IDENT: {
 				if constexpr(IS_INSTANTIATION == false){
 					if(
 						this->symbol_proc.parent == nullptr
@@ -5116,7 +5116,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
+			const Token::Kind func_name_kind = this->source.getTokenBuffer()[instr.func_def.name].kind();
+			if(func_name_kind != Token::Kind::IDENT && func_name_kind != Token::Kind::ESCAPE_IDENT){
 				this->emit_error("Operator overloads cannot have attribute `#noReturn`", instr.func_def);
 				return Result::ERROR;
 			}
@@ -5312,7 +5313,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(this->source.getTokenBuffer()[instr.func_def.name].kind() != Token::Kind::IDENT){
+			const Token::Kind func_name_kind = this->source.getTokenBuffer()[instr.func_def.name].kind();
+			if(func_name_kind != Token::Kind::IDENT && func_name_kind != Token::Kind::ESCAPE_IDENT){
 				this->emit_error("Operator overloads cannot have attribute `#noReturn`", instr.func_def);
 				return Result::ERROR;
 			}
@@ -5810,7 +5812,7 @@ namespace pcit::panther{
 		{
 			const Token::Kind name_token_kind = this->source.getTokenBuffer()[instr.func_def.name].kind();
 
-			if(name_token_kind != Token::Kind::IDENT){
+			if(name_token_kind != Token::Kind::IDENT && name_token_kind != Token::Kind::ESCAPE_IDENT){
 				if(instr.func_def.templatePack.has_value()){
 					this->emit_error("Operator overload cannot have a template parameter pack", instr.func_def.name);
 					return Result::ERROR;
@@ -5923,7 +5925,7 @@ namespace pcit::panther{
 
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
-		if(name_token.kind() == Token::Kind::IDENT){
+		if(name_token.kind() == Token::Kind::IDENT || name_token.kind() == Token::Kind::ESCAPE_IDENT){
 			const std::string_view ident_str = name_token.getString();
 
 			const bool include_shadow_checks = [&]() -> bool {

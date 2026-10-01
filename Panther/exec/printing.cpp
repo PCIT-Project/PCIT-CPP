@@ -195,10 +195,11 @@ namespace pthr{
 
 			const std::string data_str = [&]() {
 				switch(token.kind()){
-					break; case panther::Token::Kind::IDENT:          return std::format(" {}", token.getString());
-					break; case panther::Token::Kind::INTRINSIC:      return std::format(" @{}", token.getString());
-					break; case panther::Token::Kind::ATTRIBUTE:      return std::format(" #{}", token.getString());
-					break; case panther::Token::Kind::DEDUCER:        return std::format(" ${}", token.getString());
+					break; case panther::Token::Kind::IDENT:         return std::format(" {}", token.getString());
+					break; case panther::Token::Kind::ESCAPE_IDENT:  return std::format(" \\\"{}\"", token.getString());
+					break; case panther::Token::Kind::INTRINSIC:     return std::format(" @{}", token.getString());
+					break; case panther::Token::Kind::ATTRIBUTE:     return std::format(" #{}", token.getString());
+					break; case panther::Token::Kind::DEDUCER:       return std::format(" ${}", token.getString());
 
 					break; case panther::Token::Kind::LITERAL_BOOL:   return std::format(" {}", token.getBool());
 					break; case panther::Token::Kind::LITERAL_INT:    return std::format(" {}", token.getInt());
@@ -206,8 +207,8 @@ namespace pthr{
 					break; case panther::Token::Kind::LITERAL_CHAR:   return std::format(" \'{}\'", token.getString());
 					break; case panther::Token::Kind::LITERAL_STRING: return std::format(" \"{}\"", token.getString());
 
-					break; case panther::Token::Kind::TYPE_I_N:       return std::format(" {}", token.getBitWidth());
-					break; case panther::Token::Kind::TYPE_UI_N:      return std::format(" {}", token.getBitWidth());
+					break; case panther::Token::Kind::TYPE_I_N:  return std::format(" {}", token.getBitWidth());
+					break; case panther::Token::Kind::TYPE_UI_N: return std::format(" {}", token.getBitWidth());
 
 					break; default: return std::string();
 				}
@@ -502,7 +503,7 @@ namespace pthr{
 					this->print_minor_header("Name");
 					this->printer.print(" ");
 					const panther::Token::Kind name_kind = this->source.getTokenBuffer()[func_def.name].kind();
-					if(name_kind == panther::Token::Kind::IDENT){
+					if(name_kind == panther::Token::Kind::IDENT || name_kind == panther::Token::Kind::ESCAPE_IDENT){
 						this->print_ident(func_def.name);
 
 					}else if(name_kind == panther::Token::lookupKind("[")){
@@ -2951,7 +2952,11 @@ namespace pthr{
 
 			auto print_ident(panther::Token::ID ident_token_id) const -> void {
 				const panther::Token& ident_tok = this->source.getTokenBuffer()[ident_token_id];
-				evo::debugAssert(ident_tok.kind() == panther::Token::Kind::IDENT);
+				evo::debugAssert(
+					ident_tok.kind() == panther::Token::Kind::IDENT
+						|| ident_tok.kind() == panther::Token::Kind::ESCAPE_IDENT,
+					"Not an identifier"
+				);
 				this->printer.printMagenta("{}\n", ident_tok.getString());
 			}
 

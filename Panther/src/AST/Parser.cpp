@@ -228,24 +228,25 @@ namespace pcit::panther{
 		if(this->expect_num_left(4).isError()){ return Result::Code::ERROR; }
 
 		switch(this->reader[name].kind()){
-			case Token::Kind::IDENT:        case Token::Kind::KEYWORD_COPY:   case Token::Kind::KEYWORD_MOVE:
-			case Token::Kind::KEYWORD_NEW:  case Token::Kind::KEYWORD_DELETE: case Token::Kind::KEYWORD_AS:
+			case Token::Kind::IDENT:        case Token::Kind::ESCAPE_IDENT: case Token::Kind::KEYWORD_COPY:
+			case Token::Kind::KEYWORD_MOVE: case Token::Kind::KEYWORD_NEW:  case Token::Kind::KEYWORD_DELETE:
+			case Token::Kind::KEYWORD_AS:
 
-			case Token::lookupKind("+"):    case Token::lookupKind("+%"):     case Token::lookupKind("+|"):
-			case Token::lookupKind("-"):    case Token::lookupKind("-%"):     case Token::lookupKind("-|"):
-			case Token::lookupKind("*"):    case Token::lookupKind("*%"):     case Token::lookupKind("*|"):
-			case Token::lookupKind("/"):    case Token::lookupKind("%"):      case Token::lookupKind("=="):
-			case Token::lookupKind("!="):   case Token::lookupKind("<"):      case Token::lookupKind("<="):
-			case Token::lookupKind(">"):    case Token::lookupKind(">="):     case Token::lookupKind("!"):
-			case Token::lookupKind("&&"):   case Token::lookupKind("||"):     case Token::lookupKind("<<"):
-			case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):     case Token::lookupKind("&"):
-			case Token::lookupKind("|"):    case Token::lookupKind("^"):      case Token::lookupKind("~"):
+			case Token::lookupKind("+"):    case Token::lookupKind("+%"):   case Token::lookupKind("+|"):
+			case Token::lookupKind("-"):    case Token::lookupKind("-%"):   case Token::lookupKind("-|"):
+			case Token::lookupKind("*"):    case Token::lookupKind("*%"):   case Token::lookupKind("*|"):
+			case Token::lookupKind("/"):    case Token::lookupKind("%"):    case Token::lookupKind("=="):
+			case Token::lookupKind("!="):   case Token::lookupKind("<"):    case Token::lookupKind("<="):
+			case Token::lookupKind(">"):    case Token::lookupKind(">="):   case Token::lookupKind("!"):
+			case Token::lookupKind("&&"):   case Token::lookupKind("||"):   case Token::lookupKind("<<"):
+			case Token::lookupKind("<<|"):  case Token::lookupKind(">>"):   case Token::lookupKind("&"):
+			case Token::lookupKind("|"):    case Token::lookupKind("^"):    case Token::lookupKind("~"):
 
-			case Token::lookupKind("+="):   case Token::lookupKind("+%="):    case Token::lookupKind("+|="):
-			case Token::lookupKind("-="):   case Token::lookupKind("-%="):    case Token::lookupKind("-|="):
-			case Token::lookupKind("*="):   case Token::lookupKind("*%="):    case Token::lookupKind("*|="):
-			case Token::lookupKind("/="):   case Token::lookupKind("%="):     case Token::lookupKind("<<="):
-			case Token::lookupKind("<<|="): case Token::lookupKind(">>="):    case Token::lookupKind("&="):
+			case Token::lookupKind("+="):   case Token::lookupKind("+%="):  case Token::lookupKind("+|="):
+			case Token::lookupKind("-="):   case Token::lookupKind("-%="):  case Token::lookupKind("-|="):
+			case Token::lookupKind("*="):   case Token::lookupKind("*%="):  case Token::lookupKind("*|="):
+			case Token::lookupKind("/="):   case Token::lookupKind("%="):   case Token::lookupKind("<<="):
+			case Token::lookupKind("<<|="): case Token::lookupKind(">>="):  case Token::lookupKind("&="):
 			case Token::lookupKind("|="):   case Token::lookupKind("^="): {
 				break;
 			}
@@ -291,7 +292,7 @@ namespace pcit::panther{
 			const Token::Kind member_token_kind = this->reader[name].kind();
 
 			if(member_token_kind != Token::Kind::KEYWORD_COPY && member_token_kind != Token::Kind::KEYWORD_MOVE){
-				if(member_token_kind == Token::Kind::IDENT){
+				if(member_token_kind == Token::Kind::IDENT || member_token_kind == Token::Kind::ESCAPE_IDENT){
 					this->context.emitError(
 						"Invalid deleted special method (not a special method)",
 						Diagnostic::Location::get(name, this->source),
@@ -339,7 +340,10 @@ namespace pcit::panther{
 
 			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 
-			if(this->reader[name].kind() != Token::Kind::IDENT){
+			if(
+				this->reader[name].kind() != Token::Kind::IDENT
+				&& this->reader[name].kind() != Token::Kind::ESCAPE_IDENT
+			){
 				this->context.emitError(
 					"Function alias cannot be an operator", Diagnostic::Location::get(name, this->source)
 				);
@@ -901,7 +905,7 @@ namespace pcit::panther{
 
 
 			switch(this->reader[this->reader.peek()].kind()){
-				case Token::Kind::IDENT: {
+				case Token::Kind::IDENT: case Token::Kind::ESCAPE_IDENT: {
 					if constexpr(ALLOW_METHOD_IDENTS){
 						methods.emplace_back(AST::ASTBuffer::getIdent(method_ident.value()), this->reader.next());
 					}else{
@@ -2324,8 +2328,9 @@ namespace pcit::panther{
 				}
 			} break;
 
-			case Token::Kind::IDENT:        case Token::Kind::INTRINSIC:    case Token::lookupKind("["):
-			case Token::Kind::KEYWORD_FUNC: case Token::Kind::KEYWORD_IMPL: case Token::Kind::TYPE_THIS: {
+			case Token::Kind::IDENT:     case Token::Kind::ESCAPE_IDENT: case Token::Kind::INTRINSIC:
+			case Token::lookupKind("["): case Token::Kind::KEYWORD_FUNC: case Token::Kind::KEYWORD_IMPL:
+			case Token::Kind::TYPE_THIS: {
 				is_primitive = false;
 			} break;
 
@@ -3069,6 +3074,7 @@ namespace pcit::panther{
 			if(qualifiers.empty() == false && qualifiers.back().isOptional == false){
 				switch(this->reader[this->reader.peek()].kind()){
 					case Token::Kind::IDENT:
+					case Token::Kind::ESCAPE_IDENT:
 					case Token::lookupKind("("):
 					case Token::Kind::LITERAL_BOOL:
 					case Token::Kind::LITERAL_INT:
@@ -3817,11 +3823,15 @@ namespace pcit::panther{
 	auto Parser::parse_ident() -> Result {
 		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 
-		if(this->reader[this->reader.peek()].kind() != Token::Kind::IDENT){
-			return Result::Code::WRONG_TYPE;
-		}
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::Kind::IDENT: case Token::Kind::ESCAPE_IDENT:{
+				return AST::Node(AST::Kind::IDENT, this->reader.next());
+			} break;
 
-		return AST::Node(AST::Kind::IDENT, this->reader.next());
+			default: {
+				return Result::Code::WRONG_TYPE;
+			} break;
+		}
 	}
 
 	auto Parser::parse_intrinsic() -> Result {
@@ -4340,8 +4350,11 @@ namespace pcit::panther{
 			if(this->expect_num_left(3).isError()){ return evo::resultError; }
 
 			if(
-				this->reader[this->reader.peek()].kind() == Token::Kind::IDENT &&
-				this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
+				(
+					this->reader[this->reader.peek()].kind() == Token::Kind::IDENT
+					|| this->reader[this->reader.peek()].kind() == Token::Kind::ESCAPE_IDENT
+				)
+				&& this->reader[this->reader.peek(1)].kind() == Token::lookupKind(":")
 			){
 				arg_ident = this->reader.next();
 				if(this->assert_token(Token::lookupKind(":")).isError()){ return evo::resultError; }
