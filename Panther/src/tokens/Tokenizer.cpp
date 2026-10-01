@@ -563,7 +563,7 @@ namespace pcit::panther{
 
 				this->char_stream.skip(2);
 
-				auto token_str = std::string();
+				auto token_str = std::string("\\\"");
 
 				do{
 					if(this->char_stream.at_end()){
@@ -638,7 +638,9 @@ namespace pcit::panther{
 
 				this->char_stream.skip(1);
 
-				this->create_token(Token::Kind::ESCAPE_IDENT, std::move(token_str));
+				token_str += "\"";
+
+				this->create_token(Token::Kind::ESCAPE_IDENT, std::move(token_str), 2, 3);
 				return evo::Result<>();
 			} break;
 
@@ -1513,7 +1515,7 @@ namespace pcit::panther{
 			this->create_token(Token::Kind::LITERAL_CHAR, literal_value[0]);
 
 		}else{
-			this->create_token(Token::Kind::LITERAL_STRING, std::move(literal_value));
+			this->create_token(Token::Kind::LITERAL_STRING, std::move(literal_value), 0, 0);
 		}
 
 

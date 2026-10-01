@@ -64,11 +64,15 @@ namespace pcit::panther{
 		return Token::ID(uint32_t(this->tokens.size()));
 	}
 
-	auto TokenBuffer::createToken(Token::Kind kind, Token::Location location, std::string&& value) -> Token::ID {
+	auto TokenBuffer::createToken(
+		Token::Kind kind, Token::Location location, std::string&& value, size_t front_padding, size_t size_subtraction
+	) -> Token::ID {
 		evo::debugAssert(this->is_locked == false, "Cannot add tokens as buffer is locked");
 
 		std::string& moved_value = this->string_literals.emplace_back(std::move(value));
-		return this->createToken(kind, location, static_cast<std::string_view>(moved_value));
+		return this->createToken(
+			kind, location, std::string_view(moved_value.data() + front_padding, moved_value.size() - size_subtraction)
+		);
 	}
 
 

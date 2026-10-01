@@ -305,6 +305,45 @@ namespace pcit::panther{
 				const SmallStringView& value_str = this->get_value<SmallStringView>();
 				return std::string_view(value_str.ptr, value_str.size);
 			};
+
+
+			[[nodiscard]] auto getPrintName() const -> std::string_view {
+				switch(this->kind()){
+					case Kind::LITERAL_STRING: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr - 1, value_str.size + 2);
+					} break;
+
+					case Kind::IDENT: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr, value_str.size);
+					} break;
+
+					case Kind::ESCAPE_IDENT: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr - 2, value_str.size + 3);
+					} break;
+
+					case Kind::INTRINSIC: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr - 1, value_str.size + 2);
+					} break;
+
+					case Kind::ATTRIBUTE: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr - 1, value_str.size + 2);
+					} break;
+
+					case Kind::DEDUCER: {
+						const SmallStringView& value_str = this->get_value<SmallStringView>();
+						return std::string_view(value_str.ptr - 1, value_str.size + 2);
+					} break;
+
+					default: {
+						return printKind(this->kind());
+					} break;
+				}
+			};
 			
 
 

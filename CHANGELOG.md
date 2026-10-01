@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.397.1"></a>
+## v0.0.397.1
+
+### Panther
+- Fixed some printing of types with escape indentifiers
+
+
+<!---------------------------------->
 <a name="v0.0.397.0"></a>
 ## v0.0.397.0
 

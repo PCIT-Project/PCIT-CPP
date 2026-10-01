@@ -607,6 +607,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 
 			[[nodiscard]] auto operator==(const Alias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->name == rhs.name && this->parent == rhs.parent;
@@ -626,6 +628,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 			
 			[[nodiscard]] auto operator==(const DistinctAlias& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID
@@ -783,8 +787,13 @@ namespace pcit::panther{
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 
 			[[nodiscard]] auto getMemberName(
+				const MemberVar& member, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+			[[nodiscard]] auto getMemberPrintName(
 				const MemberVar& member, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
@@ -911,12 +920,17 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 
 
 			[[nodiscard]] auto getFieldName(
+				const Field& field, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+			[[nodiscard]] auto getFieldPrintName(
 				const Field& field, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
@@ -947,11 +961,16 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
 
 			[[nodiscard]] auto getEnumeratorName(
+				const Enumerator& enumerator, const class panther::SourceManager& source_manager
+			) const -> std::string_view;
+			[[nodiscard]] auto getEnumeratorPrintName(
 				const Enumerator& enumerator, const class panther::SourceManager& source_manager
 			) const -> std::string_view;
 
@@ -1069,6 +1088,8 @@ namespace pcit::panther{
 			std::atomic<bool> defCompleted = false;
 
 			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 
 			[[nodiscard]] auto operator==(const Interface& rhs) const -> bool {
 				return this->sourceID == rhs.sourceID && this->name == rhs.name;

@@ -53,11 +53,36 @@ namespace pcit::panther{
 			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
+	auto BaseType::Alias::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
+
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
+
 
 	auto BaseType::DistinctAlias::getName(const SourceManager& source_manager) const -> std::string_view {
 		if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
+	auto BaseType::DistinctAlias::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -81,6 +106,20 @@ namespace pcit::panther{
 			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
+	auto BaseType::Struct::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
+
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
 
 
 	auto BaseType::Struct::getMemberName(const MemberVar& member, const SourceManager& source_manager) const
@@ -88,6 +127,21 @@ namespace pcit::panther{
 		if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[member.name.as<Token::ID>()].getString();
+
+		}else if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(member.name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(member.name.as<BuiltinModule::StringID>());
+		}
+	}
+	auto BaseType::Struct::getMemberPrintName(const MemberVar& member, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[member.name.as<Token::ID>()].getPrintName();
 
 		}else if(this->isCFamilyType()){
 			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
@@ -150,6 +204,20 @@ namespace pcit::panther{
 			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
+	auto BaseType::Union::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
 
 
 	auto BaseType::Union::getFieldName(const Field& field, const SourceManager& source_manager) const
@@ -161,6 +229,21 @@ namespace pcit::panther{
 		}else if(this->isPTHRSourceType()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[field.name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(field.name.as<BuiltinModule::StringID>());
+		}
+	}
+	auto BaseType::Union::getFieldPrintName(const Field& field, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(field.name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[field.name.as<Token::ID>()].getPrintName();
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -184,6 +267,20 @@ namespace pcit::panther{
 			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
 		}
 	}
+	auto BaseType::Enum::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(this->name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
 
 
 	auto BaseType::Enum::getEnumeratorName(const Enumerator& enumerator, const SourceManager& source_manager) const
@@ -201,12 +298,37 @@ namespace pcit::panther{
 			return builtin_module.getString(enumerator.name.as<BuiltinModule::StringID>());
 		}
 	}
+	auto BaseType::Enum::getEnumeratorPrintName(const Enumerator& enumerator, const SourceManager& source_manager) const
+	-> std::string_view {
+		if(this->isCFamilyType()){
+			const CFamilySource& c_family_source = source_manager[this->sourceID.as<CFamilySource::ID>()];
+			return c_family_source.getDeclInfo(enumerator.name.as<CFamilySource::DeclInfoID>()).name;
+
+		}else if(this->isPTHRSourceType()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[enumerator.name.as<Token::ID>()].getPrintName();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(enumerator.name.as<BuiltinModule::StringID>());
+		}
+	}
 
 
 	auto BaseType::Interface::getName(const SourceManager& source_manager) const -> std::string_view {
 		if(this->sourceID.is<SourceID>()){
 			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
 			return source.getTokenBuffer()[this->name.as<Token::ID>()].getString();
+
+		}else{
+			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
+			return builtin_module.getString(this->name.as<BuiltinModule::StringID>());
+		}
+	}
+	auto BaseType::Interface::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		if(this->sourceID.is<SourceID>()){
+			const Source& source = source_manager[this->sourceID.as<Source::ID>()];
+			return source.getTokenBuffer()[this->name.as<Token::ID>()].getPrintName();
 
 		}else{
 			const BuiltinModule& builtin_module = source_manager[this->sourceID.as<BuiltinModule::ID>()];
@@ -878,7 +1000,7 @@ namespace pcit::panther{
 				const BaseType::Alias& alias_type = this->getAlias(alias_id);
 
 				return this->get_parent_name(alias_type.parent, alias_type.sourceID, context) +
-					std::string(alias_type.getName(context.getSourceManager()));
+					std::string(alias_type.getPrintName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::DISTINCT_ALIAS: {
@@ -887,14 +1009,14 @@ namespace pcit::panther{
 
 
 				return this->get_parent_name(distinct_alias_type.parent, distinct_alias_type.sourceID, context) +
-					std::string(distinct_alias_type.getName(context.getSourceManager()));
+					std::string(distinct_alias_type.getPrintName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::STRUCT: {
 				const BaseType::Struct::ID struct_id = base_type_id.structID();
 				const BaseType::Struct& struct_info = this->getStruct(struct_id);
 
-				const std::string_view struct_name = struct_info.getName(context.getSourceManager());
+				const std::string_view struct_name = struct_info.getPrintName(context.getSourceManager());
 
 				auto builder = this->get_parent_name(struct_info.parent, struct_info.sourceID, context);
 
@@ -976,7 +1098,7 @@ namespace pcit::panther{
 					context.getSourceManager()[struct_template_info.sourceID].getTokenBuffer();
 
 				return this->get_parent_name(struct_template_info.parent, struct_template_info.sourceID, context) +
-					std::string(token_buffer[struct_template_info.identTokenID].getString());
+					std::string(token_buffer[struct_template_info.identTokenID].getPrintName());
 			} break;
 
 			case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: {
@@ -1055,7 +1177,7 @@ namespace pcit::panther{
 				const BaseType::Union& union_type = this->getUnion(union_id);
 
 				return this->get_parent_name(union_type.parent, union_type.sourceID, context)
-					+ std::string(union_type.getName(context.getSourceManager()));
+					+ std::string(union_type.getPrintName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::ENUM: {
@@ -1063,7 +1185,7 @@ namespace pcit::panther{
 				const BaseType::Enum& enum_type = this->getEnum(enum_id);
 
 				return this->get_parent_name(enum_type.parent, enum_type.sourceID, context)
-					+ std::string(enum_type.getName(context.getSourceManager()));
+					+ std::string(enum_type.getPrintName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::TYPE_DEDUCER: {
@@ -1092,7 +1214,7 @@ namespace pcit::panther{
 				const BaseType::Interface& interface_type = this->getInterface(interface_id);
 
 				return this->get_parent_name(interface_type.parent, interface_type.sourceID, context)
-					+ std::string(interface_type.getName(context.getSourceManager()));
+					+ std::string(interface_type.getPrintName(context.getSourceManager()));
 			} break;
 
 			case BaseType::Kind::POLY_INTERFACE_REF: {
