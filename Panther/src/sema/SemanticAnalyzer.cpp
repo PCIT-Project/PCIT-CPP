@@ -8206,11 +8206,121 @@ namespace pcit::panther{
 			}
 
 
+			const evo::Result<TypeInfo::ID> iterable_type_id_for_instantiation = [&]() -> evo::Result<TypeInfo::ID> {
+				const TypeInfo& iterable_type = this->context.getTypeManager().getTypeInfo(
+					iterable.type_id.as<TypeInfo::ID>()
+				);
+
+				if(iterable_type.qualifiers().empty() == false){ return iterable.type_id.as<TypeInfo::ID>(); }
+
+				switch(iterable_type.baseTypeID().kind()){
+					case BaseType::Kind::ARRAY: {
+						const BaseType::Array& iterable_array_type = this->context.getTypeManager().getArray(
+							iterable_type.baseTypeID().arrayID()
+						);
+
+						if(iterable_array_type.dimensions.size() == 1){
+							if(iterable_array_type.terminator.has_value()){
+								return iterable.type_id.as<TypeInfo::ID>();
+
+							}else{
+								return this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(
+										this->context.getTypeManager().getOrCreateArray(
+											BaseType::Array(
+												iterable_array_type.elementTypeID,
+												evo::copy(iterable_array_type.dimensions),
+												std::nullopt
+											)
+										)
+									)
+								);
+							}
+
+						}else{
+							const TypeInfo::ID elem_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+								TypeInfo(
+									this->context.getTypeManager().getOrCreateArray(
+										BaseType::Array(
+											iterable_array_type.elementTypeID,
+											evo::SmallVector<uint64_t>(
+												std::next(iterable_array_type.dimensions.begin()),
+												iterable_array_type.dimensions.end()
+											),
+											std::nullopt
+										)
+									)
+								)
+							);
+
+							return this->context.getTypeManager().getOrCreateTypeInfo(
+								TypeInfo(
+									this->context.getTypeManager().getOrCreateArray(
+										BaseType::Array(
+											elem_type_id,
+											evo::SmallVector<uint64_t>{iterable_array_type.dimensions[0]},
+											std::nullopt
+										)
+									)
+								)
+							);
+						}
+					} break;
+
+					case BaseType::Kind::ARRAY_REF: {
+						const BaseType::ArrayRef& iterable_array_ref_type = this->context.getTypeManager().getArrayRef(
+							iterable_type.baseTypeID().arrayRefID()
+						);
+
+						if(iterable_array_ref_type.dimensions.size() == 1){
+							if(iterable_array_ref_type.terminator.has_value()){
+								return iterable.type_id.as<TypeInfo::ID>();
+
+							}else{
+								return this->context.getTypeManager().getOrCreateTypeInfo(
+									TypeInfo(
+										this->context.getTypeManager().getOrCreateArrayRef(
+											BaseType::ArrayRef(
+												iterable_array_ref_type.elementTypeID,
+												evo::copy(iterable_array_ref_type.dimensions),
+												std::nullopt,
+												iterable_array_ref_type.isMut
+											)
+										)
+									)
+								);
+							}
+
+						}else{
+							// TODO(FUTURE): add documentation page to explain the solutions better
+							this->emit_error(
+								"Multi-dimentional array references are not iterable",
+								instr.for_stmt.iterables[i],
+								Diagnostic::Info(
+									"Either convert to a single dimension array reference "
+										"or iterate over each of the dimensions as a range "
+										"(can be gotten with `.dimension()`)"
+								)
+							);
+							return evo::resultError;
+						}
+					} break;
+
+					default: {
+						return iterable.type_id.as<TypeInfo::ID>();
+					} break;
+				}
+			}();
+
+
+			if(iterable_type_id_for_instantiation.isError()){ return Result::ERROR; }
+
+
 			const InterfaceToCheck* selected_interface = nullptr;
 			for(const InterfaceToCheck& interface_to_check : interfaces_to_check){
 				const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
 					interface_to_check.interface,
-					iterable.type_id.as<TypeInfo::ID>(),
+					iterable_type_id_for_instantiation.value(),
 					this->get_location(instr.for_stmt.iterables[i])
 				);
 
@@ -8271,7 +8381,7 @@ namespace pcit::panther{
 
 			const BaseType::Interface::Impl& iterable_impl = [&]() -> const BaseType::Interface::Impl& {
 				const auto lock = std::scoped_lock(selected_interface->interface.implsLock);
-				return selected_interface->interface.impls.at(iterable.type_id.as<TypeInfo::ID>());
+				return selected_interface->interface.impls.at(iterable_type_id_for_instantiation.value());
 			}();
 
 			{ // check if impl def completed
@@ -18470,13 +18580,6 @@ namespace pcit::panther{
 			decayed_target_type_info.baseTypeID().arrayID()
 		);
 
-		if(target_type.dimensions.size() > 1){
-			this->emit_error(
-				"Array initializer operator [new] for multi-dimensional array types is currently unimplemented",
-				instr.array_init_new.type
-			);
-			return Result::ERROR;
-		}
 
 		if(instr.values.size() != target_type.dimensions[0]){
 			this->emit_error(
@@ -18499,6 +18602,31 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		const TypeInfo::ID elem_type = [&]() -> TypeInfo::ID {
+			if(target_type.dimensions.size() == 1){
+				return target_type.elementTypeID;
+
+			}else{
+				evo::debugAssert(
+					target_type.terminator.has_value() == false, "multi-dimensional array cannot have terminator"
+				);
+
+				return this->context.getTypeManager().getOrCreateTypeInfo(
+					TypeInfo(
+						this->context.getTypeManager().getOrCreateArray(
+							BaseType::Array(
+								target_type.elementTypeID,
+								evo::SmallVector<uint64_t>(
+									std::next(target_type.dimensions.begin()), target_type.dimensions.end()
+								),
+								std::nullopt
+							)
+						)
+					)
+				);
+			}
+		}();
+
 
 		auto values = evo::SmallVector<sema::Expr>();
 		values.reserve(instr.values.size() + size_t(target_type.terminator.has_value()));
@@ -18518,7 +18646,7 @@ namespace pcit::panther{
 			}
 
 			TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
-				target_type.elementTypeID,
+				elem_type,
 				value,
 				"Value initializer",
 				this->get_location(instr.array_init_new.values[i])
@@ -18534,6 +18662,8 @@ namespace pcit::panther{
 		}
 
 		if(target_type.terminator.has_value()){
+			evo::debugAssert(target_type.dimensions.size() == 1, "multi-dimensional array cannot have terminator");
+
 			const evo::Result<sema::Expr> terminator_value = this->genericValueToSemaExpr(
 				*target_type.terminator, target_type.elementTypeID, nullptr, Diagnostic::Location::NONE
 			);
@@ -33496,244 +33626,178 @@ namespace pcit::panther{
 
 		switch(target_type.baseTypeID().kind()){
 			case BaseType::Kind::ARRAY: {
-				const BaseType::Array& array_type =
-					this->context.getTypeManager().getArray(target_type.baseTypeID().arrayID());
+				return false;
+				// IDK why this is here, saving it just in case
+
+				// const BaseType::Array& array_type =
+				// 	this->context.getTypeManager().getArray(target_type.baseTypeID().arrayID());
 
 
-				if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
+				// if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
 
-				const std::string_view interface_name = this->context.getSourceManager()
-					[interface_type.sourceID.as<BuiltinModule::ID>()]
-					.getString(interface_type.name.as<BuiltinModule::StringID>());
+				// const std::string_view interface_name = this->context.getSourceManager()
+				// 	[interface_type.sourceID.as<BuiltinModule::ID>()]
+				// 	.getString(interface_type.name.as<BuiltinModule::StringID>());
 
 
-				if(interface_name == "IIterable"){
-					if(array_type.dimensions.size() != 1){
-						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
+				// if(interface_name == "IIterable"){
+				// 	const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 		SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"),
+				// 		this->symbol_proc.getID(),
+				// 		this->context
+				// 	);
+				// 	if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 	return true;
 
-					if(array_type.terminator.has_value()){
-						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
+				// }else if(interface_name == "IIterableRT"){
+				// 	const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 		SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"),
+				// 		this->symbol_proc.getID(),
+				// 		this->context
+				// 	);
+				// 	if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 	return true;
 
-					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"),
-						this->symbol_proc.getID(),
-						this->context
-					);
-					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-					return true;
+				// }else if(interface_name == "IIterableCT"){
+				// 	const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 		SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"),
+				// 		this->symbol_proc.getID(),
+				// 		this->context
+				// 	);
+				// 	if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 	return true;
 
-				}else if(interface_name == "IIterableRT"){
-					if(array_type.dimensions.size() != 1){
-						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					if(array_type.terminator.has_value()){
-						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"),
-						this->symbol_proc.getID(),
-						this->context
-					);
-					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-					return true;
-
-				}else if(interface_name == "IIterableCT"){
-					if(array_type.dimensions.size() != 1){
-						this->emit_error("Iteration of multi-dimension arrays is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					if(array_type.terminator.has_value()){
-						this->emit_error("Iteration of arrays with terminators is currently unimplemented", location);
-						return evo::Unexpected(Result::ERROR);
-					}
-
-					const bool need_to_wait = this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-						SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"),
-						this->symbol_proc.getID(),
-						this->context
-					);
-					if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-					return true;
-
-				}else{
-					return false;
-				}
+				// }else{
+				// 	return false;
+				// }
 			} break;
 
 			case BaseType::Kind::ARRAY_REF: {
-				const BaseType::ArrayRef& array_ref_type =
-					this->context.getTypeManager().getArrayRef(target_type.baseTypeID().arrayRefID());
+				return false;
 
-				if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
+				// IDK why this is here, saving it just in case
 
-				const std::string_view interface_name = this->context.getSourceManager()
-					[interface_type.sourceID.as<BuiltinModule::ID>()]
-					.getString(interface_type.name.as<BuiltinModule::StringID>());
+				// const BaseType::ArrayRef& array_ref_type =
+				// 	this->context.getTypeManager().getArrayRef(target_type.baseTypeID().arrayRefID());
 
-				if(array_ref_type.isMut){
-					if(interface_name == "IIterableMutRef"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// if(interface_type.sourceID.is<BuiltinModule::ID>() == false){ return false; }
+
+				// const std::string_view interface_name = this->context.getSourceManager()
+				// 	[interface_type.sourceID.as<BuiltinModule::ID>()]
+				// 	.getString(interface_type.name.as<BuiltinModule::StringID>());
+
+				// if(array_ref_type.isMut){
+				// 	if(interface_name == "IIterableMutRef"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else if(interface_name == "IIterableMutRefRT"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 	}else if(interface_name == "IIterableMutRefRT"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else if(interface_name == "IIterableMutRefCT"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 	}else if(interface_name == "IIterableMutRefCT"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
 
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else{
-						return false;
-					}
-				}else{
-					if(interface_name == "IIterableRef"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 	}else{
+				// 		return false;
+				// 	}
+				// }else{
+				// 	if(interface_name == "IIterableRef"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else if(interface_name == "IIterableRefRT"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 	}else if(interface_name == "IIterableRefRT"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else if(interface_name == "IIterableRefCT"){
-						if(array_ref_type.dimensions.size() != 1){
-							this->emit_error(
-								"Iteration of multi-dimension array references is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 	}else if(interface_name == "IIterableRefCT"){
+				// 		if(array_ref_type.dimensions.size() != 1){
+				// 			this->emit_error(
+				// 				"Cannot iterate over multi-dimensional array references", location
+				// 			);
+				// 			return evo::Unexpected(Result::ERROR);
+				// 		}
 						
-						if(array_ref_type.terminator.has_value()){
-							this->emit_error(
-								"Iteration of array references with terminators is currently unimplemented", location
-							);
-							return evo::Unexpected(Result::ERROR);
-						}
+				// 		const bool need_to_wait =
+				// 			this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
+				// 				SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"),
+				// 				this->symbol_proc.getID(),
+				// 				this->context
+				// 			);
+				// 		if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
+				// 		return true;
 
-						const bool need_to_wait =
-							this->context.symbol_proc_manager.waitOnSymbolProcOfBuiltinSymbolIfNeeded(
-								SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"),
-								this->symbol_proc.getID(),
-								this->context
-							);
-						if(need_to_wait){ return evo::Unexpected(Result::NEED_TO_WAIT); }
-						return true;
-
-					}else{
-						return false;
-					}
-				}
+				// 	}else{
+				// 		return false;
+				// 	}
+				// }
 			} break;
 
 			case BaseType::Kind::STRUCT: { // check if the type impl exists in the definition of the type

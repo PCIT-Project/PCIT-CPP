@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.398.0"></a>
+## v0.0.398.0
+
+### Panther
+- Added operator `new` for multi-dimensional arrays
+- Added iteration of multi-dimensional arrays
+- Added iteration of terminated arrays and array references
+
+
+<!---------------------------------->
 <a name="v0.0.397.1"></a>
 ## v0.0.397.1
 
