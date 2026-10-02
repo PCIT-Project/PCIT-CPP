@@ -271,7 +271,7 @@ namespace pcit::panther::AST{
 			[[nodiscard]] auto createTryElse(
 				Node attemptExpr,
 				Node exceptBlock,
-				evo::SmallVector<Token::ID>&& exceptParams,
+				evo::SmallVector<TryElse::ExceptParam>&& exceptParams,
 				Token::ID elseTokenID
 			) -> Node;
 			[[nodiscard]] auto getTryElse(const Node& node) const -> const TryElse&;
@@ -280,7 +280,7 @@ namespace pcit::panther::AST{
 			[[nodiscard]] auto createTryCatch(
 				Node attemptExpr,
 				Node exceptExpr,
-				evo::SmallVector<Token::ID>&& exceptParams,
+				evo::SmallVector<TryCatch::ExceptParam>&& exceptParams,
 				Token::ID catchTokenID
 			) -> Node;
 			[[nodiscard]] auto getTryCatch(const Node& node) const -> const TryCatch&;

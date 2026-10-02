@@ -1694,7 +1694,7 @@ namespace pcit::panther{
 		if(this->reader[this->reader.peek()].kind() == Token::Kind::KEYWORD_ELSE){
 			const Token::ID else_token_id = this->reader.next();
 
-			auto except_params = evo::SmallVector<Token::ID>();
+			auto except_params = evo::SmallVector<AST::TryElse::ExceptParam>();
 
 			if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 			if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
@@ -1707,10 +1707,10 @@ namespace pcit::panther{
 						break;
 					}
 
-
 					if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+
 					if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
-						except_params.emplace_back(this->reader.next());
+						except_params.emplace_back(this->reader.next(), std::nullopt);
 
 					}else{
 						const Result ident = this->parse_ident();
@@ -1718,7 +1718,18 @@ namespace pcit::panther{
 							return Result::Code::ERROR;
 						}
 
-						except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
+						if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+						if(this->expect_token(Token::lookupKind(":"), "after except parameter identifier").isError()){
+							return Result::Code::ERROR;
+						}
+
+						const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+						if(this->check_result(type, "except parameter type").isError()){
+							return Result::Code::ERROR;
+						}
+
+
+						except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 					}
 
 					// check if ending or should continue
@@ -3346,7 +3357,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_ELSE: {
 				const Token::ID else_token_id = this->reader.next();
 
-				auto except_params = evo::SmallVector<Token::ID>();
+				auto except_params = evo::SmallVector<AST::TryElse::ExceptParam>();
 
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
 					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
@@ -3360,7 +3371,7 @@ namespace pcit::panther{
 
 						if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
 						if(this->reader[this->reader.peek()].kind() == Token::lookupKind("_")){
-							except_params.emplace_back(this->reader.next());
+							except_params.emplace_back(this->reader.next(), std::nullopt);
 
 						}else{
 							const Result ident = this->parse_ident();
@@ -3368,7 +3379,20 @@ namespace pcit::panther{
 								return Result::Code::ERROR;
 							}
 
-							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
+							if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+							if(this->expect_token(
+								Token::lookupKind(":"), "after except parameter identifier"
+							).isError()){
+								return Result::Code::ERROR;
+							}
+
+							const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+							if(this->check_result(type, "except parameter type").isError()){
+								return Result::Code::ERROR;
+							}
+
+
+							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 						}
 
 						// check if ending or should continue
@@ -3400,7 +3424,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_CATCH: {
 				const Token::ID catch_token_id = this->reader.next();
 
-				auto except_params = evo::SmallVector<Token::ID>();
+				auto except_params = evo::SmallVector<AST::TryCatch::ExceptParam>();
 
 				if(this->reader[this->reader.peek()].kind() == Token::lookupKind("<")){
 					if(this->assert_token(Token::lookupKind("<")).isError()){ return Result::Code::ERROR; }
@@ -3423,7 +3447,20 @@ namespace pcit::panther{
 								return Result::Code::ERROR;
 							}
 
-							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()));
+							if(this->expect_num_left(2).isError()){ return Result::Code::ERROR; }
+							if(this->expect_token(
+								Token::lookupKind(":"), "after except parameter identifier"
+							).isError()){
+								return Result::Code::ERROR;
+							}
+
+							const Result type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+							if(this->check_result(type, "except parameter type").isError()){
+								return Result::Code::ERROR;
+							}
+
+
+							except_params.emplace_back(AST::ASTBuffer::getIdent(ident.value()), type.value());
 						}
 
 						// check if ending or should continue
@@ -3444,7 +3481,7 @@ namespace pcit::panther{
 				}
 
 				const Result except_expr = this->parse_expr();
-				if(this->check_result(except_expr, "except expression in try/else expression").isError()){
+				if(this->check_result(except_expr, "except expression in try/catch expression").isError()){
 					return Result::Code::ERROR;
 				}
 

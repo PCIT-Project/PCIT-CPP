@@ -34,7 +34,9 @@ namespace pthr{
 			FULL = 2,
 		};
 
+
 		std::filesystem::path executablePath;
+		std::optional<std::filesystem::path> stdLibPath;
 
 		Action action                          = Action::BUILD;
 		std::optional<std::string_view> file   = std::nullopt;
@@ -44,7 +46,6 @@ namespace pthr{
 
 		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
 		panther::Context::ExecutionMode execMode     = panther::Context::ExecutionMode::INTERPRETER;
-		bool useStdLib                               = true;
 
 		auto printError(std::string_view message) -> void {
 			auto printer = core::Printer::createConsole(this->printColor);

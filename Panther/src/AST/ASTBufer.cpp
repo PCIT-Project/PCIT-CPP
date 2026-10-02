@@ -656,7 +656,7 @@ namespace pcit::panther::AST{
 	auto ASTBuffer::createTryElse(
 		Node attemptExpr,
 		Node exceptBlock,
-		evo::SmallVector<Token::ID>&& exceptParams,
+		evo::SmallVector<TryElse::ExceptParam>&& exceptParams,
 		Token::ID elseTokenID
 	) -> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
@@ -674,7 +674,7 @@ namespace pcit::panther::AST{
 	auto ASTBuffer::createTryCatch(
 		Node attemptExpr,
 		Node exceptExpr,
-		evo::SmallVector<Token::ID>&& exceptParams,
+		evo::SmallVector<TryCatch::ExceptParam>&& exceptParams,
 		Token::ID catchTokenID
 	) -> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");

@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.399.0"></a>
+## v0.0.399.0
+
+### pthr
+- Added console argument option `-stdLib`
+- Removed console argument option `-noStdLib`
+
+### Panther
+- Added explicit types to except parameters
+- Fixed missing error diagnostic for failed type checking when the expression is a fluid bool
+
+### Misc
+- Updated to [Panther-std v0.0.60.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.60.0)
+
+
+<!---------------------------------->
 <a name="v0.0.398.0"></a>
 ## v0.0.398.0
 
@@ -149,6 +165,9 @@
 - Changed `try`/`else` expressions to `try`/`catch`
 - Added `try`/`else` expressions
 	- Else is a block that's required to terminate
+
+### Misc
+- Updated to [Panther-std v0.0.59.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.59.0)
 	
 
 <!---------------------------------->

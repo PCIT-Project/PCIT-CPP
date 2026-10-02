@@ -3310,10 +3310,25 @@ namespace pcit::panther{
 			args.emplace_back(arg_value.value());
 		}
 
+		auto except_param_types = evo::SmallVector<std::optional<SymbolProc::TypeID>>();
+		except_param_types.reserve(try_else.exceptParams.size());
+		for(const AST::TryElse::ExceptParam& except_param : try_else.exceptParams){
+			if(except_param.type.has_value()){
+				const evo::Result<SymbolProc::TypeID> except_param_type = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(*except_param.type)
+				);
+				if(except_param_type.isError()){ return evo::resultError; }
+
+				except_param_types.emplace_back(except_param_type.value());
+
+			}else{
+				except_param_types.emplace_back(std::nullopt);
+			}
+		}
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createTryElseBegin(
-				try_else, target.value(), std::move(template_args), std::move(args)
+				try_else, target.value(), std::move(template_args), std::move(args), std::move(except_param_types)
 			)
 		);
 
@@ -5065,10 +5080,27 @@ namespace pcit::panther{
 		if(attempt_expr.isError()){ return evo::resultError; }
 
 
+		auto except_param_types = evo::SmallVector<std::optional<SymbolProc::TypeID>>();
+		except_param_types.reserve(try_else.exceptParams.size());
+		for(const AST::TryElse::ExceptParam& except_param : try_else.exceptParams){
+			if(except_param.type.has_value()){
+				const evo::Result<SymbolProc::TypeID> except_param_type = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(*except_param.type)
+				);
+				if(except_param_type.isError()){ return evo::resultError; }
+
+				except_param_types.emplace_back(except_param_type.value());
+
+			}else{
+				except_param_types.emplace_back(std::nullopt);
+			}
+		}
+
+
 		const SymbolProc::TermInfoID output_term_info = this->create_term_info();
 		this->add_instruction(
 			this->context.symbol_proc_manager.createBeginTryElseExpr(
-				try_else, try_else.exceptParams, attempt_expr.value(), output_term_info, try_else.elseTokenID
+				try_else, attempt_expr.value(), output_term_info, std::move(except_param_types)
 			)
 		);
 
@@ -5092,10 +5124,26 @@ namespace pcit::panther{
 			this->analyze_erroring_expr<IS_COMPTIME>(try_catch.attemptExpr, assign_target);
 		if(attempt_expr.isError()){ return evo::resultError; }
 
+		auto except_param_types = evo::SmallVector<std::optional<SymbolProc::TypeID>>();
+		except_param_types.reserve(try_catch.exceptParams.size());
+		for(const AST::TryElse::ExceptParam& except_param : try_catch.exceptParams){
+			if(except_param.type.has_value()){
+				const evo::Result<SymbolProc::TypeID> except_param_type = this->analyze_type<true>(
+					this->source.getASTBuffer().getType(*except_param.type)
+				);
+				if(except_param_type.isError()){ return evo::resultError; }
+
+				except_param_types.emplace_back(except_param_type.value());
+
+			}else{
+				except_param_types.emplace_back(std::nullopt);
+			}
+		}
+
 		const SymbolProc::TermInfoID except_params_term_info_id = this->create_term_info();
 		this->add_instruction(
 			this->context.symbol_proc_manager.createPrepareTryHandler(
-				try_catch.exceptParams, attempt_expr.value(), except_params_term_info_id, try_catch.catchTokenID
+				try_catch, attempt_expr.value(), except_params_term_info_id, std::move(except_param_types)
 			)
 		);
 

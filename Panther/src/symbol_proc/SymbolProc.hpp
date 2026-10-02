@@ -743,6 +743,7 @@ namespace pcit::panther{
 			SymbolProcTermInfoID func_call_target;
 			evo::SmallVector<SymbolProcTermInfoID> func_call_template_args;
 			evo::SmallVector<SymbolProcTermInfoID> func_call_args;
+			evo::SmallVector<std::optional<SymbolProcTypeID>> except_param_types; // nullopt if `_`
 		};
 
 		struct TryElseEnd{
@@ -1016,10 +1017,9 @@ namespace pcit::panther{
 
 		struct BeginTryElseExpr{
 			const AST::TryElse& try_else;
-			evo::ArrayProxy<Token::ID> except_params;
 			SymbolProcTermInfoID attempt_expr;
 			SymbolProcTermInfoID output;
-			Token::ID handler_kind_token_id;
+			evo::SmallVector<std::optional<SymbolProcTypeID>> except_param_types; // nullopt if `_`
 		};
 
 		struct EndTryElseExpr{
@@ -1027,10 +1027,10 @@ namespace pcit::panther{
 		};
 
 		struct PrepareTryHandler{
-			evo::ArrayProxy<Token::ID> except_params;
+			const AST::TryCatch& try_catch;
 			SymbolProcTermInfoID attempt_expr;
 			SymbolProcTermInfoID output_except_params;
-			Token::ID handler_kind_token_id;
+			evo::SmallVector<std::optional<SymbolProcTypeID>> except_param_types; // nullopt if `_`
 		};
 
 		struct TryCatchExpr{

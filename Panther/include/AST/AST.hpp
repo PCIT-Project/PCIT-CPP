@@ -496,16 +496,23 @@ namespace pcit::panther::AST{
 	};
 
 	struct TryElse{
+		struct ExceptParam{
+			Token::ID identTokenID;
+			std::optional<Node> type; // nullopt if identTokenID is `_`
+		};
+
 		Node attemptExpr;
 		Node exceptBlock;
-		evo::SmallVector<Token::ID> exceptParams;
+		evo::SmallVector<ExceptParam> exceptParams;
 		Token::ID elseTokenID;
 	};
 
 	struct TryCatch{
+		using ExceptParam = TryElse::ExceptParam;
+
 		Node attemptExpr;
 		Node exceptExpr;
-		evo::SmallVector<Token::ID> exceptParams;
+		evo::SmallVector<ExceptParam> exceptParams;
 		Token::ID catchTokenID;
 	};
 

@@ -1444,14 +1444,10 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
-	if(cmd_args_config.useStdLib){
+	if(cmd_args_config.stdLibPath.has_value()){
 		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
-				#if defined(PCIT_BUILD_RELEASE)
-					.basePath = cmd_args_config.executablePath / "Panther-std/std",
-				#else
-					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",
-				#endif
+				.basePath = *cmd_args_config.stdLibPath,
 				.name     = "std",
 				.warn     = panther::Source::Package::Warns::all(),
 				.options  = std::unordered_map<std::string_view, panther::Source::Package::Option>{
@@ -1626,14 +1622,10 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		std::make_unique<panther::Context>(panther::createDefaultDiagnosticCallback(printer), context_config);
 
 
-	if(cmd_args_config.useStdLib){
+	if(cmd_args_config.stdLibPath.has_value()){
 		const CreatePantherPackageResult std_package_id = context->getSourceManager().createPackage(
 			panther::Source::Package{
-				#if defined(PCIT_BUILD_RELEASE)
-					.basePath = cmd_args_config.executablePath / "Panther-std/std",
-				#else
-					.basePath = cmd_args_config.executablePath / "../../../../extern/Panther-std/std",
-				#endif
+				.basePath = *cmd_args_config.stdLibPath,
 				.name     = "std",
 				.warn     = panther::Source::Package::Warns::all(),
 			}

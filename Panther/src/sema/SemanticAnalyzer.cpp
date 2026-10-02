@@ -11799,21 +11799,74 @@ namespace pcit::panther{
 
 
 
-
-
-
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
 
 		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
 		except_params.reserve(instr.try_else.exceptParams.size());
-		for(size_t i = 0; const Token::ID except_param_token_id : instr.try_else.exceptParams){
+		for(size_t i = 0; const AST::TryElse::ExceptParam& except_param : instr.try_else.exceptParams){
 			EVO_DEFER([&](){ i += 1; });
 
-			const Token& except_param_token = this->source.getTokenBuffer()[except_param_token_id];
-			
-			if(except_param_token.kind() == Token::lookupKind("_")){ continue; }
+			if(except_param.type.has_value() == false){ continue; }
+
+
+			const TypeInfo::VoidableID got_type_id = this->get_type(*instr.except_param_types[i]);
+			const TypeInfo::ID expected_type_id = selected_func_type.errorTypes[i].asTypeID();
+
+
+			const auto except_param_type_mismatch = [&]() -> void {
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expected_type_id, infos, "Expected type: ");
+				this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
+				this->emit_error(
+					"Invalid except parameter type",
+					*instr.try_else.exceptParams[i].type,
+					std::move(infos)
+				);
+			};
+
+			if(got_type_id == expected_type_id){
+				// types match
+
+			}else if(got_type_id.isVoid()){
+				except_param_type_mismatch();
+				return Result::ERROR;
+
+			}else if(
+				const TypeInfo::ID got_decayed_type =
+					this->context.type_manager.decayType<false, false>(got_type_id.asTypeID());
+				got_decayed_type == this->context.type_manager.decayType<false, false>(expected_type_id)
+			){
+				// types match
+
+			}else if(this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false){
+				except_param_type_mismatch();
+				return Result::ERROR;
+
+			}else{
+				DeducerMatchOutput deducer_match_output = 
+					this->deducer_matches_and_extract(got_type_id.asTypeID(), expected_type_id);
+
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
+						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						// types match
+					} break;
+
+					case DeducerMatchOutput::Outcome::NO_MATCH: {
+						except_param_type_mismatch();
+						return Result::ERROR;
+					} break;
+
+					case DeducerMatchOutput::Outcome::RESULT: {
+						return deducer_match_output.result();
+					} break;
+				}
+			}
+
 
 			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
-				instr.try_else.exceptParams[i], uint32_t(i), selected_func_type.errorTypes[i].asTypeID()
+				instr.try_else.exceptParams[i].identTokenID, uint32_t(i), got_type_id.asTypeID()
 			);
 			except_params.emplace_back(except_param_id);
 		}
@@ -11917,7 +11970,7 @@ namespace pcit::panther{
 		for(sema::ExceptParam::ID except_param_id : except_params){
 			const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(except_param_id);
 
-			const Token::ID except_param_token_id = instr.try_else.exceptParams[except_param.index];
+			const Token::ID except_param_token_id = instr.try_else.exceptParams[except_param.index].identTokenID;
 			const Token& except_param_token = this->source.getTokenBuffer()[except_param_token_id];
 			const std::string_view except_param_ident_str = except_param_token.getString();
 
@@ -11929,6 +11982,8 @@ namespace pcit::panther{
 
 			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
 		}
+
+		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){ return Result::ERROR; }
 
 
 		return Result::SUCCESS;
@@ -19088,22 +19143,22 @@ namespace pcit::panther{
 
 		
 		if(attempt_func_type.errorTypes[0].isVoid()){
-			if(instr.except_params.size() != 0){
+			if(instr.try_else.exceptParams.size() != 0){
 				this->emit_error(
 					"Number of except parameters does not match attempt function call",
-					instr.handler_kind_token_id,
-					Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
+					instr.try_else.elseTokenID,
+					Diagnostic::Info(std::format("Expected 0, got {}", instr.try_else.exceptParams.size()))
 				);
 				return Result::ERROR;
 			}
 
-		}else if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
+		}else if(attempt_func_type.errorTypes.size() != instr.try_else.exceptParams.size()){
 			this->emit_error(
 				"Number of except parameters does not match attempt function call",
-				instr.handler_kind_token_id,
+				instr.try_else.elseTokenID,
 				Diagnostic::Info(
 					std::format(
-						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size()
+						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.try_else.exceptParams.size()
 					)
 				)
 			);
@@ -19111,33 +19166,83 @@ namespace pcit::panther{
 		}
 		
 
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
+
 		auto except_params = evo::SmallVector<sema::ExceptParam::ID>();
-		except_params.reserve(instr.except_params.size());
-		for(size_t i = 0; i < instr.except_params.size(); i+=1){
-			const Token& except_param_token = this->source.getTokenBuffer()[instr.except_params[i]];
+		except_params.reserve(instr.try_else.exceptParams.size());
+		for(size_t i = 0; const AST::TryElse::ExceptParam& except_param : instr.try_else.exceptParams){
+			EVO_DEFER([&](){ i += 1; });
 
-			if(except_param_token.kind() == Token::lookupKind("_")){ continue; }
+			if(except_param.type.has_value() == false){ continue; }
 
-			const std::string_view except_param_ident_str = except_param_token.getString();
 
-			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
-				instr.except_params[i], uint32_t(i), attempt_func_type.errorTypes[i].asTypeID()
-			);
-			except_params.emplace_back(except_param_id);
+			const TypeInfo::VoidableID got_type_id = this->get_type(*instr.except_param_types[i]);
+			const TypeInfo::ID expected_type_id = attempt_func_type.errorTypes[i].asTypeID();
 
-			if(this->add_ident_to_scope(
-				except_param_ident_str, instr.except_params[i], true, except_param_id
-			).isError()){
+
+			const auto except_param_type_mismatch = [&]() -> void {
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expected_type_id, infos, "Expected type: ");
+				this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
+				this->emit_error(
+					"Invalid except parameter type",
+					*instr.try_else.exceptParams[i].type,
+					std::move(infos)
+				);
+			};
+
+			if(got_type_id == expected_type_id){
+				// types match
+
+			}else if(got_type_id.isVoid()){
+				except_param_type_mismatch();
 				return Result::ERROR;
+
+			}else if(
+				const TypeInfo::ID got_decayed_type =
+					this->context.type_manager.decayType<false, false>(got_type_id.asTypeID());
+				got_decayed_type == this->context.type_manager.decayType<false, false>(expected_type_id)
+			){
+				// types match
+
+			}else if(this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false){
+				except_param_type_mismatch();
+				return Result::ERROR;
+
+			}else{
+				DeducerMatchOutput deducer_match_output = 
+					this->deducer_matches_and_extract(got_type_id.asTypeID(), expected_type_id);
+
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
+						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						// types match
+					} break;
+
+					case DeducerMatchOutput::Outcome::NO_MATCH: {
+						except_param_type_mismatch();
+						return Result::ERROR;
+					} break;
+
+					case DeducerMatchOutput::Outcome::RESULT: {
+						return deducer_match_output.result();
+					} break;
+				}
 			}
 
-			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
+
+			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
+				instr.try_else.exceptParams[i].identTokenID, uint32_t(i), got_type_id.asTypeID()
+			);
+			except_params.emplace_back(except_param_id);
 		}
 
 
 
+
 		const sema::TryElseExpr::ID created_try_else_expr_id = this->context.sema_buffer.createTryElseExpr(
-			attempt_expr.getExpr(), std::move(except_params), this->get_sema_location(instr.try_else)
+			attempt_expr.getExpr(), evo::copy(except_params), this->get_sema_location(instr.try_else)
 		);
 
 		sema::TryElseExpr& created_try_else_expr =
@@ -19146,6 +19251,24 @@ namespace pcit::panther{
 		this->get_current_scope_level().addSubScope(); // handle the success case
 
 		this->push_scope_level(&created_try_else_expr.elseBlock);
+
+		for(sema::ExceptParam::ID except_param_id : except_params){
+			const sema::ExceptParam& except_param = this->context.getSemaBuffer().getExceptParam(except_param_id);
+
+			const Token::ID except_param_token_id = instr.try_else.exceptParams[except_param.index].identTokenID;
+			const Token& except_param_token = this->source.getTokenBuffer()[except_param_token_id];
+			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			if(this->add_ident_to_scope(
+				except_param_ident_str, except_param_token_id, true, except_param_id
+			).isError()){
+				return Result::ERROR;
+			}
+
+			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
+		}
+
+		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){ return Result::ERROR; }
 
 		this->return_term_info(instr.output,
 			TermInfo::ValueCategory::EPHEMERAL,
@@ -19327,22 +19450,22 @@ namespace pcit::panther{
 
 		
 		if(attempt_func_type.errorTypes[0].isVoid()){
-			if(instr.except_params.size() != 0){
+			if(instr.try_catch.exceptParams.size() != 0){
 				this->emit_error(
 					"Number of except parameters does not match attempt function call",
-					instr.handler_kind_token_id,
-					Diagnostic::Info(std::format("Expected 0, got {}", instr.except_params.size()))
+					instr.try_catch.catchTokenID,
+					Diagnostic::Info(std::format("Expected 0, got {}", instr.try_catch.exceptParams.size()))
 				);
 				return Result::ERROR;
 			}
 
-		}else if(attempt_func_type.errorTypes.size() != instr.except_params.size()){
+		}else if(attempt_func_type.errorTypes.size() != instr.try_catch.exceptParams.size()){
 			this->emit_error(
 				"Number of except parameters does not match attempt function call",
-				instr.handler_kind_token_id,
+				instr.try_catch.catchTokenID,
 				Diagnostic::Info(
 					std::format(
-						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.except_params.size()
+						"Expected {}, got {}", attempt_func_type.errorTypes.size(), instr.try_catch.exceptParams.size()
 					)
 				)
 			);
@@ -19350,31 +19473,89 @@ namespace pcit::panther{
 		}
 		
 
-		auto except_params = evo::SmallVector<sema::Expr>();
-		except_params.reserve(instr.except_params.size());
-		for(size_t i = 0; i < instr.except_params.size(); i+=1){
-			const Token& except_param_token = this->source.getTokenBuffer()[instr.except_params[i]];
+		auto deduced_terms = evo::SmallVector<DeducerMatchOutput::DeducedTerm>();
 
-			if(except_param_token.kind() == Token::lookupKind("_")){
-				except_params.emplace_back(sema::Expr::createNone());
-				continue;
+		auto except_params = evo::SmallVector<sema::Expr>();
+		except_params.reserve(instr.try_catch.exceptParams.size());
+		for(size_t i = 0; i < instr.try_catch.exceptParams.size(); i+=1){
+			const AST::TryCatch::ExceptParam& except_param = instr.try_catch.exceptParams[i];
+
+			if(except_param.type.has_value() == false){ continue; }
+
+			const TypeInfo::VoidableID got_type_id = this->get_type(*instr.except_param_types[i]);
+			const TypeInfo::ID expected_type_id = attempt_func_type.errorTypes[i].asTypeID();
+
+
+			const auto except_param_type_mismatch = [&]() -> void {
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				this->diagnostic_print_type_info(expected_type_id, infos, "Expected type: ");
+				this->diagnostic_print_type_info(got_type_id, infos, "Got type:      ");
+				this->emit_error(
+					"Invalid except parameter type",
+					*instr.try_catch.exceptParams[i].type,
+					std::move(infos)
+				);
+			};
+
+			if(got_type_id == expected_type_id){
+				// types match
+
+			}else if(got_type_id.isVoid()){
+				except_param_type_mismatch();
+				return Result::ERROR;
+
+			}else if(
+				const TypeInfo::ID got_decayed_type =
+					this->context.type_manager.decayType<false, false>(got_type_id.asTypeID());
+				got_decayed_type == this->context.type_manager.decayType<false, false>(expected_type_id)
+			){
+				// types match
+
+			}else if(this->context.getTypeManager().isTypeDeducer(got_type_id.asTypeID()) == false){
+				except_param_type_mismatch();
+				return Result::ERROR;
+
+			}else{
+				DeducerMatchOutput deducer_match_output = 
+					this->deducer_matches_and_extract(got_type_id.asTypeID(), expected_type_id);
+
+				switch(deducer_match_output.outcome()){
+					case DeducerMatchOutput::Outcome::MATCH:
+					case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT: {
+						deduced_terms.append_range(std::move(deducer_match_output.deducedTerms()));
+						// types match
+					} break;
+
+					case DeducerMatchOutput::Outcome::NO_MATCH: {
+						except_param_type_mismatch();
+						return Result::ERROR;
+					} break;
+
+					case DeducerMatchOutput::Outcome::RESULT: {
+						return deducer_match_output.result();
+					} break;
+				}
 			}
 
-			const std::string_view except_param_ident_str = except_param_token.getString();
+
+			const std::string_view except_param_ident_str =
+				this->source.getTokenBuffer()[except_param.identTokenID].getString();
 
 			const sema::ExceptParam::ID except_param_id = this->context.sema_buffer.createExceptParam(
-				instr.except_params[i], uint32_t(i), attempt_func_type.errorTypes[i].asTypeID()
+				instr.try_catch.exceptParams[i].identTokenID, uint32_t(i), got_type_id.asTypeID()
 			);
 			except_params.emplace_back(sema::Expr(except_param_id));
 
 			if(this->add_ident_to_scope(
-				except_param_ident_str, instr.except_params[i], true, except_param_id
+				except_param_ident_str, instr.try_catch.exceptParams[i].identTokenID, true, except_param_id
 			).isError()){
 				return Result::ERROR;
 			}
 
 			this->add_ident_value_state(except_param_id, sema::ScopeLevel::ValueState::INIT);
 		}
+
+		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){ return Result::ERROR; }
 
 		this->return_term_info(instr.output_except_params,
 			TermInfo::ValueCategory::EXCEPT_PARAM_PACK,
@@ -38186,6 +38367,12 @@ namespace pcit::panther{
 						} break;
 
 						default: {
+							if constexpr(MAY_EMIT_ERROR){
+								this->error_type_mismatch(
+									expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
+								);
+							}
+
 							return TypeCheckInfo::fail();
 						} break;
 					}

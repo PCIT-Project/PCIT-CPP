@@ -34,9 +34,12 @@ Actions:
     help            prints the help page
 
 Options:
-	-jit            Execute via the JIT instead of the Interpreter
+    -jit            Execute via the JIT instead of the Interpreter
     -noColor        Disables color printing
-    -noStdLib       Doesn't include the standard library
+    -stdLib=VALUE   Sets the standard library
+        default     (default) use the standard library that's shipped with the compiler
+        {PATH}      Path to the standard library
+        none        No standard library
     -v=VALUE        Sets the verbosity level
         none        (default)
         some
@@ -59,7 +62,14 @@ Options:
 			#endif	
 		}();
 
-		auto cmd_args_config = pthr::CmdArgsConfig(executable_path.parent_path());
+		auto cmd_args_config = pthr::CmdArgsConfig(
+			executable_path.parent_path(),
+			#if defined(PCIT_BUILD_RELEASE)
+				executable_path.parent_path() / "Panther-std/std"
+			#else
+				executable_path.parent_path() / "../../../../extern/Panther-std/std"
+			#endif
+		);
 
 
 		if(action == "build"){
@@ -114,23 +124,49 @@ Options:
 				)
 			},
 			std::pair<std::string_view, Arg>{
-				"noStdLib",
-				Arg(
-					Arg::Kind::SINGLE,
-					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
-					-> evo::Result<> {
-						cmd_args_config.useStdLib = false;
-						return evo::Result<>();
-					}
-				)
-			},
-			std::pair<std::string_view, Arg>{
 				"noColor",
 				Arg(
 					Arg::Kind::SINGLE,
 					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
 					-> evo::Result<> {
 						cmd_args_config.printColor = false;
+						return evo::Result<>();
+					}
+				)
+			},
+			std::pair<std::string_view, Arg>{
+				"stdLib",
+				Arg(
+					Arg::Kind::ATTACHED_VALUE,
+					[](pthr::CmdArgsConfig& cmd_args_config, std::string_view value_str)
+					-> evo::Result<> {
+						if(value_str == "default"){
+							#if defined(PCIT_BUILD_RELEASE)
+								cmd_args_config.stdLibPath = cmd_args_config.executablePath / "Panther-std/std";
+							#else
+								cmd_args_config.stdLibPath =
+									cmd_args_config.executablePath / "../../../../extern/Panther-std/std";
+							#endif
+
+						}else if(value_str == "none"){
+							cmd_args_config.stdLibPath = std::nullopt;
+
+						}else{
+							auto path = std::string(value_str);
+
+							if(evo::fs::exists(path) == false){
+								cmd_args_config.printError("Path for standard library does not exist");
+								return evo::resultError;
+							}
+
+							cmd_args_config.stdLibPath = std::filesystem::path(std::move(value_str));
+
+							if(std::filesystem::is_directory(*cmd_args_config.stdLibPath) == false){
+								cmd_args_config.printError("Path for standard library isn't a directory");
+								return evo::resultError;
+							}
+						}
+
 						return evo::Result<>();
 					}
 				)
