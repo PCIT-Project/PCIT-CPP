@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.399.1"></a>
+## v0.0.399.1
+
+### Panther
+- Fixed checking for `comptimeIfCond` and `comptimeSwitchCond`
+
+
+<!---------------------------------->
 <a name="v0.0.399.0"></a>
 ## v0.0.399.0
 

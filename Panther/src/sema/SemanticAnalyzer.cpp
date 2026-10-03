@@ -7670,7 +7670,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.comptimeIfCond && cond.isComptime){
+		if(this->get_package().warn.comptimeIfCond && cond.ableToBeComptime){
 			this->emit_warning(
 				"Condition in [if] conditional is comptime",
 				instr.conditional.cond,
@@ -8956,7 +8956,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.comptimeSwitchCond && cond.isComptime){
+		if(this->get_package().warn.comptimeSwitchCond && cond.ableToBeComptime){
 			this->emit_warning(
 				"Condition in [switch] conditional is comptime",
 				instr.switch_stmt.cond,
