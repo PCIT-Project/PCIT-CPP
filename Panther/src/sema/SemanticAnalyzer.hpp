@@ -790,7 +790,11 @@ namespace pcit::panther{
 
 
 
-			[[nodiscard]] auto resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID>;
+			[[nodiscard]] auto resolve_template_decl_instantiation_type(
+				TypeInfo::ID type_id,
+				const AST::Type& ast_type,
+				const Source& decl_source
+			) -> evo::Result<TypeInfo::VoidableID>;
 
 
 
@@ -1798,7 +1802,7 @@ namespace pcit::panther{
 
 
 			[[nodiscard]] auto get_location(const auto& node) const -> Diagnostic::Location {
-				return Diagnostic::Location:: get(node, this->source);
+				return Diagnostic::Location::get(node, this->source);
 			}
 
 

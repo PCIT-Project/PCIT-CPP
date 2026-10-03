@@ -20570,28 +20570,27 @@ namespace pcit::panther{
 
 
 				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
-					if(struct_template.params[i].typeID->isTemplateDeclInstantiation()){
-						const AST::StructDef& ast_struct =
-							this->source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
-						const AST::TemplatePack& ast_template_pack = 
-							this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+					const AST::StructDef& ast_struct =
+						this->source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
+					const AST::TemplatePack& ast_template_pack = 
+						this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
 
-						const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-							this->source.getASTBuffer().getType(ast_template_pack.params[i].type)
+					const evo::Result<TypeInfo::VoidableID> resolved_type =
+						this->resolve_template_decl_instantiation_type(
+							*struct_template.params[i].typeID,
+							instantiation_source.getASTBuffer().getType(ast_template_pack.params[i].type),
+							instantiation_source
 						);
-						if(resolved_type.isError()){ return evo::resultError; }
+					if(resolved_type.isError()){ return evo::resultError; }
 
-						if(resolved_type.value().isVoid()){
-							this->emit_error(
-								"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
-							);
-							return evo::resultError;
-						}
-
-						return resolved_type.value().asTypeID();
-					}else{
-						return *struct_template.params[i].typeID;
+					if(resolved_type.value().isVoid()){
+						this->emit_error(
+							"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
+						);
+						return evo::resultError;
 					}
+
+					return resolved_type.value().asTypeID();
 				}();
 				if(expr_type_id.isError()){ return Result::ERROR; }
 				
@@ -20751,29 +20750,28 @@ namespace pcit::panther{
 
 					}else{
 						const TypeInfo::ID expr_type_id = [&]() -> TypeInfo::ID {
-							if(struct_template.params[i].typeID->isTemplateDeclInstantiation()){
-								const AST::StructDef& ast_struct = instantiation_source.getASTBuffer().getStructDef(
-									sema_templated_struct.symbolProc.ast_node
-								);
-								const AST::TemplatePack& ast_template_pack = 
-									instantiation_source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+							const AST::StructDef& ast_struct = instantiation_source.getASTBuffer().getStructDef(
+								sema_templated_struct.symbolProc.ast_node
+							);
+							const AST::TemplatePack& ast_template_pack = 
+								instantiation_source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
 
-								const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-									instantiation_source.getASTBuffer().getType(ast_template_pack.params[i].type)
-								);
-
-								evo::debugAssert(
-									resolved_type.isError() == false, "Should have already checked not an error"
+							const evo::Result<TypeInfo::VoidableID> resolved_type =
+								this->resolve_template_decl_instantiation_type(
+									*struct_template.params[i].typeID,
+									instantiation_source.getASTBuffer().getType(ast_template_pack.params[i].type),
+									instantiation_source
 								);
 
-								evo::debugAssert(
-									resolved_type.value().isVoid() == false, "Should have already checked not Void"
-								);
+							evo::debugAssert(
+								resolved_type.isError() == false, "Should have already checked not an error"
+							);
 
-								return resolved_type.value().asTypeID();
-							}else{
-								return *struct_template.params[i].typeID;
-							}
+							evo::debugAssert(
+								resolved_type.value().isVoid() == false, "Should have already checked not Void"
+							);
+
+							return resolved_type.value().asTypeID();
 						}();
 
 						return this->add_ident_to_scope(
@@ -23862,7 +23860,9 @@ namespace pcit::panther{
 		}
 
 		const bool is_deducer = [&](){
-			if(this->context.getTypeManager().isTypeDeducer(elem_type)){ return true; }
+			if(elem_type.asTypeID().isTemplateDeclInstantiation()){ return false; }
+
+			if(this->context.getTypeManager().isTypeDeducer(elem_type.asTypeID())){ return true; }
 
 			for(const SymbolProc::TermInfoID& length_term_info_id : instr.dimensions){
 				if(this->get_term_info(length_term_info_id).value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
@@ -23973,6 +23973,15 @@ namespace pcit::panther{
 
 			auto terminator = std::optional<core::GenericValue>();
 			if(instr.terminator.has_value()){
+				if(elem_type.asTypeID().isTemplateDeclInstantiation()){
+					this->emit_error(
+						"Array types where the element type is a template declaration instantiation type "
+							"cannot have a terminator",
+						*instr.array_type.terminator
+					);
+					return Result::ERROR;
+				}
+
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
@@ -24018,6 +24027,8 @@ namespace pcit::panther{
 
 
 		const bool is_deducer = [&](){
+			if(elem_type.asTypeID().isTemplateDeclInstantiation()){ return false; }
+
 			if(this->context.getTypeManager().isTypeDeducer(elem_type.asTypeID())){ return true; }
 
 			for(const std::optional<SymbolProc::TermInfoID> length_term_info_id : instr.dimensions){
@@ -24146,6 +24157,15 @@ namespace pcit::panther{
 
 			auto terminator = std::optional<core::GenericValue>();
 			if(instr.terminator.has_value()){
+				if(elem_type.asTypeID().isTemplateDeclInstantiation()){
+					this->emit_error(
+						"Array reference types where the element type is a template declaration instantiation type "
+							"cannot have a terminator",
+						*instr.array_type.terminator
+					);
+					return Result::ERROR;
+				}
+
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
 				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
@@ -24567,7 +24587,16 @@ namespace pcit::panther{
 					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
 					"`Void` cannot be a qualified type"
 				);
+
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
+
+				if(base_type_id->isTemplateDeclInstantiation()) [[unlikely]] {
+					this->return_type(
+						instr.output, TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
+					);
+					return Result::SUCCESS;
+				}
+
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
@@ -24588,7 +24617,9 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE: {
-				this->return_type(instr.output, TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation()));
+				this->return_type(
+					instr.output, TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
+				);
 				return Result::SUCCESS;
 			} break;
 
@@ -24657,7 +24688,17 @@ namespace pcit::panther{
 					this->get_term_info(instr.base_type).type_id.as<TypeInfo::VoidableID>().isVoid() == false,
 					"`Void` cannot be a qualified type"
 				);
+
 				base_type_id = term_info.type_id.as<TypeInfo::VoidableID>().asTypeID();
+
+				if(base_type_id->isTemplateDeclInstantiation()) [[unlikely]] {
+					this->return_term_info(
+						instr.output,
+						TermInfo::ValueCategory::TYPE,
+						TypeInfo::VoidableID(TypeInfo::ID::createTemplateDeclInstantiation())
+					);
+					return Result::SUCCESS;
+				}
 			} break;
 
 			case TermInfo::ValueCategory::TEMPLATE_TYPE: case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED: {
@@ -31826,25 +31867,24 @@ namespace pcit::panther{
 				}
 
 				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
-					if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
-						const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-							template_source.getASTBuffer().getType(ast_template_pack.params[i].type)
+					const evo::Result<TypeInfo::VoidableID> resolved_type =
+						this->resolve_template_decl_instantiation_type(
+							*templated_func.templateParams[i].typeID,
+							template_source.getASTBuffer().getType(ast_template_pack.params[i].type),
+							template_source
 						);
-						if(resolved_type.isError()){
-							return evo::resultError;
-						}
-
-						if(resolved_type.value().isVoid()){
-							this->emit_error(
-								"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
-							);
-							return evo::resultError;
-						}
-
-						return resolved_type.value().asTypeID();
-					}else{
-						return *templated_func.templateParams[i].typeID;
+					if(resolved_type.isError()){
+						return evo::resultError;
 					}
+
+					if(resolved_type.value().isVoid()){
+						this->emit_error(
+							"Template expression parameter cannot be type `Void`", ast_template_pack.params[i].type
+						);
+						return evo::resultError;
+					}
+
+					return resolved_type.value().asTypeID();
 				}();
 				if(expr_type_id.isError()){
 					return evo::Unexpected<TemplateOverloadMatchFail>(
@@ -32054,21 +32094,20 @@ namespace pcit::panther{
 							template_source.getASTBuffer().getTemplatePack(*ast_func.templatePack);
 
 						const TypeInfo::ID expr_type_id = [&]() -> TypeInfo::ID {
-							if(templated_func.templateParams[i].typeID->isTemplateDeclInstantiation()){
-								const evo::Result<TypeInfo::VoidableID> resolved_type = this->resolve_type(
-									template_source.getASTBuffer().getType(ast_template_pack.params[i].type)
+							const evo::Result<TypeInfo::VoidableID> resolved_type =
+								this->resolve_template_decl_instantiation_type(
+									*templated_func.templateParams[i].typeID,
+									template_source.getASTBuffer().getType(ast_template_pack.params[i].type),
+									template_source
 								);
 
-								evo::debugAssert(resolved_type.isSuccess(), "Should have already checked not an error");
+							evo::debugAssert(resolved_type.isSuccess(), "Should have already checked not an error");
 
-								evo::debugAssert(
-									resolved_type.value().isVoid() == false, "Should have already checked not Void"
-								);
+							evo::debugAssert(
+								resolved_type.value().isVoid() == false, "Should have already checked not Void"
+							);
 
-								return resolved_type.value().asTypeID();
-							}else{
-								return *templated_func.templateParams[i].typeID;
-							}
+							return resolved_type.value().asTypeID();
 						}();
 
 						return this->add_ident_to_scope(
@@ -32889,54 +32928,193 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::resolve_type(const AST::Type& type) -> evo::Result<TypeInfo::VoidableID> {
-		auto base_type_id = std::optional<BaseType::ID>();
-		switch(type.base.kind()){
-			case AST::Kind::PRIMITIVE_TYPE: {
-				evo::unimplemented("Resolve Type (PRIMITIVE_TYPE)");
-			} break;
+	auto SemanticAnalyzer::resolve_template_decl_instantiation_type(
+		TypeInfo::ID type_id, const AST::Type& ast_type, const Source& decl_source
+	) -> evo::Result<TypeInfo::VoidableID> {
+		auto syntax_base_type_id = std::optional<TypeInfo::ID>();
 
-			case AST::Kind::IDENT: {
-				const evo::Expected<TermInfo, Result> lookup_ident_result = this->lookup_ident_impl<true>(
-					this->source.getASTBuffer().getIdent(type.base)
-				);
+		if(type_id.isTemplateDeclInstantiation()){
+			const Token::ID ident_token = decl_source.getASTBuffer().getIdent(ast_type.base);
+			const std::string_view ident_str = decl_source.getTokenBuffer()[ident_token].getString();
 
-				const TypeInfo::VoidableID looked_up_ident = 
-					lookup_ident_result.value().type_id.as<TypeInfo::VoidableID>();
+			const evo::Result<std::optional<TypeInfo::VoidableID>> template_decl_instantiation = 
+				this->scope.lookupTemplateDeclInstantiationType(ident_str);
 
-				if(looked_up_ident.isVoid()){
-					if(type.qualifiers.empty() == false){
-						this->emit_error("Type `Void` cannot have qualifiers", type.base);
+			evo::debugAssert(template_decl_instantiation.isSuccess(), "This shouldn't fail");
+			evo::debugAssert(
+				template_decl_instantiation.value().has_value(), "Template decl instantiation should be set"
+			);
+
+			if(template_decl_instantiation.value().value().isVoid()){
+				if(ast_type.qualifiers.empty() == false){
+					this->emit_error("Type `Void` cannot have qualifiers", ast_type.base);
+					return evo::resultError;
+				}
+
+				return TypeInfo::VoidableID::Void();
+			}
+
+			syntax_base_type_id = template_decl_instantiation.value().value().asTypeID();
+
+		}else{
+			const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
+
+			switch(type_info.baseTypeID().kind()){
+				case BaseType::Kind::DUMMY: evo::debugFatalBreak("Invalid type");
+
+				case BaseType::Kind::PRIMITIVE: case BaseType::Kind::FUNCTION: {
+					syntax_base_type_id = type_id;
+				} break;
+
+				case BaseType::Kind::ARRAY: {
+					const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+						type_info.baseTypeID().arrayID()
+					);
+					const AST::ArrayType& ast_array_type = decl_source.getASTBuffer().getArrayType(ast_type.base);
+
+					const evo::Result<TypeInfo::VoidableID> resolved_element_type =
+						this->resolve_template_decl_instantiation_type(
+							array_type.elementTypeID,
+							decl_source.getASTBuffer().getType(ast_array_type.elemType),
+							decl_source
+						);
+					if(resolved_element_type.isError()){ return evo::resultError; }
+					if(resolved_element_type.value().isVoid()){
+						this->emit_error(
+							"Element type of an array type cannot be type `Void`",
+							Diagnostic::Location::get(
+								decl_source.getASTBuffer().getType(ast_array_type.elemType).base, decl_source
+							)
+						);
 						return evo::resultError;
 					}
 
-					return TypeInfo::VoidableID::Void();
-				}
 
-				base_type_id = this->context.getTypeManager().getTypeInfo(looked_up_ident.asTypeID()).baseTypeID();
-			} break;
+					if(resolved_element_type.value().asTypeID() == array_type.elementTypeID){
+						syntax_base_type_id = type_id;
 
-			case AST::Kind::DEDUCER: {
-				evo::unimplemented("Resolve Type (DEDUCER)");
-			} break;
+					}else{
+						syntax_base_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+							TypeInfo(
+								this->context.getTypeManager().getOrCreateArray(
+									BaseType::Array(
+										resolved_element_type.value().asTypeID(),
+										evo::copy(array_type.dimensions),
+										evo::copy(array_type.terminator)
+									)
+								)
+							)
+						);
+					}
+				} break;
 
-			case AST::Kind::TEMPLATED_EXPR: {
-				evo::unimplemented("Resolve Type (TEMPLATED_EXPR)");
-			} break;
+				case BaseType::Kind::ARRAY_DEDUCER: evo::debugFatalBreak("Cannot resolve a deducer");
 
-			case AST::Kind::INFIX: {
-				evo::unimplemented("Resolve Type (INFIX)");
-			} break;
+				case BaseType::Kind::ARRAY_REF: {
+					const BaseType::ArrayRef& array_ref_type = this->context.getTypeManager().getArrayRef(
+						type_info.baseTypeID().arrayRefID()
+					);
+					const AST::ArrayType& ast_array_ref_type = decl_source.getASTBuffer().getArrayType(ast_type.base);
 
-			case AST::Kind::TYPEID_CONVERTER: {
-				evo::unimplemented("Resolve Type (TYPEID_CONVERTER)");
-			} break;
+					const evo::Result<TypeInfo::VoidableID> resolved_element_type =
+						this->resolve_template_decl_instantiation_type(
+							array_ref_type.elementTypeID,
+							decl_source.getASTBuffer().getType(ast_array_ref_type.elemType),
+							decl_source
+						);
+					if(resolved_element_type.isError()){ return evo::resultError; }
+					if(resolved_element_type.value().isVoid()){
+						this->emit_error(
+							"Element type of an array reference type cannot be type `Void`",
+							Diagnostic::Location::get(
+								decl_source.getASTBuffer().getType(ast_array_ref_type.elemType).base, decl_source
+							)
+						);
+						return evo::resultError;
+					}
 
-			default: evo::debugFatalBreak("Should not ever be invalid type");
+
+					if(resolved_element_type.value().asTypeID() == array_ref_type.elementTypeID){
+						syntax_base_type_id = type_id;
+
+					}else{
+						syntax_base_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
+							TypeInfo(
+								this->context.getTypeManager().getOrCreateArrayRef(
+									BaseType::ArrayRef(
+										resolved_element_type.value().asTypeID(),
+										evo::copy(array_ref_type.dimensions),
+										evo::copy(array_ref_type.terminator),
+										array_ref_type.isMut
+									)
+								)
+							)
+						);
+					}
+				} break;
+
+				case BaseType::Kind::ARRAY_REF_DEDUCER: evo::debugFatalBreak("Cannot resolve a deducer");
+
+				case BaseType::Kind::ALIAS: case BaseType::Kind::DISTINCT_ALIAS: case BaseType::Kind::STRUCT: {
+					syntax_base_type_id = type_id;
+				} break;
+
+				case BaseType::Kind::STRUCT_TEMPLATE:         evo::debugFatalBreak("Cannot resolve a template");
+				case BaseType::Kind::STRUCT_TEMPLATE_DEDUCER: evo::debugFatalBreak("Cannot resolve a template");
+
+				case BaseType::Kind::UNION:               case BaseType::Kind::ENUM:
+				case BaseType::Kind::TYPE_DEDUCER:        case BaseType::Kind::INTERFACE:
+				case BaseType::Kind::POLY_INTERFACE_REF:  case BaseType::Kind::INTERFACE_MAP:
+				case BaseType::Kind::INTERFACE_PTR_MAP: {
+					syntax_base_type_id = type_id;
+				} break;
+
+			}
 		}
 
+		const TypeInfo::ID decayed_base_type_id =
+			this->context.getTypeManager().decayType<false, false>(*syntax_base_type_id);
+		const TypeInfo& decayed_base_type = this->context.getTypeManager().getTypeInfo(decayed_base_type_id);
 
-		return TypeInfo::VoidableID(this->context.type_manager.getOrCreateTypeInfo(TypeInfo(*base_type_id)));
+		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>(
+			decayed_base_type.qualifiers().begin(), decayed_base_type.qualifiers().end()
+		);
+
+		if(ast_type.qualifiers.empty() == false){
+			if(qualifiers.empty()){
+				qualifiers.reserve(ast_type.qualifiers.size());
+				for(const AST::Type::Qualifier& qualifier : ast_type.qualifiers){
+					qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+				}
+
+			}else{
+				qualifiers.reserve(qualifiers.size() + ast_type.qualifiers.size());
+
+				const bool requires_combining_of_qualifiers = qualifiers.back().isPtr
+					&& qualifiers.back().isOptional == false
+					&& ast_type.qualifiers.front().isPtr == false
+					&& ast_type.qualifiers.front().isOptional;
+
+				if(requires_combining_of_qualifiers){
+					qualifiers.back().isOptional = true;
+				}
+
+				for(size_t i = size_t(requires_combining_of_qualifiers); i < ast_type.qualifiers.size(); i+=1){
+					const AST::Type::Qualifier& qualifier = ast_type.qualifiers[i];
+
+					qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
+				}
+			}
+		}
+
+		if(this->check_type_qualifiers(qualifiers, ast_type).isError()){ return evo::resultError; }
+
+
+		return TypeInfo::VoidableID(
+			this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(decayed_base_type.baseTypeID(), std::move(qualifiers))
+			)
+		);
 	}
 
 
@@ -34774,10 +34952,10 @@ namespace pcit::panther{
 						{ // interface
 							DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
 								this->context.getTypeManager().getOrCreateTypeInfo(
-									TypeInfo(deducer_interface_ptr_map.interfaceIDasBaseTypeID())
+									TypeInfo(deducer_interface_ptr_map.interfaceIDAsBaseTypeID())
 								),
 								this->context.getTypeManager().getOrCreateTypeInfo(
-									TypeInfo(got_interface_ptr_map.interfaceIDasBaseTypeID())
+									TypeInfo(got_interface_ptr_map.interfaceIDAsBaseTypeID())
 								)
 							);
 
@@ -39912,6 +40090,8 @@ namespace pcit::panther{
 			"Message must be at least {} characters",
 			evo::stringSize(" > Alias of: ")
 		);
+
+		if(type_id.isTemplateDeclInstantiation()){ return; }
 
 
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();

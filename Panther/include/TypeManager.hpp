@@ -1103,7 +1103,7 @@ namespace pcit::panther{
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
 			bool isMut;
 
-			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+			[[nodiscard]] auto interfaceIDAsBaseTypeID() const -> BaseType::ID {
 				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
 			}
 
@@ -1117,7 +1117,7 @@ namespace pcit::panther{
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
 			
 
-			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+			[[nodiscard]] auto interfaceIDAsBaseTypeID() const -> BaseType::ID {
 				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
 			}
 
@@ -1133,7 +1133,7 @@ namespace pcit::panther{
 			bool isPolymorphic; // invalid if deducer
 
 
-			[[nodiscard]] auto interfaceIDasBaseTypeID() const -> BaseType::ID {
+			[[nodiscard]] auto interfaceIDAsBaseTypeID() const -> BaseType::ID {
 				return this->interfaceID.visit([&](const auto& id){ return BaseType::ID(id); });
 			}
 

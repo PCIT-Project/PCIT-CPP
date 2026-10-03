@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.399.2"></a>
+## v0.0.399.2
+
+### Panther
+- Fixed template type instantiation argument resolution when the type is used as the type of a template expression type argument
+
+
+<!---------------------------------->
 <a name="v0.0.399.1"></a>
 ## v0.0.399.1
 

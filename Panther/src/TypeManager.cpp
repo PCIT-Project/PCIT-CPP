@@ -475,6 +475,10 @@ namespace pcit::panther{
 	}
 
 	auto TypeManager::printType(TypeInfo::ID type_info_id, const Context& context) const -> std::string {
+		if(type_info_id.isTemplateDeclInstantiation()) [[unlikely]] {
+			return "{TEMPLATE DECL INSTANTIATION}";
+		}
+
 		const TypeInfo& type_info = this->getTypeInfo(type_info_id);
 
 		std::string type_str = this->printType(type_info.baseTypeID(), context);
@@ -1226,7 +1230,7 @@ namespace pcit::panther{
 					"impl({}:{})",
 					poly_interface_ref_info.isMut ? "*mut" : "*",
 					this->printType(
-						poly_interface_ref_info.interfaceIDasBaseTypeID(),
+						poly_interface_ref_info.interfaceIDAsBaseTypeID(),
 						context
 					)
 				);
@@ -1239,7 +1243,7 @@ namespace pcit::panther{
 					"impl({}:{})",
 					this->printType(interface_map_info.underlyingTypeID, context),
 					this->printType(
-						interface_map_info.interfaceIDasBaseTypeID(), context
+						interface_map_info.interfaceIDAsBaseTypeID(), context
 					)
 				);
 			} break;
@@ -1252,7 +1256,7 @@ namespace pcit::panther{
 					"impl{}({}:{})",
 					interface_ptr_map_info.isMut ? "*mut" : "*",
 					this->printType(interface_ptr_map_info.targetTypeID, context),
-					this->printType(interface_ptr_map_info.interfaceIDasBaseTypeID(), context)
+					this->printType(interface_ptr_map_info.interfaceIDAsBaseTypeID(), context)
 				);
 			} break;
 		}
@@ -4524,6 +4528,8 @@ namespace pcit::panther{
 
 	template<bool DECAY_DISTINCT_ALIAS, bool DECAY_INTERFACE_MAP>
 	auto TypeManager::decay_type_impl(TypeInfo::ID type_id) -> TypeInfo::ID {
+		if(type_id.isTemplateDeclInstantiation()){ return type_id; }
+
 		BaseType::ID base_type_id = BaseType::ID::dummy();
 		auto qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
 
