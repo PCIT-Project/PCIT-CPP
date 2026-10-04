@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.400.1"></a>
+## v0.0.400.1
+
+### Panther
+- Fixed error diagnostic for templated type expression arguments
+
+
+<!---------------------------------->
 <a name="v0.0.400.0"></a>
 ## v0.0.400.0
 

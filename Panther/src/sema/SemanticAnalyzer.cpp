@@ -20503,9 +20503,7 @@ namespace pcit::panther{
 
 
 					if(struct_template.params[i].isExpr()){
-						const Source& templated_struct_source = 
-							this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
-						const AST::ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
+						const AST::ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
 						const AST::StructDef& ast_struct =
 							ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
 						const AST::TemplatePack& ast_template_pack =
@@ -20530,13 +20528,6 @@ namespace pcit::panther{
 				}
 
 				if(struct_template.params[i].isType()){
-					const Source& templated_struct_source = 
-						this->context.getSourceManager()[sema_templated_struct.symbolProc.getSourceID()];
-					const AST::ASTBuffer& ast_buffer = templated_struct_source.getASTBuffer();
-					const AST::StructDef& ast_struct =
-						ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
-					const AST::TemplatePack& ast_template_pack = ast_buffer.getTemplatePack(*ast_struct.templatePack);
-
 					if(
 						arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE
 						|| arg_term_info.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED
@@ -20554,7 +20545,14 @@ namespace pcit::panther{
 							instr.templated_expr.args[i],
 							Diagnostic::Info("Type declared here:", declared_location)
 						);
+						
 					}else{
+						const AST::ASTBuffer& ast_buffer = instantiation_source.getASTBuffer();
+						const AST::StructDef& ast_struct =
+							ast_buffer.getStructDef(sema_templated_struct.symbolProc.ast_node);
+						const AST::TemplatePack& ast_template_pack =
+							ast_buffer.getTemplatePack(*ast_struct.templatePack);
+
 						this->emit_error(
 							"Expected a type template argument, got an expression",
 							instr.templated_expr.args[i],
@@ -20571,9 +20569,9 @@ namespace pcit::panther{
 
 				const evo::Result<TypeInfo::ID> expr_type_id = [&]() -> evo::Result<TypeInfo::ID> {
 					const AST::StructDef& ast_struct =
-						this->source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
+						instantiation_source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
 					const AST::TemplatePack& ast_template_pack = 
-						this->source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
+						instantiation_source.getASTBuffer().getTemplatePack(*ast_struct.templatePack);
 
 					const evo::Result<TypeInfo::VoidableID> resolved_type =
 						this->resolve_template_decl_instantiation_type(
