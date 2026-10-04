@@ -47,6 +47,8 @@ namespace pthr{
 		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
 		panther::Context::ExecutionMode execMode     = panther::Context::ExecutionMode::INTERPRETER;
 
+		[[nodiscard]] static auto useInterpreterDebugger() -> bool;
+
 		auto printError(std::string_view message) -> void {
 			auto printer = core::Printer::createConsole(this->printColor);
 			panther::printDiagnosticWithoutLocation(printer, panther::Diagnostic(
@@ -62,6 +64,8 @@ namespace pthr{
 			this->printError(std::format(fmt, std::forward<decltype(args)>(args)...));
 		};
 	};
+
+
 
 
 	auto print_help(core::Printer& printer) -> void;

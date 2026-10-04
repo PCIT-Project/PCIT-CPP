@@ -20,6 +20,15 @@
 namespace pthr{
 
 
+	static bool use_interpreter_debugger = true;
+
+	auto CmdArgsConfig::useInterpreterDebugger() -> bool {
+		return use_interpreter_debugger;
+	}
+
+
+
+
 	auto print_help(core::Printer& printer) -> void {
 		pthr::print_logo(printer);
 		pthr::print_version(printer);
@@ -28,20 +37,21 @@ namespace pthr{
 
 		printer.print(R"(
 Actions:
-    build           run the build system (if no target file is given, defaults to "./build.pthr")
-    script          run as a script (if no target file is given, defaults to "./script.pthr")
-    version         prints the current version
-    help            prints the help page
+    build                run the build system (if no target file is given, defaults to "./build.pthr")
+    script               run as a script (if no target file is given, defaults to "./script.pthr")
+    version              prints the current version
+    help                 prints the help page
 
 Options:
-    -jit            Execute via the JIT instead of the Interpreter
-    -noColor        Disables color printing
-    -stdLib=VALUE   Sets the standard library
-        default     (default) use the standard library that's shipped with the compiler
-        {PATH}      Path to the standard library
-        none        No standard library
-    -v=VALUE        Sets the verbosity level
-        none        (default)
+    -jit                 Execute via the JIT instead of the Interpreter
+    -noColor             Disables color printing
+    -noComptimeDebugger  Disables comptime debugger
+    -stdLib=VALUE        Sets the standard library
+        default          (default) use the standard library that's shipped with the compiler
+        {PATH}           Path to the standard library
+        none             
+    -v=VALUE             Sets the verbosity level
+        none             (default)
         some
         full
 
@@ -130,6 +140,19 @@ Options:
 					[](pthr::CmdArgsConfig& cmd_args_config, [[maybe_unused]] std::string_view value_str)
 					-> evo::Result<> {
 						cmd_args_config.printColor = false;
+						return evo::Result<>();
+					}
+				)
+			},
+			std::pair<std::string_view, Arg>{
+				"noInterpreterDebugger",
+				Arg(
+					Arg::Kind::SINGLE,
+					[](
+						[[maybe_unused]] pthr::CmdArgsConfig& cmd_args_config,
+						[[maybe_unused]] std::string_view value_str
+					) -> evo::Result<> {
+						use_interpreter_debugger = false;
 						return evo::Result<>();
 					}
 				)

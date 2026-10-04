@@ -290,6 +290,7 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 
 		.includeDebugInfo       = config.addDebugInfo,
 		.numThreads             = config.numThreads,
+		.useInterpreterDebugger = pthr::CmdArgsConfig::useInterpreterDebugger(),
 	};
 
 
@@ -1434,6 +1435,7 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.includeDebugInfo       = true,
 
 		.numThreads             = cmd_args_config.numBuildThreads,
+		.useInterpreterDebugger = pthr::CmdArgsConfig::useInterpreterDebugger(),
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){
@@ -1612,6 +1614,7 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		.includeDebugInfo       = true,
 
 		.numThreads             = cmd_args_config.numBuildThreads,
+		.useInterpreterDebugger = pthr::CmdArgsConfig::useInterpreterDebugger(),
 	};
 
 	if(cmd_args_config.verbosity == pthr::CmdArgsConfig::Verbosity::FULL){

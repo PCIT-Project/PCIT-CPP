@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.400.0"></a>
+## v0.0.400.0
+
+### pthr
+- Added console argument option `-noInterpreterDebugger`
+
+
+<!---------------------------------->
 <a name="v0.0.399.3"></a>
 ## v0.0.399.3
 

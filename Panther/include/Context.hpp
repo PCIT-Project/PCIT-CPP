@@ -104,8 +104,9 @@ namespace pcit::panther{
 
 				bool includeDebugInfo = true;
 				
-				uint32_t maxNumErrors = std::numeric_limits<uint32_t>::max();
-				NumThreads numThreads = NumThreads::single();
+				uint32_t maxNumErrors       = std::numeric_limits<uint32_t>::max();
+				NumThreads numThreads       = NumThreads::single();
+				bool useInterpreterDebugger = true;
 			};
 
 			struct PantherBuildConfig{

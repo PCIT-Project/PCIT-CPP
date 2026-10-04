@@ -470,13 +470,15 @@ namespace pcit::panther{
 				return evo::resultError;
 			}
 
-			this->execution_engine.setDebugger(
-				[&](pir::ExecutionEngineDebuggerInterface& debugger, const pir::Module& module)
-				-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
-					const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
-					return pir::getDefaultDebugger()(debugger, module);
-				}
-			);
+			if(this->_config.useInterpreterDebugger){
+				this->execution_engine.setDebugger(
+					[&](pir::ExecutionEngineDebuggerInterface& debugger, const pir::Module& module)
+					-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
+						const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
+						return pir::getDefaultDebugger()(debugger, module);
+					}
+				);
+			}
 
 			this->init_comptime_execution_engine_funcs();
 
