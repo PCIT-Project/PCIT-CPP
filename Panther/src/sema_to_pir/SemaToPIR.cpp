@@ -3442,6 +3442,19 @@ namespace pcit::panther{
 					);
 				}
 
+				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
+					this->get_current_scope_level().defers.emplace_back(
+						AutoDeleteTarget(iterator_alloca, iterator_type_ids[i]),
+						DeferItem::Targets{
+							.on_scope_end = false,
+							.on_return    = true,
+							.on_error     = true,
+							.on_continue  = false,
+							.on_break     = false,
+						}
+					);
+				}
+
 				for(const sema::Stmt& block_stmt : for_stmt.block){
 					this->lower_stmt(block_stmt);
 				}
@@ -3473,6 +3486,7 @@ namespace pcit::panther{
 				for(size_t i = 0; const pir::Expr& iterator_alloca : iterator_allocas){
 					this->delete_expr(iterator_alloca, iterator_type_ids[i]);
 				}
+
 
 				if(this->data.getConfig().includeDebugInfo){
 					this->handler.popSourceLocation();

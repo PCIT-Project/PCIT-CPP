@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.399.3"></a>
+## v0.0.399.3
+
+### Panther
+- Fixed operator `delete` of iterators not being called when a `return` or `error` occurs in the main body of a `for` loop
+
+
+<!---------------------------------->
 <a name="v0.0.399.2"></a>
 ## v0.0.399.2
 
