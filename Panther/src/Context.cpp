@@ -3472,10 +3472,10 @@ namespace pcit::panther{
 
 
 
-		pthr_module.createSymbol("AtomicOrdering", this->type_manager.createEnum(
+		pthr_module.createSymbol("_AtomicOrdering", this->type_manager.createEnum(
 			BaseType::Enum{
 				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("AtomicOrdering"),
+				.name              = pthr_module.createString("_AtomicOrdering"),
 				.parent            = std::nullopt,
 				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
@@ -3519,10 +3519,10 @@ namespace pcit::panther{
 		));
 
 
-		pthr_module.createSymbol("AtomicRMWOp", this->type_manager.createEnum(
+		pthr_module.createSymbol("_AtomicRMWOp", this->type_manager.createEnum(
 			BaseType::Enum{
 				.sourceID          = BuiltinModule::ID::PTHR,
-				.name              = pthr_module.createString("AtomicRMWOp"),
+				.name              = pthr_module.createString("_AtomicRMWOp"),
 				.parent            = std::nullopt,
 				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
 					BaseType::Enum::Enumerator(
@@ -3591,12 +3591,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterator
+		// _IIterator
 
 		const BaseType::ID iterator_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterator"),
+				pthr_module.createString("_IIterator"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3604,7 +3604,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterator", iterator_id);
+		pthr_module.createSymbol("_IIterator", iterator_id);
 
 		{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_id));
@@ -3655,12 +3655,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IMutIterator
+		// _IMutIterator
 
 		const BaseType::ID mut_iterator_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IMutIterator"),
+				pthr_module.createString("_IMutIterator"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3668,7 +3668,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IMutIterator", mut_iterator_id);
+		pthr_module.createSymbol("_IMutIterator", mut_iterator_id);
 
 		{
 			const TypeInfo::ID mut_iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_id));
@@ -3718,12 +3718,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterable
+		// _IIterable
 
 		const BaseType::ID iterable_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterable"),
+				pthr_module.createString("_IIterable"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3731,7 +3731,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterable", iterable_id);
+		pthr_module.createSymbol("_IIterable", iterable_id);
 
 		{
 			const TypeInfo::ID iterable_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_id));
@@ -3789,12 +3789,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableRef
+		// _IIterableRef
 
 		const BaseType::ID iterable_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableRef"),
+				pthr_module.createString("_IIterableRef"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3802,7 +3802,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableRef", iterable_ref_id);
+		pthr_module.createSymbol("_IIterableRef", iterable_ref_id);
 
 		{
 			const TypeInfo::ID iterable_ref_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_ref_id));
@@ -3837,12 +3837,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableMutRef
+		// _IIterableMutRef
 
 		const BaseType::ID iterable_mut_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableMutRef"),
+				pthr_module.createString("_IIterableMutRef"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3850,7 +3850,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableMutRef", iterable_mut_ref_id);
+		pthr_module.createSymbol("_IIterableMutRef", iterable_mut_ref_id);
 
 		{
 			const TypeInfo::ID iterable_mut_ref_type_id =
@@ -3888,12 +3888,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIteratorRT
+		// _IIteratorRT
 
 		const BaseType::ID iterator_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIteratorRT"),
+				pthr_module.createString("_IIteratorRT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3901,7 +3901,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIteratorRT", iterator_rt_id);
+		pthr_module.createSymbol("_IIteratorRT", iterator_rt_id);
 
 		{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_rt_id));
@@ -3952,12 +3952,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IMutIteratorRT
+		// _IMutIteratorRT
 
 		const BaseType::ID mut_iterator_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IMutIteratorRT"),
+				pthr_module.createString("_IMutIteratorRT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -3965,7 +3965,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IMutIteratorRT", mut_iterator_rt_id);
+		pthr_module.createSymbol("_IMutIteratorRT", mut_iterator_rt_id);
 
 		{
 			const TypeInfo::ID mut_iterator_type_id =
@@ -4017,12 +4017,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableRT
+		// _IIterableRT
 
 		const BaseType::ID iterable_rt_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableRT"),
+				pthr_module.createString("_IIterableRT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4030,7 +4030,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableRT", iterable_rt_id);
+		pthr_module.createSymbol("_IIterableRT", iterable_rt_id);
 
 		{
 			const TypeInfo::ID iterable_rt_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_rt_id));
@@ -4088,12 +4088,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableRefRT
+		// _IIterableRefRT
 
 		const BaseType::ID iterable_rt_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableRefRT"),
+				pthr_module.createString("_IIterableRefRT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4101,7 +4101,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableRefRT", iterable_rt_ref_id);
+		pthr_module.createSymbol("_IIterableRefRT", iterable_rt_ref_id);
 
 		{
 			const TypeInfo::ID iterable_rt_ref_type_id =
@@ -4140,12 +4140,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableMutRefRT
+		// _IIterableMutRefRT
 
 		const BaseType::ID iterable_rt_mut_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableMutRefRT"),
+				pthr_module.createString("_IIterableMutRefRT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4153,7 +4153,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableMutRefRT", iterable_rt_mut_ref_id);
+		pthr_module.createSymbol("_IIterableMutRefRT", iterable_rt_mut_ref_id);
 
 		{
 			const TypeInfo::ID iterable_rt_mut_ref_type_id =
@@ -4191,12 +4191,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIteratorCT
+		// _IIteratorCT
 
 		const BaseType::ID iterator_ct_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIteratorCT"),
+				pthr_module.createString("_IIteratorCT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4204,7 +4204,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIteratorCT", iterator_ct_id);
+		pthr_module.createSymbol("_IIteratorCT", iterator_ct_id);
 
 		{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_ct_id));
@@ -4255,12 +4255,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IMutIteratorCT
+		// _IMutIteratorCT
 
 		const BaseType::ID mut_iterator_ct_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IMutIteratorCT"),
+				pthr_module.createString("_IMutIteratorCT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4268,7 +4268,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IMutIteratorCT", mut_iterator_ct_id);
+		pthr_module.createSymbol("_IMutIteratorCT", mut_iterator_ct_id);
 
 		{
 			const TypeInfo::ID mut_iterator_type_id =
@@ -4320,12 +4320,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableCT
+		// _IIterableCT
 
 		const BaseType::ID iterable_ct_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableCT"),
+				pthr_module.createString("_IIterableCT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4333,7 +4333,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableCT", iterable_ct_id);
+		pthr_module.createSymbol("_IIterableCT", iterable_ct_id);
 
 		{
 			const TypeInfo::ID iterable_ct_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_ct_id));
@@ -4391,12 +4391,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableRefCT
+		// _IIterableRefCT
 
 		const BaseType::ID iterable_ct_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableRefCT"),
+				pthr_module.createString("_IIterableRefCT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4404,7 +4404,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableRefCT", iterable_ct_ref_id);
+		pthr_module.createSymbol("_IIterableRefCT", iterable_ct_ref_id);
 
 		{
 			const TypeInfo::ID iterable_ct_ref_type_id =
@@ -4443,12 +4443,12 @@ namespace pcit::panther{
 
 
 		//////////////////
-		// IIterableMutRefCT
+		// _IIterableMutRefCT
 
 		const BaseType::ID iterable_ct_mut_ref_id = this->type_manager.createInterface(
 			BaseType::Interface(
 				BuiltinModule::ID::PTHR,
-				pthr_module.createString("IIterableMutRefCT"),
+				pthr_module.createString("_IIterableMutRefCT"),
 				std::nullopt,
 				std::nullopt,
 				false,
@@ -4456,7 +4456,7 @@ namespace pcit::panther{
 			)
 		);
 
-		pthr_module.createSymbol("IIterableMutRefCT", iterable_ct_mut_ref_id);
+		pthr_module.createSymbol("_IIterableMutRefCT", iterable_ct_mut_ref_id);
 
 		{
 			const TypeInfo::ID iterable_ct_mut_ref_type_id =
@@ -4611,7 +4611,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.print = this->pir_module.createExternalFunction(
-			"@ctPrint",
+			"@_ctPrint",
 			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
@@ -4624,7 +4624,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.println = this->pir_module.createExternalFunction(
-			"@ctPrintln",
+			"@_ctPrintln",
 			evo::SmallVector<pir::Parameter>{pir::Parameter("str", pir::Module::createPtrType())},
 			pir::CallingConvention::C,
 			pir::Linkage::EXTERNAL,
@@ -4637,7 +4637,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.get_integer_type_id = this->pir_module.createExternalFunction(
-			"@ctGetIntegerTypeID",
+			"@_ctGetIntegerTypeID",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("width", pir::Module::createUnsignedType(32)),
@@ -4666,7 +4666,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.alloc = this->pir_module.createExternalFunction(
-			"@ctAlloc",
+			"@_ctAlloc",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("size", pir::Module::createUnsignedType(sizeof(void*) * 8)),
@@ -4694,7 +4694,7 @@ namespace pcit::panther{
 		);
 
 		comptime_execution_engine_funcs.dealloc = this->pir_module.createExternalFunction(
-			"@ctDealloc",
+			"@_ctDealloc",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("ptr", pir::Module::createPtrType()),
@@ -4742,7 +4742,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.make_comptime_buffer = this->pir_module.createExternalFunction(
-			"@makeComptimeBuffer",
+			"@_makeComptimeBuffer",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("buffer_ptr", pir::Module::createPtrType()),
@@ -5937,11 +5937,11 @@ namespace pcit::panther{
 		const BuiltinModule& builtin_module_pthr = this->source_manager[BuiltinModule::ID::PTHR];
 
 		const TypeInfo::ID atomic_ordering_type_id = this->type_manager.getOrCreateTypeInfo(
-			TypeInfo(builtin_module_pthr.getSymbol("AtomicOrdering")->as<BaseType::ID>())
+			TypeInfo(builtin_module_pthr.getSymbol("_AtomicOrdering")->as<BaseType::ID>())
 		);
 
 		const TypeInfo::ID atomic_rmw_op_type_id = this->type_manager.getOrCreateTypeInfo(
-			TypeInfo(builtin_module_pthr.getSymbol("AtomicRMWOp")->as<BaseType::ID>())
+			TypeInfo(builtin_module_pthr.getSymbol("_AtomicRMWOp")->as<BaseType::ID>())
 		);
 
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ATOMIC_LOAD) = TemplateIntrinsicFuncInfo{

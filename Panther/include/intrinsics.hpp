@@ -170,8 +170,6 @@ namespace pcit::panther{
 			RELEASE,
 			ACQ_REL,
 			SEQ_CST,
-
-			// _LAST_ = SEQ_CST,
 		};
 
 
@@ -185,8 +183,6 @@ namespace pcit::panther{
 			XOR,
 			MIN,
 			MAX,
-
-			_LAST_ = MAX,
 		};
 
 	}

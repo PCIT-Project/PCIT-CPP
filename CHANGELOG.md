@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.402.0"></a>
+## v0.0.402.0
+
+### Panther
+- Changed internal intrinsics to begin with `_`
+
+### Misc
+- Updated to [Panther-std v0.0.61.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.61.0)
+
+
+<!---------------------------------->
 <a name="v0.0.401.0"></a>
 ## v0.0.401.0
 

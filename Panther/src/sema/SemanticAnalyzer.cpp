@@ -6328,39 +6328,39 @@ namespace pcit::panther{
 
 				switch(*this->symbol_proc.builtin_symbol_proc_kind){
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterable"): {
-						return pthr_module.getSymbol("IIterable")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterable")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableRT"): {
-						return pthr_module.getSymbol("IIterableRT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("array.IIterableCT"): {
-						return pthr_module.getSymbol("IIterableCT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableCT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRef"): {
-						return pthr_module.getSymbol("IIterableRef")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefRT"): {
-						return pthr_module.getSymbol("IIterableRefRT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayRef.IIterableRefCT"): {
-						return pthr_module.getSymbol("IIterableRefCT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableRefCT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRef"): {
-						return pthr_module.getSymbol("IIterableMutRef")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableMutRef")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefRT"): {
-						return pthr_module.getSymbol("IIterableMutRefRT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableMutRefRT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					case SymbolProcManager::constevalLookupBuiltinSymbolKind("arrayMutRef.IIterableMutRefCT"): {
-						return pthr_module.getSymbol("IIterableMutRefCT")->as<BaseType::ID>().interfaceID();
+						return pthr_module.getSymbol("_IIterableMutRefCT")->as<BaseType::ID>().interfaceID();
 					} break;
 
 					default: {
@@ -8039,26 +8039,26 @@ namespace pcit::panther{
 
 			if(in_comptime_func){
 				if(in_runtime_func){
-					interface_iterable         = get_interface("IIterable");
-					interface_iterable_ref     = get_interface("IIterableRef");
-					interface_iterable_mut_ref = get_interface("IIterableMutRef");
-					interface_iterator         = get_interface("IIterator");
-					interface_mut_iterator     = get_interface("IMutIterator");
+					interface_iterable         = get_interface("_IIterable");
+					interface_iterable_ref     = get_interface("_IIterableRef");
+					interface_iterable_mut_ref = get_interface("_IIterableMutRef");
+					interface_iterator         = get_interface("_IIterator");
+					interface_mut_iterator     = get_interface("_IMutIterator");
 
 				}else{
-					interface_iterable_ct         = get_interface("IIterableCT");
-					interface_iterable_ref_ct     = get_interface("IIterableRefCT");
-					interface_iterable_mut_ref_ct = get_interface("IIterableMutRefCT");
-					interface_iterator_ct         = get_interface("IIteratorCT");
-					interface_mut_iterator_ct     = get_interface("IMutIteratorCT");
+					interface_iterable_ct         = get_interface("_IIterableCT");
+					interface_iterable_ref_ct     = get_interface("_IIterableRefCT");
+					interface_iterable_mut_ref_ct = get_interface("_IIterableMutRefCT");
+					interface_iterator_ct         = get_interface("_IIteratorCT");
+					interface_mut_iterator_ct     = get_interface("_IMutIteratorCT");
 				}
 
 			}else{
-				interface_iterable_rt         = get_interface("IIterableRT");
-				interface_iterable_ref_rt     = get_interface("IIterableRefRT");
-				interface_iterable_mut_ref_rt = get_interface("IIterableMutRefRT");
-				interface_iterator_rt         = get_interface("IIteratorRT");
-				interface_mut_iterator_rt     = get_interface("IMutIteratorRT");
+				interface_iterable_rt         = get_interface("_IIterableRT");
+				interface_iterable_ref_rt     = get_interface("_IIterableRefRT");
+				interface_iterable_mut_ref_rt = get_interface("_IIterableMutRefRT");
+				interface_iterator_rt         = get_interface("_IIteratorRT");
+				interface_mut_iterator_rt     = get_interface("_IMutIteratorRT");
 			}
 		}
 
@@ -26135,160 +26135,159 @@ namespace pcit::panther{
 		// member var
 
 		for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : lhs_type_struct.memberVarsABI){
+			EVO_DEFER([&](){ i += 1; });
+
 			const std::string_view member_ident_str = 
 				lhs_type_struct.getMemberName(*member_var, this->context.getSourceManager());
 
+			if(member_ident_str != rhs_ident_str){continue; }
+			
+			if(member_var->isPriv){
+				const std::optional<EncapsulatingSymbolID> current_type_scope =
+					this->scope.getCurrentTypeScopeIfExists();
 
-			if(member_ident_str == rhs_ident_str){
-				if(member_var->isPriv){
-					const std::optional<EncapsulatingSymbolID> current_type_scope =
-						this->scope.getCurrentTypeScopeIfExists();
+				if(
+					current_type_scope.has_value() == false
+					|| current_type_scope->is<BaseType::Struct::ID>() == false
+					|| current_type_scope->as<BaseType::Struct::ID>() != decayed_lhs_type.baseTypeID().structID()
+				){
+					this->emit_error(
+						std::format(
+							"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
+							member_ident_str
+						),
+						instr.infix.rhs
+					);
+					return Result::ERROR;
+				}
+			}
 
-					if(
-						current_type_scope.has_value() == false
-						|| current_type_scope->is<BaseType::Struct::ID>() == false
-						|| current_type_scope->as<BaseType::Struct::ID>() != decayed_lhs_type.baseTypeID().structID()
-					){
-						this->emit_error(
-							std::format(
-								"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
-								member_ident_str
-							),
-							instr.infix.rhs
-						);
-						return Result::ERROR;
-					}
+			const TermInfo::ValueCategory value_category = [&](){
+				if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+
+				if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
+					return TermInfo::ValueCategory::CONCRETE_CONST;
 				}
 
-				const TermInfo::ValueCategory value_category = [&](){
-					if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
-
-					if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
-						return TermInfo::ValueCategory::CONCRETE_CONST;
-					}
-
-					if(member_var->kind == AST::VarDef::Kind::CONST){
-						return TermInfo::ValueCategory::CONCRETE_CONST;
-					}else{
-						return TermInfo::ValueCategory::CONCRETE_MUT;
-					}
-				}();
+				if(member_var->kind == AST::VarDef::Kind::CONST){
+					return TermInfo::ValueCategory::CONCRETE_CONST;
+				}else{
+					return TermInfo::ValueCategory::CONCRETE_MUT;
+				}
+			}();
 
 
 
-				if constexpr(IS_COMPTIME){
-					const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
-					const size_t member_offset =
-						this->context.getTypeManager().offsetOf(decayed_lhs_type.baseTypeID().structID(), i);
+			if constexpr(IS_COMPTIME){
+				const size_t member_size = this->context.getTypeManager().numBytes(member_var->typeID);
+				const size_t member_offset =
+					this->context.getTypeManager().offsetOf(decayed_lhs_type.baseTypeID().structID(), i);
 
-					const core::GenericValue lhs_generic_value = sema::exprToGenericValue(lhs.getExpr(), this->context);
+				const core::GenericValue lhs_generic_value = sema::exprToGenericValue(lhs.getExpr(), this->context);
 
-					const core::GenericValue rhs_generic_value = core::GenericValue::fromData(
-						lhs_generic_value.dataRange().subarr(member_offset, member_size)
-					);
+				const core::GenericValue rhs_generic_value = core::GenericValue::fromData(
+					lhs_generic_value.dataRange().subarr(member_offset, member_size)
+				);
+
+				this->return_term_info(instr.output,
+					value_category,
+					true,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					member_var->typeID,
+					this->genericValueToSemaExpr(
+						rhs_generic_value, member_var->typeID, nullptr, Diagnostic::Location::NONE
+					).value()
+				);
+
+				return Result::SUCCESS;
+
+			}else{
+				if(lhs.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+					const sema::AggregateValue& lhs_aggregate_value =
+						this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
 
 					this->return_term_info(instr.output,
-						value_category,
+						TermInfo::ValueCategory::EPHEMERAL,
 						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
 						member_var->typeID,
-						this->genericValueToSemaExpr(
-							rhs_generic_value, member_var->typeID, nullptr, Diagnostic::Location::NONE
-						).value()
+						lhs_aggregate_value.values[i]
 					);
 
 					return Result::SUCCESS;
-
+					
 				}else{
-					if(lhs.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE){
-						const sema::AggregateValue& lhs_aggregate_value =
-							this->context.getSemaBuffer().getAggregateValue(lhs.getExpr().aggregateValueID());
+					const sema::Expr sema_expr = [&](){
+						if(is_pointer){
+							const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(decayed_lhs_type.baseTypeID())
+							);
 
-						this->return_term_info(instr.output,
-							TermInfo::ValueCategory::EPHEMERAL,
-							true,
-							true,
-							TermInfo::ValueState::NOT_APPLICABLE,
-							member_var->typeID,
-							lhs_aggregate_value.values[i]
-						);
+							const sema::Deref::ID deref =
+								this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id);
 
-						return Result::SUCCESS;
-						
-					}else{
-						const sema::Expr sema_expr = [&](){
-							if(is_pointer){
-								const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-									TypeInfo(decayed_lhs_type.baseTypeID())
-								);
+							return sema::Expr(
+								this->context.sema_buffer.createAccessor(
+									sema::Expr(deref), resultant_type_id, uint32_t(i)
+								)
+							);
+						}else{
+							return sema::Expr(
+								this->context.sema_buffer.createAccessor(
+									lhs.getExpr(), decayed_lhs_type_id, uint32_t(i)
+								)
+							);
+						}
+					}();
 
-								const sema::Deref::ID deref =
-									this->context.sema_buffer.createDeref(lhs.getExpr(), resultant_type_id);
 
-								return sema::Expr(
-									this->context.sema_buffer.createAccessor(
-										sema::Expr(deref), resultant_type_id, uint32_t(i)
+
+					const TermInfo::ValueState value_state = [&]() -> TermInfo::ValueState {
+						if constexpr(IS_COMPTIME){
+							return TermInfo::ValueState::NOT_APPLICABLE;
+
+						}else{
+							if(lhs.value_state == TermInfo::ValueState::INITIALIZING){
+								return this->get_ident_value_state(
+									sema::ReturnParamAccessorValueStateID(
+										lhs.getExpr().returnParamID(), uint32_t(i)
 									)
 								);
+
 							}else{
-								return sema::Expr(
-									this->context.sema_buffer.createAccessor(
-										lhs.getExpr(), decayed_lhs_type_id, uint32_t(i)
+								const Token::Kind current_func_name_token_kind = this->source.getTokenBuffer()[
+									this->get_current_func().name.as<Token::ID>()
+								].kind();
+
+								if(
+									lhs.getExpr().kind() == sema::Expr::Kind::PARAM
+									&& (
+										current_func_name_token_kind == Token::Kind::KEYWORD_DELETE
+										|| current_func_name_token_kind == Token::Kind::KEYWORD_MOVE
 									)
-								);
-							}
-						}();
-
-
-
-						const TermInfo::ValueState value_state = [&]() -> TermInfo::ValueState {
-							if constexpr(IS_COMPTIME){
-								return TermInfo::ValueState::NOT_APPLICABLE;
-
-							}else{
-								if(lhs.value_state == TermInfo::ValueState::INITIALIZING){
+								){
 									return this->get_ident_value_state(
-										sema::ReturnParamAccessorValueStateID(
-											lhs.getExpr().returnParamID(), uint32_t(i)
-										)
+										sema::SpecialMemberThisAccessorValueStateID(uint32_t(i))
 									);
-
 								}else{
-									const Token::Kind current_func_name_token_kind = this->source.getTokenBuffer()[
-										this->get_current_func().name.as<Token::ID>()
-									].kind();
-
-									if(
-										lhs.getExpr().kind() == sema::Expr::Kind::PARAM
-										&& (
-											current_func_name_token_kind == Token::Kind::KEYWORD_DELETE
-											|| current_func_name_token_kind == Token::Kind::KEYWORD_MOVE
-										)
-									){
-										return this->get_ident_value_state(
-											sema::SpecialMemberThisAccessorValueStateID(uint32_t(i))
-										);
-									}else{
-										return TermInfo::ValueState::NOT_APPLICABLE;
-									}
+									return TermInfo::ValueState::NOT_APPLICABLE;
 								}
-
-
-
 							}
-						}();
 
-						this->return_term_info(instr.output,
-							value_category, IS_COMPTIME, IS_COMPTIME, value_state, member_var->typeID, sema_expr
-						);
 
-						return Result::SUCCESS;
-					}
+
+						}
+					}();
+
+					this->return_term_info(instr.output,
+						value_category, IS_COMPTIME, IS_COMPTIME, value_state, member_var->typeID, sema_expr
+					);
+
+					return Result::SUCCESS;
 				}
 			}
-
-			i += 1;
 		}
 
 
