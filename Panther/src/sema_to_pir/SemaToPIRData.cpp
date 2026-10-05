@@ -209,7 +209,7 @@ namespace pcit::panther{
 		this->jit_build_funcs.create_panther_build = create_func_decl(
 			"PTHR.BUILD.createPantherBuild",
 			{
-				pir::Parameter("context", module.createUnsignedType(sizeof(size_t) * 8)),
+				pir::Parameter("context", module.createPtrType()),
 				pir::Parameter("config", module.createPtrType()),
 			},
 			module.createBoolType()

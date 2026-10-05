@@ -4639,7 +4639,7 @@ namespace pcit::panther{
 		comptime_execution_engine_funcs.get_integer_type_id = this->pir_module.createExternalFunction(
 			"@ctGetIntegerTypeID",
 			evo::SmallVector<pir::Parameter>{
-				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("width", pir::Module::createUnsignedType(32)),
 				pir::Parameter("is_unsigned", pir::Module::createBoolType())
 			},
@@ -4668,7 +4668,7 @@ namespace pcit::panther{
 		comptime_execution_engine_funcs.alloc = this->pir_module.createExternalFunction(
 			"@ctAlloc",
 			evo::SmallVector<pir::Parameter>{
-				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("size", pir::Module::createUnsignedType(sizeof(void*) * 8)),
 				pir::Parameter("alignment", pir::Module::createUnsignedType(32)),
 			},
@@ -4696,7 +4696,7 @@ namespace pcit::panther{
 		comptime_execution_engine_funcs.dealloc = this->pir_module.createExternalFunction(
 			"@ctDealloc",
 			evo::SmallVector<pir::Parameter>{
-				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("ptr", pir::Module::createPtrType()),
 			},
 			pir::CallingConvention::C,
@@ -4744,7 +4744,7 @@ namespace pcit::panther{
 		comptime_execution_engine_funcs.make_comptime_buffer = this->pir_module.createExternalFunction(
 			"@makeComptimeBuffer",
 			evo::SmallVector<pir::Parameter>{
-				pir::Parameter("context", pir::Module::createUnsignedType(sizeof(void*) * 8)),
+				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("buffer_ptr", pir::Module::createPtrType()),
 				pir::Parameter("typeID", pir::Module::createUnsignedType(32)),
 				pir::Parameter("output", pir::Module::createPtrType())

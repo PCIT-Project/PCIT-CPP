@@ -129,6 +129,31 @@ namespace pcit::panther{
 				TEMPLATE_ARG_MAYBE_DEDUCER, // includes named deducers
 				TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER, // doesn't include named deducers
 			};
+			[[nodiscard]] consteval static auto get_sub_type_kind(TypeKind type_kind) -> TypeKind {
+				switch(type_kind){
+					case TypeKind::EXPLICIT:
+						return TypeKind::EXPLICIT;
+
+					case TypeKind::EXPLICIT_MAYBE_DEDUCER:
+						return TypeKind::EXPLICIT_MAYBE_DEDUCER;
+
+					case TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER:
+						return TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER;
+
+					case TypeKind::AS_TYPE:
+						return TypeKind::EXPLICIT;
+
+					case TypeKind::TEMPLATE_ARG:
+						return TypeKind::EXPLICIT;
+
+					case TypeKind::TEMPLATE_ARG_MAYBE_DEDUCER:
+						return TypeKind::EXPLICIT_MAYBE_DEDUCER;
+
+					case TypeKind::TEMPLATE_ARG_MAYBE_ANONYMOUS_DEDUCER:
+						return TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER;
+				}
+			}
+
 			template<TypeKind KIND>
 			[[nodiscard]] auto parse_type() -> Result;
 

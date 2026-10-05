@@ -3030,13 +3030,7 @@ namespace pthr{
 				}
 
 				if(num_threads != nullptr){
-					const auto num_real_ns = [&]() -> auto {
-						if(num_threads->isSingle() || num_threads->getNum() == 1){
-							return num_user_ns;
-						}else{
-							return num_user_ns / num_threads->getNum();
-						}
-					}();
+					const auto num_real_ns = timer.getMaxAsRep();
 
 					if(num_real_ns < 1'000'000'000){ // < 1 second
 						this->real = std::format("{:.3}ms", double(num_real_ns / 1'000) / 1000);

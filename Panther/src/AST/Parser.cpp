@@ -2454,15 +2454,7 @@ namespace pcit::panther{
 			}else if(this->reader[start_location].kind() == Token::lookupKind("[")){
 				const Token::ID open_bracket = this->reader.next();
 
-				const Result elem_type = [&](){
-					if constexpr(
-						KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER || KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-					){
-						return this->parse_type<KIND>();
-					}else{
-						return this->parse_type<TypeKind::EXPLICIT>();
-					}
-				}();
+				const Result elem_type = this->parse_type<get_sub_type_kind(KIND)>();
 				if(this->check_result(elem_type, "element type in array type").isError()){
 					return Result(Result::Code::ERROR);
 				}
@@ -2691,7 +2683,7 @@ namespace pcit::panther{
 					}
 
 
-					const Result param_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+					const Result param_type = this->parse_type<get_sub_type_kind(KIND)>();
 					if(this->check_result(param_type, "parameter type in function type").isError()){
 						return Result(Result::Code::ERROR);
 					}
@@ -2760,7 +2752,7 @@ namespace pcit::panther{
 						}
 
 
-						const Result return_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+						const Result return_type = this->parse_type<get_sub_type_kind(KIND)>();
 						if(this->check_result(return_type, "parameter type in function type").isError()){
 							return Result(Result::Code::ERROR);
 						}
@@ -2786,7 +2778,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const Result ret_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+					const Result ret_type = this->parse_type<get_sub_type_kind(KIND)>();
 					if(this->check_result(ret_type, "return type in function type").isError()){
 						return Result(Result::Code::ERROR);
 					}
@@ -2808,7 +2800,7 @@ namespace pcit::panther{
 						}
 
 
-						const Result error_type = this->parse_type<TypeKind::EXPLICIT_MAYBE_DEDUCER>();
+						const Result error_type = this->parse_type<get_sub_type_kind(KIND)>();
 						if(this->check_result(error_type, "error type in function type").isError()){
 							return Result(Result::Code::ERROR);
 						}
@@ -2865,17 +2857,7 @@ namespace pcit::panther{
 						return Result(Result::Code::ERROR);
 					}
 
-					const Result underlying_type_result = [&](){
-						if constexpr(
-							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-						){
-							return this->parse_type<KIND>();
-						}else{
-							return this->parse_type<TypeKind::EXPLICIT>();
-						}
-					}();
-
+					const Result underlying_type_result = this->parse_type<get_sub_type_kind(KIND)>();
 					if(this->check_result(
 						underlying_type_result, "underlying type in interface pointer map"
 					).isError()){
@@ -2891,17 +2873,7 @@ namespace pcit::panther{
 					}
 
 
-					const Result interface_type_result = [&](){
-						if constexpr(
-							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-						){
-							return this->parse_type<KIND>();
-						}else{
-							return this->parse_type<TypeKind::EXPLICIT>();
-						}
-					}();
-
+					const Result interface_type_result = this->parse_type<get_sub_type_kind(KIND)>();
 					if(this->check_result(
 						interface_type_result, "interface type in interface pointer map"
 					).isError()){
@@ -2944,17 +2916,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					const Result underlying_type_result = [&](){
-						if constexpr(
-							KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-							|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-						){
-							return this->parse_type<KIND>();
-						}else{
-							return this->parse_type<TypeKind::EXPLICIT>();
-						}
-					}();
-
+					const Result underlying_type_result = this->parse_type<get_sub_type_kind(KIND)>();
 					if(this->check_result(underlying_type_result, "underlying type in interface map").isError()){
 						return Result(Result::Code::ERROR);
 					}
@@ -2971,17 +2933,7 @@ namespace pcit::panther{
 				}
 
 
-				const Result target_interface = [&](){
-					if constexpr(
-						KIND == TypeKind::EXPLICIT_MAYBE_DEDUCER
-						|| KIND == TypeKind::EXPLICIT_MAYBE_ANONYMOUS_DEDUCER
-					){
-						return this->parse_type<KIND>();
-					}else{
-						return this->parse_type<TypeKind::EXPLICIT>();
-					}
-				}();
-
+				const Result target_interface = this->parse_type<get_sub_type_kind(KIND)>();
 				if(this->check_result(target_interface, "target interface in interface map").isError()){
 					return Result(Result::Code::ERROR);
 				}

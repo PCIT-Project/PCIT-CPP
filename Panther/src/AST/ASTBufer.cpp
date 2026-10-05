@@ -153,7 +153,9 @@ namespace pcit::panther::AST{
 		std::optional<Node> value
 	) -> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-		const uint32_t node_index = this->internal->var_defs.emplace_back(kind, ident, type, attributeBlock, valueKind, value);
+		const uint32_t node_index = this->internal->var_defs.emplace_back(
+			kind, ident, type, attributeBlock, valueKind, value
+		);
 		return Node(Kind::VAR_DEF, node_index);
 	}
 	auto ASTBuffer::getVarDef(const Node& node) const -> const VarDef& {
@@ -232,7 +234,8 @@ namespace pcit::panther::AST{
 	auto ASTBuffer::createStructDef(Token::ID ident, std::optional<Node> templatePack, Node attributeBlock, Node block)
 	-> Node {
 		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
-		const uint32_t node_index = this->internal->struct_defs.emplace_back(ident, templatePack, attributeBlock, block);
+		const uint32_t node_index =
+			this->internal->struct_defs.emplace_back(ident, templatePack, attributeBlock, block);
 		return Node(Kind::STRUCT_DEF, node_index);
 	}
 	auto ASTBuffer::getStructDef(const Node& node) const -> const StructDef& {

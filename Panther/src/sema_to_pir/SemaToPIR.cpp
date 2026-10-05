@@ -16446,9 +16446,8 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::get_context_ptr() -> pir::Expr {
-		return this->handler.createNumber( // TODO(FUTURE): make RawPtrValue?
-			this->module.createUnsignedType(sizeof(size_t) * 8),
-			core::GenericInt::create<size_t>(size_t(&this->context))
+		return this->handler.createRawPtrValue(
+			core::GenericInt(unsigned(this->module.sizeOfPtr() * 8), uint64_t(&this->context))
 		);
 	}
 

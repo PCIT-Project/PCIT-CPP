@@ -3557,55 +3557,62 @@ namespace pcit::panther{
 				} break;
 
 				case AST::Kind::FUNC_TYPE: {
-					const AST::FuncType& func_type = ast_buffer.getFuncType(expr);
-						
-					auto types = evo::SmallVector<SymbolProc::TypeID>();
-					types.reserve(func_type.params.size() + func_type.returnTypes.size() + func_type.errorTypes.size());
-
-
-					for(const AST::FuncType::Param& param : func_type.params){
-						const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<true>(
-							this->source.getASTBuffer().getType(param.type)
+					if constexpr(MUST_BE_EXPR){
+						this->emit_error("Type used as expression", expr);
+						return evo::resultError;
+					}else{
+						const AST::FuncType& func_type = ast_buffer.getFuncType(expr);
+							
+						auto types = evo::SmallVector<SymbolProc::TypeID>();
+						types.reserve(
+							func_type.params.size() + func_type.returnTypes.size() + func_type.errorTypes.size()
 						);
 
-						if(param_type.isError()){ return evo::resultError; }
-						types.emplace_back(param_type.value());
+
+						for(const AST::FuncType::Param& param : func_type.params){
+							const evo::Result<SymbolProc::TypeID> param_type = this->analyze_type<true>(
+								this->source.getASTBuffer().getType(param.type)
+							);
+
+							if(param_type.isError()){ return evo::resultError; }
+							types.emplace_back(param_type.value());
+						}
+
+						evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = 
+							this->analyze_attributes(
+								this->source.getASTBuffer().getAttributeBlock(func_type.attributeBlock)
+							);
+
+						if(attribute_params_info.isError()){ return evo::resultError; }
+
+
+						for(const AST::Node& type : func_type.returnTypes){
+							const evo::Result<SymbolProc::TypeID> ret_type = this->analyze_type<true>(
+								this->source.getASTBuffer().getType(type)
+							);
+
+							if(ret_type.isError()){ return evo::resultError; }
+							types.emplace_back(ret_type.value());
+						}
+
+						for(const AST::Node& type : func_type.errorTypes){
+							const evo::Result<SymbolProc::TypeID> err_type = this->analyze_type<true>(
+								this->source.getASTBuffer().getType(type)
+							);
+
+							if(err_type.isError()){ return evo::resultError; }
+							types.emplace_back(err_type.value());
+						}
+
+
+						const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+						this->add_instruction(
+							this->context.symbol_proc_manager.createFuncType(
+								func_type, std::move(types), std::move(attribute_params_info.value()), new_term_info_id
+							)
+						);
+						return new_term_info_id;
 					}
-
-					evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = 
-						this->analyze_attributes(
-							this->source.getASTBuffer().getAttributeBlock(func_type.attributeBlock)
-						);
-
-					if(attribute_params_info.isError()){ return evo::resultError; }
-
-
-					for(const AST::Node& type : func_type.returnTypes){
-						const evo::Result<SymbolProc::TypeID> ret_type = this->analyze_type<true>(
-							this->source.getASTBuffer().getType(type)
-						);
-
-						if(ret_type.isError()){ return evo::resultError; }
-						types.emplace_back(ret_type.value());
-					}
-
-					for(const AST::Node& type : func_type.errorTypes){
-						const evo::Result<SymbolProc::TypeID> err_type = this->analyze_type<true>(
-							this->source.getASTBuffer().getType(type)
-						);
-
-						if(err_type.isError()){ return evo::resultError; }
-						types.emplace_back(err_type.value());
-					}
-
-
-					const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
-					this->add_instruction(
-						this->context.symbol_proc_manager.createFuncType(
-							func_type, std::move(types), std::move(attribute_params_info.value()), new_term_info_id
-						)
-					);
-					return new_term_info_id;
 				} break;
 
 				case AST::Kind::TYPE: {

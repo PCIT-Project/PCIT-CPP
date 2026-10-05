@@ -945,7 +945,7 @@ namespace pcit::pir{
 
 	auto InstrHandler::createRawPtrValue(core::GenericInt&& value) const -> Expr {
 		evo::debugAssert(
-			value.getBitWidth() != this->module.getTarget().numBitsOfPtr(),
+			value.getBitWidth() == this->module.getTarget().numBitsOfPtr(),
 			"value must be same size as pointer on target architecture"
 		);
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.401.0"></a>
+## v0.0.401.0
+
+### pthr
+- Improved estimation of real times in timings table
+
+
+<!---------------------------------->
 <a name="v0.0.400.1"></a>
 ## v0.0.400.1
 

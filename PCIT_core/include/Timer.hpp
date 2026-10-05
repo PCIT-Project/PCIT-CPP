@@ -10,7 +10,7 @@
 #pragma once
 
 #include <chrono>
-// #include <Evo.hpp>
+#include <Evo.hpp>
 
 
 namespace pcit::core{
@@ -28,16 +28,52 @@ namespace pcit::core{
 			using TimePointDuration = typename TimePoint::duration;
 			using TimePointRep = typename TimePoint::rep;
 
+
+			///////////////////////////////////
+			// these functions assume no timers are running
+
 			[[nodiscard]] auto getTotal() const -> TimePoint {
-				return TimePoint(TimePointDuration(this->time.load()));
+				return TimePoint(TimePointDuration(this->getTotalAsRep()));
 			}
 
 			[[nodiscard]] auto getTotalAsDuration() const -> TimePointDuration {
-				return TimePointDuration(this->time.load());
+				return TimePointDuration(this->getTotalAsRep());
 			}
+
 			[[nodiscard]] auto getTotalAsRep() const -> TimePointRep {
-				return this->time.load();
+				TimePointRep total = 0;
+
+				for(const TimePointRep& time : this->times){
+					total += time;
+				}
+
+				return total;
 			}
+
+
+
+			[[nodiscard]] auto getMax() const -> TimePoint {
+				return TimePoint(TimePointDuration(this->getMaxAsRep()));
+			}
+
+			[[nodiscard]] auto getMaxAsDuration() const -> TimePointDuration {
+				return TimePointDuration(this->getMaxAsRep());
+			}
+
+			[[nodiscard]] auto getMaxAsRep() const -> TimePointRep {
+				TimePointRep max = 0;
+
+				for(const TimePointRep& time : this->times){
+					max = std::max(max, time);
+				}
+
+				return max;
+			}
+
+
+			// these functions assume no timers are running
+			///////////////////////////////////
+
 
 
 			[[nodiscard]] static auto getNow() -> TimePoint {
@@ -47,8 +83,8 @@ namespace pcit::core{
 
 			class Runner{
 				public:
-					Runner(std::atomic<Timer::TimePointRep>& target_time)
-						: start_time(Timer::getNow()), _target_time(&target_time) {}
+					Runner(Timer::TimePointRep& target_time)
+						: start_time(Timer::getNow()), _target_time(target_time) {}
 
 					#if defined(PCIT_CONFIG_DEBUG)
 						~Runner(){ evo::debugAssert(this->running == false, "Timer wasn't stopped"); }
@@ -76,7 +112,7 @@ namespace pcit::core{
 
 					auto stop() -> void {
 						const Timer::TimePoint end = Timer::getNow();
-						this->_target_time->fetch_add((end - this->start_time).count());
+						this->_target_time += (end - this->start_time).count();
 
 						#if defined(PCIT_CONFIG_DEBUG)
 							this->running = false;
@@ -86,22 +122,40 @@ namespace pcit::core{
 			
 				private:
 					Timer::TimePoint start_time;
-					std::atomic<Timer::TimePointRep>* _target_time;
+					Timer::TimePointRep& _target_time;
 
 					#if defined(PCIT_CONFIG_DEBUG)
 						bool running = true;
 					#endif
 			};
 
-			[[nodiscard]] auto start() -> Runner { return Runner(this->time); }
+			[[nodiscard]] auto start() -> Runner {
+				const std::thread::id this_thread_id = std::this_thread::get_id();
+
+				TimePointRep* time_point_rep = [&]() -> TimePointRep* {
+					const auto lock = std::scoped_lock(this->times_map_lock);
+
+					const auto time_point_find = this->times_map.find(this_thread_id);
+					if(time_point_find != this->times_map.end()){
+						return time_point_find->second;
+
+					}else{
+						TimePointRep* created_time_point_rep = &this->times.emplace_back(0);
+						this->times_map.emplace(this_thread_id, created_time_point_rep);
+						return created_time_point_rep;
+					}
+				}();
+
+				return Runner(*time_point_rep);
+			}
 
 
 	
 		private:
-			std::atomic<TimePointRep> time{};
-			static_assert(
-				std::atomic<TimePointRep>::is_always_lock_free, "Expected Timer::TimePointRep to be lock-free"
-			);
+			evo::StepVector<TimePointRep> times{};
+
+			std::unordered_map<std::thread::id, TimePointRep*> times_map{};
+			evo::SpinLock times_map_lock{};
 	};
 
 

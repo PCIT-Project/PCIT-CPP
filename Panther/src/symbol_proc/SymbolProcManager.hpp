@@ -3039,8 +3039,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto createArrayType(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ARRAY_TYPE,
-					this->array_types.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::ARRAY_TYPE, this->array_types.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
@@ -3056,8 +3055,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto createArrayRef(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ARRAY_REF,
-					this->array_refs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::ARRAY_REF, this->array_refs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
@@ -3072,8 +3070,7 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto createFuncType(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::FUNC_TYPE,
-					this->func_types.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::FUNC_TYPE, this->func_types.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
