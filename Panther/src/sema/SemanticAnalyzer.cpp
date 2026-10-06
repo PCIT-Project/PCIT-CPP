@@ -225,8 +225,11 @@ namespace pcit::panther{
 			case Instruction::Kind::ENUM_DECL:
 				return this->instr_enum_decl(this->context.symbol_proc_manager.getEnumDecl(instr));
 
-			case Instruction::Kind::ENUM_ADD_ENUMERATORS:
-				return this->instr_enum_add_enumerators(this->context.symbol_proc_manager.getEnumAddEnumerators(instr));
+			case Instruction::Kind::ENUM_ADD_ENUMERATOR:
+				return this->instr_enum_add_enumerator(this->context.symbol_proc_manager.getEnumAddEnumerator(instr));
+
+			case Instruction::Kind::ENUM_END_ENUMERATORS:
+				return this->instr_enum_end_enumerators();
 
 			case Instruction::Kind::ENUM_DEF:
 				return this->instr_enum_def();
@@ -3144,13 +3147,26 @@ namespace pcit::panther{
 		);
 
 
+		///////////////////////////////////
+		// setup extra info
+
+		BaseType::Enum& created_enum_ref = this->context.type_manager.getEnum(created_enum.enumID());
+
+		enum_info.underlying_bits =
+			unsigned(this->context.getTypeManager().numBits(BaseType::ID(created_enum_ref.underlyingTypeID), false));
+
+		enum_info.underlying_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(BaseType::ID(created_enum_ref.underlyingTypeID))
+		);
+
+		enum_info.enumerator_value_counter = core::GenericInt(enum_info.underlying_bits, 0);
+
 
 		///////////////////////////////////
 		// setup scope
 
 		this->push_scope_level(nullptr, created_enum.enumID());
 
-		BaseType::Enum& created_enum_ref = this->context.type_manager.getEnum(created_enum.enumID());
 		created_enum_ref.scopeLevel = &this->get_current_scope_level();
 
 
@@ -3172,53 +3188,56 @@ namespace pcit::panther{
 	}
 
 
-	auto SemanticAnalyzer::instr_enum_add_enumerators(const Instruction::EnumAddEnumerators& instr) -> Result {
-		const SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
+	auto SemanticAnalyzer::instr_enum_add_enumerator(const Instruction::EnumAddEnumerator& instr) -> Result {
+		SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
 			
 		BaseType::Enum& target_enum = this->context.type_manager.getEnum(enum_info.enum_id);
 
-		const unsigned underlying_bits =
-			unsigned(this->context.getTypeManager().numBits(BaseType::ID(target_enum.underlyingTypeID), false));
+		
+		if(instr.enum_def.enumerators[instr.index].value.has_value()){
+			TermInfo& value_term_info = this->get_term_info(*instr.enumerator_value);
 
-		const TypeInfo::ID underlying_type_info_id = this->context.type_manager.getOrCreateTypeInfo(
-			TypeInfo(BaseType::ID(target_enum.underlyingTypeID))
-		);
-
-		auto enumerator_value_counter = core::GenericInt(underlying_bits, 0);
-		for(size_t i = 0; const AST::EnumDef::Enumerator& enumerator : instr.enum_def.enumerators){
-			if(enumerator.value.has_value()){
-				TermInfo& value_term_info = this->get_term_info(*instr.enumerator_values[i]);
-
-				if(value_term_info.isComptime == false){
-					this->emit_error("Enumerator value is not comptime", *enumerator.value);
-					return Result::ERROR;
-				}
-
-				TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-					underlying_type_info_id,
-					value_term_info,
-					"Value for enumerator",
-					this->get_location(*enumerator.value)
-				);
-				if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
-
-				const sema::IntValue& int_value =
-					this->context.getSemaBuffer().getIntValue(value_term_info.getExpr().intValueID());
-
-				target_enum.enumerators.emplace_back(enumerator.ident, int_value.value.trunc(underlying_bits));
-				enumerator_value_counter = 
-					int_value.value.trunc(underlying_bits).uadd(core::GenericInt(underlying_bits, 1)).result;
-
-			}else{
-				target_enum.enumerators.emplace_back(enumerator.ident, enumerator_value_counter);
-				enumerator_value_counter = enumerator_value_counter.uadd(core::GenericInt(underlying_bits, 1)).result;
+			if(value_term_info.isComptime == false){
+				this->emit_error("Enumerator value is not comptime", *instr.enum_def.enumerators[instr.index].value);
+				return Result::ERROR;
 			}
 
-			i += 1;
+			TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+				*enum_info.underlying_type_info_id,
+				value_term_info,
+				"Value for enumerator",
+				this->get_location(*instr.enum_def.enumerators[instr.index].value)
+			);
+			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+			const sema::IntValue& int_value =
+				this->context.getSemaBuffer().getIntValue(value_term_info.getExpr().intValueID());
+
+			target_enum.enumerators.emplace_back(
+				instr.enum_def.enumerators[instr.index].ident, int_value.value.trunc(enum_info.underlying_bits)
+			);
+			enum_info.enumerator_value_counter = int_value.value.trunc(enum_info.underlying_bits).uadd(
+				core::GenericInt(enum_info.underlying_bits, 1)
+			).result;
+
+		}else{
+			target_enum.enumerators.emplace_back(
+				instr.enum_def.enumerators[instr.index].ident, enum_info.enumerator_value_counter
+			);
+			enum_info.enumerator_value_counter = enum_info.enumerator_value_counter.uadd(
+				core::GenericInt(enum_info.underlying_bits, 1)
+			).result;
 		}
 
-		///////////////////////////////////
-		// wait on stmts
+
+		return Result::SUCCESS;
+	}
+
+
+	auto SemanticAnalyzer::instr_enum_end_enumerators() -> Result {
+		SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
+
+		enum_info.adding_enumerators = false;
 
 		bool waiting_on_any = false;
 		for(const SymbolProc::ID& member_stmt_id : enum_info.stmts){
@@ -25337,7 +25356,7 @@ namespace pcit::panther{
 							true,
 							true,
 							TermInfo::ValueState::NOT_APPLICABLE,
-							decayed_lhs_type_id,
+							lhs.type_id.as<TypeInfo::VoidableID>().asTypeID(),
 							sema::Expr(
 								this->context.sema_buffer.createIntValue(
 									evo::copy(enumerator.value), decayed_lhs_type.baseTypeID()
@@ -28418,6 +28437,53 @@ namespace pcit::panther{
 				);
 			}
 		}
+
+
+		///////////////////////////////////
+		// look for enum previous enumerator
+
+		if(this->symbol_proc.extra_info.is<SymbolProc::EnumInfo>()){
+			const SymbolProc::EnumInfo& enum_info = this->symbol_proc.extra_info.as<SymbolProc::EnumInfo>();
+			const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(enum_info.enum_id);
+
+			for(const BaseType::Enum::Enumerator& enumerator : enum_type.enumerators){
+				if(enum_type.getEnumeratorName(enumerator, this->context.getSourceManager()) == ident_str){
+					if(enum_info.adding_enumerators == false){
+						this->emit_error(
+							std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+							ident,
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info("Note: Enum enumerators should be accessed through the type"),
+								Diagnostic::Info(
+									std::format(
+										"Did you mean: `{}.{}`?",
+										enum_type.getName(this->context.getSourceManager()),
+										ident_str
+									)
+								)
+							}
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+					return TermInfo(
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						this->context.getTypeManager().getOrCreateTypeInfo(
+							TypeInfo(BaseType::ID(enum_type.underlyingTypeID))
+						),
+						sema::Expr(
+							this->context.sema_buffer.createIntValue(
+								evo::copy(enumerator.value), BaseType::ID(enum_type.underlyingTypeID)
+							)
+						)
+					);
+				}
+			}
+		}
+
 
 
 		///////////////////////////////////

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.0"></a>
+## v0.0.403.0
+
+### Panther
+- Added enumerators in scope when setting the value of subsequent enumerators
+
+
+<!---------------------------------->
 <a name="v0.0.402.0"></a>
 ## v0.0.402.0
 

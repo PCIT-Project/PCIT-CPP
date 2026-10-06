@@ -88,7 +88,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result;
 			[[nodiscard]] auto instr_union_def() -> Result;
 			[[nodiscard]] auto instr_enum_decl(const Instruction::EnumDecl& instr) -> Result;
-			[[nodiscard]] auto instr_enum_add_enumerators(const Instruction::EnumAddEnumerators& instr) -> Result;
+			[[nodiscard]] auto instr_enum_add_enumerator(const Instruction::EnumAddEnumerator& instr) -> Result;
+			[[nodiscard]] auto instr_enum_end_enumerators() -> Result;
 			[[nodiscard]] auto instr_enum_def() -> Result;
 
 			[[nodiscard]] auto instr_func_decl_extract_deducers(const Instruction::FuncDeclExtractDeducers& instr)

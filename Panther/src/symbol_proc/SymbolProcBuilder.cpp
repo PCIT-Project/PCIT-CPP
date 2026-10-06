@@ -1378,24 +1378,27 @@ namespace pcit::panther{
 			)
 		);
 
-		auto enumerator_values = evo::SmallVector<std::optional<SymbolProc::TermInfoID>>();
-		for(const AST::EnumDef::Enumerator& enumerator : enum_def.enumerators){
+		for(size_t i = 0; const AST::EnumDef::Enumerator& enumerator : enum_def.enumerators){
 			if(enumerator.value.has_value()){
 				const evo::Result<SymbolProc::TermInfoID> enumerator_value =
 					this->analyze_expr<true>(*enumerator.value);
 				if(enumerator_value.isError()){ return evo::resultError; }
 
-				enumerator_values.emplace_back(enumerator_value.value());
+				this->add_instruction(
+					this->context.symbol_proc_manager.createEnumAddEnumerator(enum_def, enumerator_value.value(), i)
+				);
 			}else{
-				enumerator_values.emplace_back();
+				this->add_instruction(
+					this->context.symbol_proc_manager.createEnumAddEnumerator(enum_def, std::nullopt, i)
+				);
 			}
+
+			i += 1;
 		}
 
-		this->add_instruction(
-			this->context.symbol_proc_manager.createEnumAddEnumerators(enum_def, std::move(enumerator_values))
-		);
-
+		this->add_instruction(this->context.symbol_proc_manager.createEnumEndEnumerators());
 		this->add_instruction(this->context.symbol_proc_manager.createEnumDef());
+		
 
 		SymbolProc::EnumInfo& enum_info =
 			current_symbol->symbol_proc.extra_info.emplace<SymbolProc::EnumInfo>();

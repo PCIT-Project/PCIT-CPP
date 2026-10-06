@@ -254,9 +254,10 @@ namespace pcit::panther{
 			evo::SmallVector<AttributeParams> attribute_params_info;
 		};
 
-		struct EnumAddEnumerators{
+		struct EnumAddEnumerator{
 			const AST::EnumDef& enum_def;
-			evo::SmallVector<std::optional<SymbolProcTermInfoID>> enumerator_values;
+			std::optional<SymbolProcTermInfoID> enumerator_value;
+			size_t index;
 		};
 
 
@@ -1253,7 +1254,8 @@ namespace pcit::panther{
 			UNION_ADD_FIELDS,
 			UNION_DEF,
 			ENUM_DECL,
-			ENUM_ADD_ENUMERATORS,
+			ENUM_ADD_ENUMERATOR,
+			ENUM_END_ENUMERATORS,
 			ENUM_DEF,
 			FUNC_DECL_EXTRACT_DEDUCERS,
 			FUNC_DECL_INSTANTIATION,
@@ -1841,6 +1843,10 @@ namespace pcit::panther{
 				evo::SmallVector<SymbolProcID> stmts{};
 				Namespace member_symbols{};
 				BaseType::Enum::ID enum_id = BaseType::Enum::ID::dummy();
+				core::GenericInt enumerator_value_counter = core::GenericInt(1, 0);
+				std::optional<TypeInfo::ID> underlying_type_info_id{};
+				unsigned underlying_bits = 0;
+				bool adding_enumerators = true;
 			};
 
 			struct FuncInfo{

@@ -317,19 +317,28 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// EnumAddEnumerators
+			// EnumAddEnumerator
 
-			[[nodiscard]] auto createEnumAddEnumerators(auto&&... args) -> Instruction {
+			[[nodiscard]] auto createEnumAddEnumerator(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::ENUM_ADD_ENUMERATORS,
-					this->enum_add_enumeratorss.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::ENUM_ADD_ENUMERATOR,
+					this->enum_add_enumerator.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			[[nodiscard]] auto getEnumAddEnumerators(Instruction instr) const
-			-> const Instruction::EnumAddEnumerators& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::ENUM_ADD_ENUMERATORS, "Not a EnumAddEnumerators");
-				return this->enum_add_enumeratorss[instr._index];
+			[[nodiscard]] auto getEnumAddEnumerator(Instruction instr) const
+			-> const Instruction::EnumAddEnumerator& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ENUM_ADD_ENUMERATOR, "Not a EnumAddEnumerator");
+				return this->enum_add_enumerator[instr._index];
+			}
+
+
+
+			//////////////////
+			// EnumEndEnumerators
+
+			[[nodiscard]] auto createEnumEndEnumerators() -> Instruction {
+				return Instruction(Instruction::Kind::ENUM_END_ENUMERATORS, 0);
 			}
 
 
@@ -3476,7 +3485,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::UnionDecl, uint32_t> union_decls{};
 			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint32_t> union_add_fieldss{};
 			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint32_t> enum_decls{};
-			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerators, uint32_t> enum_add_enumeratorss{};
+			core::SyncLinearStepAlloc<Instruction::EnumAddEnumerator, uint32_t> enum_add_enumerator{};
 			core::SyncLinearStepAlloc<Instruction::FuncDeclExtractDeducers, uint32_t> func_decl_extract_deducerss{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<true>, uint32_t> func_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::FuncDecl<false>, uint32_t> func_decls{};
