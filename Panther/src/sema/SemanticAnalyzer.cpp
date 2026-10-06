@@ -38684,7 +38684,8 @@ namespace pcit::panther{
 			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
 			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED:
 			case TermInfo::ValueCategory::INTRINSIC_FUNC:
-			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
+			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: 
+			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: {
 				if constexpr(MAY_EMIT_ERROR){
 					this->error_type_mismatch(
 						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index

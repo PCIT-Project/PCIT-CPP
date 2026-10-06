@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.1"></a>
+## v0.0.403.1
+
+### Panther
+- Fixed type checking when using a builtin type method as an expression
+
+
+<!---------------------------------->
 <a name="v0.0.403.0"></a>
 ## v0.0.403.0
 
