@@ -9725,42 +9725,14 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->func_scope_current_value_stage().requiresComptime()){
-			if(func_call_impl_res.value().selected_func_type.attributes.isComptime == false){
-				this->emit_error(
-					"Cannot call a non-comptime function within a comptime function",
-					instr.func_call.target,
-					Diagnostic::Info(
-						"Called function was defined here:",
-						this->get_location(*func_call_impl_res.value().selected_func_id)
-					)
-				);
-				return Result::ERROR;
-			}
-
-			if(
-				func_call_impl_res.value().is_src_func()
-				&& target_term_info.value_category != TermInfo::ValueCategory::POLY_INTERFACE_CALL
-			){
-				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
-					*func_call_impl_res.value().selected_func_id
-				);
-			}
-		}
-
 		if(
-			this->func_scope_current_value_stage().requiresRuntime()
-			&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
+			this->func_scope_current_value_stage().requiresComptime()
+			&& func_call_impl_res.value().is_src_func()
+			&& target_term_info.value_category != TermInfo::ValueCategory::POLY_INTERFACE_CALL
 		){
-			this->emit_error(
-				"Cannot call a non-runtime function within a runtime function",
-				instr.func_call.target,
-				Diagnostic::Info(
-					"Called function was defined here:",
-					this->get_location(*func_call_impl_res.value().selected_func_id)
-				)
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().dependent_funcs.emplace(
+				*func_call_impl_res.value().selected_func_id
 			);
-			return Result::ERROR;
 		}
 
 
@@ -31594,23 +31566,106 @@ namespace pcit::panther{
 		}
 
 
+
+		const BaseType::Function& selected_func_type = func_infos[selected_func_overload_index.value()].func_type;
+
+
 		if constexpr(ERRORS){
-			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn() == false){
+			if(selected_func_type.hasErrorReturn() == false){
 				this->emit_error("Function doesn't error", func_call);
 				return evo::Unexpected(Result::ERROR);
 			}
 		}else{
-			if(func_infos[selected_func_overload_index.value()].func_type.hasErrorReturn()){
+			if(selected_func_type.hasErrorReturn()){
 				this->emit_error("Function error not handled", func_call);
 				return evo::Unexpected(Result::ERROR);
 			}
 		}
 
 		if(
-			func_infos[selected_func_overload_index.value()].func_type.attributes.isUnsafe
+			selected_func_type.attributes.isUnsafe
 			&& this->currently_in_unsafe() == false
 		){
 			this->emit_error("Call to unsafe function while not in an unsafe scope", func_call);
+			return evo::Unexpected(Result::ERROR);
+		}
+
+
+		if(
+			this->func_scope_current_value_stage().requiresComptime()
+			&& selected_func_type.attributes.isComptime == false
+		){
+			const Diagnostic::Location decl_location = func_infos[selected_func_overload_index.value()].func_id.visit(
+				[&](const auto& selected_func_id) -> Diagnostic::Location {
+					using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
+				
+					if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+						return Diagnostic::Location::BUILTIN;
+				
+					}else if constexpr(
+						std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+					){
+						return Diagnostic::Location::BUILTIN;
+
+					}else if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()){
+						return Diagnostic::Location::BUILTIN;
+
+					}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
+						return this->get_location(selected_func_id);
+
+					}else if constexpr(std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()){
+						return this->get_location(*selected_func_id.instantiation.funcID);
+				
+					}else{
+						static_assert(false, "Unknown select function overload id kind");
+					}
+				}
+			);
+
+			this->emit_error(
+				"Cannot call a non-comptime function within a comptime function",
+				func_call.target,
+				Diagnostic::Info("Called function was defined here:", decl_location)
+			);
+			return evo::Unexpected(Result::ERROR);
+		}
+
+		if(
+			this->func_scope_current_value_stage().requiresRuntime()
+			&& selected_func_type.attributes.isRuntime == false
+		){
+			const Diagnostic::Location decl_location = func_infos[selected_func_overload_index.value()].func_id.visit(
+				[&](const auto& selected_func_id) -> Diagnostic::Location {
+					using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
+				
+					if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+						return Diagnostic::Location::BUILTIN;
+				
+					}else if constexpr(
+						std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+					){
+						return Diagnostic::Location::BUILTIN;
+
+					}else if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()){
+						return Diagnostic::Location::BUILTIN;
+
+					}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
+						return this->get_location(selected_func_id);
+
+					}else if constexpr(std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()){
+						return this->get_location(*selected_func_id.instantiation.funcID);
+				
+					}else{
+						static_assert(false, "Unknown select function overload id kind");
+					}
+				}
+			);
+
+			this->emit_error(
+				"Cannot call a non-runtime function within a runtime function",
+				func_call.target,
+				Diagnostic::Info("Called function was defined here:", decl_location)
+			);
 			return evo::Unexpected(Result::ERROR);
 		}
 
@@ -31624,11 +31679,7 @@ namespace pcit::panther{
 					const sema::Func& selected_func =
 						this->context.getSemaBuffer().getFunc(selected_func_id.as<sema::Func::ID>());
 
-					return FuncCallImplData(
-						selected_func_id.as<sema::Func::ID>(),
-						&selected_func,
-						func_infos[selected_func_overload_index.value()].func_type
-					);
+					return FuncCallImplData(selected_func_id.as<sema::Func::ID>(), &selected_func, selected_func_type);
 
 				}else{
 					evo::debugAssert(
@@ -31658,7 +31709,7 @@ namespace pcit::panther{
 					return FuncCallImplData(
 						*instantiation_info.instantiation.funcID,
 						&this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID),
-						func_infos[selected_func_overload_index.value()].func_type
+						selected_func_type
 					);
 				}
 			} break;
@@ -31683,11 +31734,7 @@ namespace pcit::panther{
 						return evo::Unexpected(Result::ERROR);
 					}
 
-					return FuncCallImplData(
-						selected_func_id.as<sema::Func::ID>(),
-						&selected_func,
-						func_infos[selected_func_overload_index.value()].func_type
-					);
+					return FuncCallImplData(selected_func_id.as<sema::Func::ID>(), &selected_func, selected_func_type);
 
 				}else{
 					evo::debugAssert(
@@ -31724,11 +31771,7 @@ namespace pcit::panther{
 						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
 					}
 
-					return FuncCallImplData(
-						*instantiation_info.instantiation.funcID,
-						&sema_func,
-						func_infos[selected_func_overload_index.value()].func_type
-					);
+					return FuncCallImplData(*instantiation_info.instantiation.funcID, &sema_func, selected_func_type);
 				}
 			} break;
 
@@ -31754,7 +31797,7 @@ namespace pcit::panther{
 					return FuncCallImplData(
 						selected_func_id.as<sema::Func::ID>(),
 						&this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>()),
-						func_infos[selected_func_overload_index.value()].func_type
+						selected_func_type
 					);
 
 				}else{
@@ -31792,11 +31835,7 @@ namespace pcit::panther{
 						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
 					}
 
-					return FuncCallImplData(
-						*instantiation_info.instantiation.funcID,
-						&sema_func,
-						func_infos[selected_func_overload_index.value()].func_type
-					);
+					return FuncCallImplData(*instantiation_info.instantiation.funcID, &sema_func, selected_func_type);
 				}
 			} break;
 
@@ -31805,31 +31844,15 @@ namespace pcit::panther{
 					func_infos[selected_func_overload_index.value()].func_id.as<sema::Func::ID>();
 
 				return FuncCallImplData(
-					selected_func_id,
-					&this->context.sema_buffer.getFunc(selected_func_id),
-					func_infos[selected_func_overload_index.value()].func_type
+					selected_func_id, &this->context.sema_buffer.getFunc(selected_func_id), selected_func_type
 				);
 			} break;
 
-			case TermInfo::ValueCategory::INTRINSIC_FUNC: case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
-				const BaseType::Function& selected_func_type = 
-					func_infos[selected_func_overload_index.value()].func_type;
 
-				return FuncCallImplData(std::nullopt, nullptr, selected_func_type);
-			} break;
-
-			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: {
-				const BaseType::Function& selected_func_type = 
-					func_infos[selected_func_overload_index.value()].func_type;
-
-				return FuncCallImplData(std::nullopt, nullptr, selected_func_type);
-			} break;
-
-			case TermInfo::ValueCategory::EPHEMERAL:    case TermInfo::ValueCategory::CONCRETE_CONST:
-			case TermInfo::ValueCategory::CONCRETE_MUT: case TermInfo::ValueCategory::FORWARDABLE: {
-				const BaseType::Function& selected_func_type = 
-					func_infos[selected_func_overload_index.value()].func_type;
-
+			case TermInfo::ValueCategory::INTRINSIC_FUNC:      case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC:
+			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: case TermInfo::ValueCategory::EPHEMERAL:
+			case TermInfo::ValueCategory::CONCRETE_CONST:      case TermInfo::ValueCategory::CONCRETE_MUT:
+			case TermInfo::ValueCategory::FORWARDABLE: {
 				return FuncCallImplData(std::nullopt, nullptr, selected_func_type);
 			} break;
 

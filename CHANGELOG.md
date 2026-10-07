@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.3"></a>
+## v0.0.403.3
+
+### Panther
+- Fixed checking of some function calls for attributes `#rt` and `#ct`
+
+
+<!---------------------------------->
 <a name="v0.0.403.2"></a>
 ## v0.0.403.2
 
