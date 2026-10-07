@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.2"></a>
+## v0.0.403.2
+
+### Panther
+- Fixed executing `@_ctAlloc` on Windows
+- Fixed executing `@makeComptimeBuffer` for elements of size > 1
+
+
+<!---------------------------------->
 <a name="v0.0.403.1"></a>
 ## v0.0.403.1
 

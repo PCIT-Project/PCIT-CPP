@@ -4679,9 +4679,11 @@ namespace pcit::panther{
 		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.alloc,
 			[](Context* context, size_t size, uint32_t alignment) -> void* {
+				if(std::has_single_bit(alignment) == false){ return nullptr; }
+
 				void* const ptr = [&]() -> void* {
 					#if defined(EVO_PLATFORM_WINDOWS)
-						return _aligned_malloc(size_t(alignment), size);
+						return _aligned_malloc(size, size_t(alignment));
 					#else
 						return std::aligned_alloc(size_t(alignment), size);
 					#endif
@@ -4742,7 +4744,7 @@ namespace pcit::panther{
 
 
 		comptime_execution_engine_funcs.make_comptime_buffer = this->pir_module.createExternalFunction(
-			"@_makeComptimeBuffer",
+			"@makeComptimeBuffer",
 			evo::SmallVector<pir::Parameter>{
 				pir::Parameter("context", pir::Module::createPtrType()),
 				pir::Parameter("buffer_ptr", pir::Module::createPtrType()),
@@ -4753,13 +4755,17 @@ namespace pcit::panther{
 			pir::Linkage::EXTERNAL,
 			pir::Module::createBoolType()
 		);
+		struct ArrayProxyUnknownType{
+			void* data;
+			size_t size;
+		};
 		this->execution_engine.registerExternFunc(
 			comptime_execution_engine_funcs.make_comptime_buffer,
 			[](
 				Context* context,
-				evo::ArrayProxy<std::byte>* buffer,
+				ArrayProxyUnknownType* buffer,
 				BaseType::ArrayRef::ID array_ref_id,
-				evo::ArrayProxy<std::byte>* output
+				ArrayProxyUnknownType* output
 			) -> bool {
 				ContextComptimeContext::Data& data = context->comptime_context.get_data();
 
@@ -4769,15 +4775,19 @@ namespace pcit::panther{
 						context->getTypeManager().getOrCreateArray(
 							BaseType::Array(
 								array_ref_type.elementTypeID,
-								evo::SmallVector<uint64_t>{buffer->size()},
+								evo::SmallVector<uint64_t>{buffer->size},
 								std::nullopt
 							)
 						)
 					)
 				);
 
+				const size_t elem_num_bytes = context->getTypeManager().numBytes(array_ref_type.elementTypeID);
+
 				const evo::Result<sema::Expr> created_expr = data.semantic_analyzer->genericValueToSemaExpr(
-					core::GenericValue::fromData(*buffer),
+					core::GenericValue::fromData(
+						evo::ArrayProxy<std::byte>((std::byte*)buffer->data, buffer->size * elem_num_bytes)
+					),
 					created_global_type_id,
 					data.ptr_arg_datas,
 					data.call_location
@@ -4791,7 +4801,7 @@ namespace pcit::panther{
 
 				const std::byte* buffer_ptr =
 					context->execution_engine.getOrLowerGlobalVarValue(global_buffer).dataRange().data();
-				*output = evo::ArrayProxy<std::byte>(buffer_ptr, buffer->size());
+				*output = ArrayProxyUnknownType((void*)buffer_ptr, buffer->size);
 
 				return false;
 			}

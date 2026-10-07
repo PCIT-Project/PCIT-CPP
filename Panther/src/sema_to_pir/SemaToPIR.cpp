@@ -11514,9 +11514,25 @@ namespace pcit::panther{
 						}
 					}
 
-					return this->handler.createCall(
+					const pir::Expr alloc_res = this->handler.createCall(
 						this->data.getComptimeExecutionEngineFuncs().alloc, std::move(args)
 					);
+
+					const pir::Expr is_null = this->handler.createIEq(alloc_res, this->handler.createNullptr());
+
+					const pir::BasicBlock::ID fail_block = 
+						this->handler.createBasicBlockInline(this->name("CT_ALLOC.FAIL"));
+					const pir::BasicBlock::ID end_block = 
+						this->handler.createBasicBlockInline(this->name("CT_ALLOC.SUCCESS"));
+
+					this->handler.createBranch(is_null, fail_block, end_block);
+
+					this->handler.setTargetBasicBlock(fail_block);
+					this->create_unreachable("Invalid alignment for @_ctAlloc");
+
+					this->handler.setTargetBasicBlock(end_block);
+
+					return alloc_res;
 				} break;
 
 				case IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID: {
