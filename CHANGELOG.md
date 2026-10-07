@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.4"></a>
+## v0.0.403.4
+
+### Panther
+- Fixed calling functions outside a function
+
+
+<!---------------------------------->
 <a name="v0.0.403.3"></a>
 ## v0.0.403.3
 

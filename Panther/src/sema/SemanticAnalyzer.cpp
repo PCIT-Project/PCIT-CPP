@@ -31591,82 +31591,94 @@ namespace pcit::panther{
 		}
 
 
-		if(
-			this->func_scope_current_value_stage().requiresComptime()
-			&& selected_func_type.attributes.isComptime == false
-		){
-			const Diagnostic::Location decl_location = func_infos[selected_func_overload_index.value()].func_id.visit(
-				[&](const auto& selected_func_id) -> Diagnostic::Location {
-					using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
-				
-					if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
-						return Diagnostic::Location::BUILTIN;
-				
-					}else if constexpr(
-						std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
-					){
-						return Diagnostic::Location::BUILTIN;
+		if(this->currently_in_func()){
+			if(
+				this->func_scope_current_value_stage().requiresComptime()
+				&& selected_func_type.attributes.isComptime == false
+			){
+				const Diagnostic::Location decl_location =
+					func_infos[selected_func_overload_index.value()].func_id.visit(
+						[&](const auto& selected_func_id) -> Diagnostic::Location {
+							using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
+						
+							if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+								return Diagnostic::Location::BUILTIN;
+						
+							}else if constexpr(
+								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+							){
+								return Diagnostic::Location::BUILTIN;
 
-					}else if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()){
-						return Diagnostic::Location::BUILTIN;
+							}else if constexpr(
+								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()
+							){
+								return Diagnostic::Location::BUILTIN;
 
-					}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
-						return this->get_location(selected_func_id);
+							}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
+								return this->get_location(selected_func_id);
 
-					}else if constexpr(std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()){
-						return this->get_location(*selected_func_id.instantiation.funcID);
-				
-					}else{
-						static_assert(false, "Unknown select function overload id kind");
-					}
-				}
-			);
+							}else if constexpr(
+								std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()
+							){
+								return this->get_location(*selected_func_id.instantiation.funcID);
+						
+							}else{
+								static_assert(false, "Unknown select function overload id kind");
+							}
+						}
+					);
 
-			this->emit_error(
-				"Cannot call a non-comptime function within a comptime function",
-				func_call.target,
-				Diagnostic::Info("Called function was defined here:", decl_location)
-			);
-			return evo::Unexpected(Result::ERROR);
-		}
+				this->emit_error(
+					"Cannot call a non-comptime function within a comptime function",
+					func_call.target,
+					Diagnostic::Info("Called function was defined here:", decl_location)
+				);
+				return evo::Unexpected(Result::ERROR);
+			}
 
-		if(
-			this->func_scope_current_value_stage().requiresRuntime()
-			&& selected_func_type.attributes.isRuntime == false
-		){
-			const Diagnostic::Location decl_location = func_infos[selected_func_overload_index.value()].func_id.visit(
-				[&](const auto& selected_func_id) -> Diagnostic::Location {
-					using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
-				
-					if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
-						return Diagnostic::Location::BUILTIN;
-				
-					}else if constexpr(
-						std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
-					){
-						return Diagnostic::Location::BUILTIN;
+			if(
+				this->func_scope_current_value_stage().requiresRuntime()
+				&& selected_func_type.attributes.isRuntime == false
+			){
+				const Diagnostic::Location decl_location =
+					func_infos[selected_func_overload_index.value()].func_id.visit(
+						[&](const auto& selected_func_id) -> Diagnostic::Location {
+							using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
+						
+							if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
+								return Diagnostic::Location::BUILTIN;
+						
+							}else if constexpr(
+								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+							){
+								return Diagnostic::Location::BUILTIN;
 
-					}else if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()){
-						return Diagnostic::Location::BUILTIN;
+							}else if constexpr(
+								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()
+							){
+								return Diagnostic::Location::BUILTIN;
 
-					}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
-						return this->get_location(selected_func_id);
+							}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
+								return this->get_location(selected_func_id);
 
-					}else if constexpr(std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()){
-						return this->get_location(*selected_func_id.instantiation.funcID);
-				
-					}else{
-						static_assert(false, "Unknown select function overload id kind");
-					}
-				}
-			);
+							}else if constexpr(
+								std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()
+							){
+								return this->get_location(*selected_func_id.instantiation.funcID);
+						
+							}else{
+								static_assert(false, "Unknown select function overload id kind");
+							}
+						}
+					);
 
-			this->emit_error(
-				"Cannot call a non-runtime function within a runtime function",
-				func_call.target,
-				Diagnostic::Info("Called function was defined here:", decl_location)
-			);
-			return evo::Unexpected(Result::ERROR);
+				this->emit_error(
+					"Cannot call a non-runtime function within a runtime function",
+					func_call.target,
+					Diagnostic::Info("Called function was defined here:", decl_location)
+				);
+				return evo::Unexpected(Result::ERROR);
+			}
 		}
 
 
