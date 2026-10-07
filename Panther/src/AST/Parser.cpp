@@ -1646,6 +1646,20 @@ namespace pcit::panther{
 			}
 		}
 
+		if(cases.size() < 2){
+			if(cases.empty() || has_else_case){
+				this->context.emitError(
+					"Switch statement has no cases", Diagnostic::Location::get(keyword, this->source)
+				);
+
+			}else{
+				this->context.emitError(
+					"Switch statement has only cases", Diagnostic::Location::get(keyword, this->source)
+				);
+			}
+
+			return Result::Code::ERROR;
+		}
 
 		if constexpr(IS_WHEN){
 			return this->source.ast_buffer.createWhenSwitch(

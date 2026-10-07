@@ -9124,7 +9124,7 @@ namespace pcit::panther{
 			auto used_values = std::unordered_set<core::GenericValue>();
 
 			for(size_t i = 0; const sema::Switch::Case& switch_case : current_switch.cases){
-				if(switch_case.values.empty()){
+				if(switch_case.isElse()){
 					else_index = i;
 					continue;
 				}

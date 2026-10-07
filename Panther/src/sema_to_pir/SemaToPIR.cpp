@@ -3642,7 +3642,7 @@ namespace pcit::panther{
 							all_cases_terminated = false;
 						}
 
-						if(switch_stmt.cases[i].values.empty()){
+						if(switch_stmt.cases[i].isElse()){
 							else_index = i;
 						}
 					}

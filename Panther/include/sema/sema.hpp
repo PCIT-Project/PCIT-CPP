@@ -615,6 +615,8 @@ namespace pcit::panther::sema{
 			Token::ID token;
 			evo::SmallVector<Expr> values{}; // empty if `else`
 			StmtBlock stmtBlock{};
+
+			[[nodiscard]] auto isElse() const -> bool { return this->values.empty(); }
 		};
 
 		enum class Kind{

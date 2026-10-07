@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.5"></a>
+## v0.0.403.5
+
+### Panther
+- Fixed missing check for too few cases in a `switch` 
+
+
+<!---------------------------------->
 <a name="v0.0.403.4"></a>
 ## v0.0.403.4
 

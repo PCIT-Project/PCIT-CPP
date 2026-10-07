@@ -378,6 +378,8 @@ namespace pcit::panther::AST{
 			Token::ID token;
 			evo::SmallVector<Node> values; // empty if `else`
 			Node block;
+
+			[[nodiscard]] auto isElse() const -> bool { return this->values.empty(); }
 		};
 
 		Token::ID keyword;
