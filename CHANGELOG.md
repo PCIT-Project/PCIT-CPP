@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.9"></a>
+## v0.0.403.9
+
+### Panther
+- Fixed race condition in name resolution of types
+- Fixed semantic analysis of usage of local variables with attribute `#global`
+
+
+<!---------------------------------->
 <a name="v0.0.403.8"></a>
 ## v0.0.403.8
 

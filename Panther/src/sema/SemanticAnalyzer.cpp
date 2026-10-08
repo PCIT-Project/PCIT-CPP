@@ -6823,7 +6823,8 @@ namespace pcit::panther{
 				value_term_info.getExpr(),
 				type_id,
 				false,
-				this->symbol_proc.getID()
+				this->symbol_proc.getID(),
+				true
 			);
 
 			if(this->add_ident_to_scope(var_ident, instr.var_def, true, new_sema_var).isError()){
@@ -28731,9 +28732,33 @@ namespace pcit::panther{
 					case AST::VarDef::Kind::VAR: {
 						if constexpr(NEEDS_DEF){
 							if(sema_var.defCompleted.load() == false){
-								return ReturnType(
-									evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+								SymbolProc& var_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(
+									*sema_var.symbolProcID
 								);
+
+								switch(var_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context)){
+									case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+									case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+										this->context.symbol_proc_manager.symbol_proc_unsuspended();
+										this->context.add_task_to_work_manager(*sema_var.symbolProcID);
+										[[fallthrough]];
+									}
+
+									case SymbolProc::WaitOnResult::WAITING: {
+										return ReturnType(
+											evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
+										);
+									} break;
+
+									case SymbolProc::WaitOnResult::WAS_ERRORED:
+									case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+									case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: {
+										return ReturnType(
+											evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
+										);
+									} break;
+								}
 							}
 						}
 
@@ -29275,10 +29300,27 @@ namespace pcit::panther{
 				const BaseType::Struct& struct_info = this->context.getTypeManager().getStruct(ident_id);
 
 				if constexpr(NEEDS_DEF){
-					if(struct_info.defCompleted == false){
-						return ReturnType(
-							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
-						);
+					const SymbolProc::WaitOnResult wait_on_result = this->wait_on_type_def(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF));
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
@@ -29323,10 +29365,27 @@ namespace pcit::panther{
 				const BaseType::Union& union_info = this->context.getTypeManager().getUnion(ident_id);
 
 				if constexpr(NEEDS_DEF){
-					if(union_info.defCompleted == false){
-						return ReturnType(
-							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
-						);
+					const SymbolProc::WaitOnResult wait_on_result = this->wait_on_type_def(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF));
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
@@ -29371,10 +29430,27 @@ namespace pcit::panther{
 				const BaseType::Enum& enum_info = this->context.getTypeManager().getEnum(ident_id);
 
 				if constexpr(NEEDS_DEF){
-					if(enum_info.defCompleted == false){
-						return ReturnType(
-							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
-						);
+					const SymbolProc::WaitOnResult wait_on_result = this->wait_on_type_def(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF));
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
@@ -29419,10 +29495,27 @@ namespace pcit::panther{
 				const BaseType::Interface& interface_info = this->context.getTypeManager().getInterface(ident_id);
 
 				if constexpr(NEEDS_DEF){
-					if(interface_info.defCompleted == false){
-						return ReturnType(
-							evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF)
-						);
+					const SymbolProc::WaitOnResult wait_on_result = this->wait_on_type_def(
+						this->context.getTypeManager().getOrCreateTypeInfo(TypeInfo(BaseType::ID(ident_id)))
+					);
+
+					switch(wait_on_result){
+						case SymbolProc::WaitOnResult::NOT_NEEDED: break;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::WAITING:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF));
+
+						case SymbolProc::WaitOnResult::WAS_ERRORED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Not possible");
+
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 					}
 				}
 
