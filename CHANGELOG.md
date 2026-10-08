@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.7"></a>
+## v0.0.403.7
+
+### Panther
+- Fixed parser incorrectly emitting an unexpected end of file error diagnostic if a variable is the final symbol of the file
+- Fixed incorrectly erroring that variables defined with `null` need to be explicitly typed even if they were
+- Fixed operator `as` of `null`
+
+
+<!---------------------------------->
+<a name="v0.0.403.6"></a>
+## v0.0.403.6
+
+### Panther
+- Fixed type checking of some term value categories
+
+
+<!---------------------------------->
 <a name="v0.0.403.5"></a>
 ## v0.0.403.5
 

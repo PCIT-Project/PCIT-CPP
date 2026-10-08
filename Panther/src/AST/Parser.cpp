@@ -3732,13 +3732,13 @@ namespace pcit::panther{
 		const Result block_expr = this->parse_block(BlockLabelRequirement::REQUIRED);
 		if(block_expr.code() != Result::Code::WRONG_TYPE){ return block_expr; }
 
-		if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
 			return this->parse_atom();
 		}
 
 		const Token::ID open_token_id = this->reader.next();
-
+		
 		const Result inner_expr = this->parse_sub_expr();
 		if(inner_expr.code() != Result::Code::SUCCESS){ return inner_expr; }
 

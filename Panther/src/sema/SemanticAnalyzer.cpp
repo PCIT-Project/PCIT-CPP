@@ -1144,17 +1144,20 @@ namespace pcit::panther{
 			return Result::ERROR;
 
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::NULL_VALUE){
-			this->emit_error(
-				"Cannot define a variable with a [null] value without an explicit type", *instr.var_def.value
-			);
-			return Result::ERROR;
-		}
+			if(instr.type_id.has_value() == false){
+				this->emit_error(
+					"Cannot define a variable with a [null] value without an explicit type", *instr.var_def.value
+				);
+				return Result::ERROR;
+			}
 
-
-		if(value_term_info.is_ephemeral() == false){
+		}else if(value_term_info.is_ephemeral() == false){
 			if(this->check_term_isnt_type(value_term_info, *instr.var_def.value).isError()){ return Result::ERROR; }
 
-			this->emit_error("Cannot define a variable with a non-ephemeral value", *instr.var_def.value);
+			this->emit_error(
+				"Cannot define a variable with a value that isn't ephemeral, an initializer, or [null]",
+				*instr.var_def.value
+			);
 			return Result::ERROR;
 		}
 
@@ -20960,149 +20963,209 @@ namespace pcit::panther{
 		}
 
 
-		if(expr.value_category == TermInfo::ValueCategory::EPHEMERAL_FLUID){
-			const TypeInfo::ID underlying_target_type_id =
-				this->context.getTypeManager().decayType<true, false>(target_type.asTypeID());
+		switch(expr.value_category){
+			case TermInfo::ValueCategory::EPHEMERAL: 
+			case TermInfo::ValueCategory::CONCRETE_CONST: 
+			case TermInfo::ValueCategory::CONCRETE_MUT: 
+			case TermInfo::ValueCategory::FORWARDABLE: {
+				// rest of function after switch is this functionality
+			} break;
 
-			if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
-				if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // int to int
-					TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
-						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
-					);
-					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+			case TermInfo::ValueCategory::EPHEMERAL_FLUID: {
+				const TypeInfo::ID underlying_target_type_id =
+					this->context.getTypeManager().decayType<true, false>(target_type.asTypeID());
 
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						expr.getExpr()
-					);
-					return Result::SUCCESS;
+				if(expr.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+					if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // int to int
+						TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+							target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
+						);
+						if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
-				}else if(this->context.getTypeManager().isFloatingPoint(underlying_target_type_id)){ // int to float
-					const sema::IntValue& initial_val = 
-						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							expr.getExpr()
+						);
+						return Result::SUCCESS;
 
-					const sema::FloatValue::ID new_float_value = this->context.sema_buffer.createFloatValue(
-						core::GenericFloat::createF128FromInt(initial_val.value, true),
-						this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
-					);
+					}else if(this->context.getTypeManager().isFloatingPoint(underlying_target_type_id)){ // int to float
+						const sema::IntValue& initial_val = 
+							this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(new_float_value)
-					);
-					return Result::SUCCESS;
+						const sema::FloatValue::ID new_float_value = this->context.sema_buffer.createFloatValue(
+							core::GenericFloat::createF128FromInt(initial_val.value, true),
+							this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+						);
 
-				}else if(underlying_target_type_id == TypeManager::getTypeChar()){ // int to char
-					const sema::IntValue& initial_val = 
-						this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(new_float_value)
+						);
+						return Result::SUCCESS;
 
-					const sema::CharValue::ID new_char_value = this->context.sema_buffer.createCharValue(
-						static_cast<char>(initial_val.value)
-					);
+					}else if(underlying_target_type_id == TypeManager::getTypeChar()){ // int to char
+						const sema::IntValue& initial_val = 
+							this->context.sema_buffer.getIntValue(expr.getExpr().intValueID());
 
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(new_char_value)
-					);
-					return Result::SUCCESS;
+						const sema::CharValue::ID new_char_value = this->context.sema_buffer.createCharValue(
+							static_cast<char>(initial_val.value)
+						);
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(new_char_value)
+						);
+						return Result::SUCCESS;
+
+					}else{
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+						this->emit_error(
+							"Operator [as] cannot convert a fluid integral to this type",
+							instr.infix.rhs,
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+
+				}else if(expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE){
+					if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // float to int
+						const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
+						const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
+
+						const sema::FloatValue& initial_val = 
+							this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
+
+						const sema::IntValue::ID new_int_value = this->context.sema_buffer.createIntValue(
+							initial_val.value.toGenericInt(width, is_signed),
+							this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
+						);
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							sema::Expr(new_int_value)
+						);
+
+						return Result::SUCCESS;
+
+					}else if(this->context.getTypeManager().isFloatingPoint(target_type.asTypeID())){ // float to float
+						TypeCheckInfo type_check_info = this->type_check<true, true, true>(
+							target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
+						);
+						if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							expr.getExpr()
+						);
+						return Result::SUCCESS;
+
+					}else{
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+						this->emit_error(
+							"Operator [as] cannot convert a fluid float to this type", instr.infix.rhs, std::move(infos)
+						);
+						return Result::ERROR;
+					}
 
 				}else{
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
-					this->emit_error(
-						"Operator [as] cannot convert a fluid integral to this type", instr.infix.rhs, std::move(infos)
+					evo::debugAssert(expr.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE, "Unknown fluid value");
+
+					if(
+						target_type.asTypeID() == TypeManager::getTypeBool()
+						|| target_type.asTypeID() == TypeManager::getTypeBool32()
+					){
+						this->return_term_info(instr.output,
+							TermInfo::ValueCategory::EPHEMERAL,
+							true,
+							true,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							target_type.asTypeID(),
+							expr.getExpr()
+						);
+						return Result::SUCCESS;
+						
+					}else{
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
+						this->emit_error(
+							"Operator [as] cannot convert a fluid boolean to this type",
+							instr.infix.rhs,
+							std::move(infos)
+						);
+						return Result::ERROR;
+					}
+				}
+			} break;
+
+			case TermInfo::ValueCategory::NULL_VALUE: {
+				const TypeInfo::ID to_underlying_type_id =
+					this->context.getTypeManager().getUnderlyingType(target_type.asTypeID());
+				const TypeInfo& to_underlying_type = this->context.getTypeManager().getTypeInfo(to_underlying_type_id);
+
+				if(to_underlying_type.isOptional()){
+					this->return_term_info(instr.output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						target_type.asTypeID(),
+						sema::Expr(this->context.sema_buffer.createDefaultNew(target_type.asTypeID(), true))
 					);
+					return Result::SUCCESS;
+				}
+
+				if(to_underlying_type.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){
+					this->emit_error("Value [null] can only be converted to optional types or `RawPtr`", instr.infix);
 					return Result::ERROR;
 				}
 
-			}else if(expr.getExpr().kind() == sema::Expr::Kind::FLOAT_VALUE){
-				if(this->context.getTypeManager().isIntegral(underlying_target_type_id)){ // float to int
-					const unsigned width = unsigned(this->context.getTypeManager().numBits(target_type.asTypeID()));
-					const bool is_signed = this->context.getTypeManager().isSignedIntegral(target_type.asTypeID());
-
-					const sema::FloatValue& initial_val = 
-						this->context.sema_buffer.getFloatValue(expr.getExpr().floatValueID());
-
-					const sema::IntValue::ID new_int_value = this->context.sema_buffer.createIntValue(
-						initial_val.value.toGenericInt(width, is_signed),
-						this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID()
-					);
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						sema::Expr(new_int_value)
-					);
-
-					return Result::SUCCESS;
-
-				}else if(this->context.getTypeManager().isFloatingPoint(target_type.asTypeID())){ // float to float
-					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
-						target_type.asTypeID(), expr, "Operator [as]", this->get_location(instr.infix)
-					);
-					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
-
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						expr.getExpr()
-					);
-					return Result::SUCCESS;
-
-				}else{
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
-					this->emit_error(
-						"Operator [as] cannot convert a fluid float to this type", instr.infix.rhs, std::move(infos)
-					);
+				const BaseType::Primitive to_primitive = 
+					this->context.getTypeManager().getPrimitive(to_underlying_type.baseTypeID().primitiveID());
+				
+				if(to_primitive.kind() != Token::Kind::TYPE_RAWPTR){
+					this->emit_error("Value [null] can only be converted to optional types or `RawPtr`", instr.infix);
 					return Result::ERROR;
 				}
 
-			}else{
-				evo::debugAssert(expr.getExpr().kind() == sema::Expr::Kind::BOOL_VALUE, "Unknown fluid value");
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					true,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					target_type.asTypeID(),
+					expr.getExpr()
+				);
+				return Result::SUCCESS;
+			} break;
 
-				if(
-					target_type.asTypeID() == TypeManager::getTypeBool()
-					|| target_type.asTypeID() == TypeManager::getTypeBool32()
-				){
-					this->return_term_info(instr.output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						true,
-						true,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						target_type.asTypeID(),
-						expr.getExpr()
-					);
-					return Result::SUCCESS;
-					
-				}else{
-					auto infos = evo::SmallVector<Diagnostic::Info>();
-					this->diagnostic_print_type_info(target_type.asTypeID(), infos, "Target type: ");
-					this->emit_error(
-						"Operator [as] cannot convert a fluid boolean to this type", instr.infix.rhs, std::move(infos)
-					);
-					return Result::ERROR;
-				}
-			}
+			default: {
+				this->emit_error("Invalid LHS of operator `as`", instr.infix.lhs);
+				return Result::ERROR;
+			} break;
 		}
+
 
 
 		if(expr.value_state != TermInfo::ValueState::INIT && expr.value_state != TermInfo::ValueState::NOT_APPLICABLE){
@@ -38708,19 +38771,17 @@ namespace pcit::panther{
 				return TypeCheckInfo::success(true);
 			} break;
 
-			case TermInfo::ValueCategory::EXPR_DEDUCER:
-				evo::debugFatalBreak("EXPR_DEDUCER should not be compared with this function");
-
-			case TermInfo::ValueCategory::INITIALIZER:
-				evo::debugFatalBreak("INITIALIZER should not be compared with this function");
-
 			case TermInfo::ValueCategory::MODULE:
+			case TermInfo::ValueCategory::C_FAMILY_MODULE:
+			case TermInfo::ValueCategory::BUILTIN_MODULE:
 			case TermInfo::ValueCategory::FUNCTION:
 			case TermInfo::ValueCategory::FUNCTION_PUB_REQUIRED:
 			case TermInfo::ValueCategory::FUNCTION_NOT_PRIV_REQUIRED:
+			case TermInfo::ValueCategory::METHOD_CALL:
+			case TermInfo::ValueCategory::INTERFACE_CALL:
+			case TermInfo::ValueCategory::POLY_INTERFACE_CALL:
 			case TermInfo::ValueCategory::INTRINSIC_FUNC:
-			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: 
-			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD: {
+			case TermInfo::ValueCategory::TEMPLATE_INTRINSIC_FUNC: {
 				if constexpr(MAY_EMIT_ERROR){
 					this->error_type_mismatch(
 						expected_type_id, got_expr, expected_type_location_name, location, multi_type_index
@@ -38729,17 +38790,24 @@ namespace pcit::panther{
 				return TypeCheckInfo::fail();
 			} break;
 
+			case TermInfo::ValueCategory::INITIALIZER:
+			case TermInfo::ValueCategory::EXPR_DEDUCER:
+			case TermInfo::ValueCategory::BUILTIN_TYPE_METHOD:
 			case TermInfo::ValueCategory::TEMPLATE_TYPE:
-				evo::debugFatalBreak("TEMPLATE_TYPE should not be compared with this function");
-
 			case TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED:
-				evo::debugFatalBreak("TEMPLATE_TYPE_PUB_REQUIRED should not be compared with this function");
-
+			case TermInfo::ValueCategory::TYPE:
+			case TermInfo::ValueCategory::TEMPLATE_DECL_INSTANTIATION_TYPE:
+			case TermInfo::ValueCategory::EXCEPT_PARAM_PACK:
 			case TermInfo::ValueCategory::TAGGED_UNION_FIELD_ACCESSOR:
-				evo::debugFatalBreak("TAGGED_UNION_FIELD_ACCESSOR should not be compared with this function");
+			case TermInfo::ValueCategory::VARIADIC_PARAM:
+			case TermInfo::ValueCategory::EXPANDED_PACK: {
+				this->emit_fatal(Diagnostic::createFatalMessage("Invalid term value category to type check"), location);
+				return TypeCheckInfo::fail();
+			} break;
 		}
 
-		evo::debugFatalBreak("Unknown or unsupported value category");
+		this->emit_fatal(Diagnostic::createFatalMessage("Unknown term value category"), location);
+		return TypeCheckInfo::fail();
 	}
 
 
