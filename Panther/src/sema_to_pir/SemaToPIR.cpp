@@ -4801,10 +4801,7 @@ namespace pcit::panther{
 		const sema::ConversionToOptional& conversion_to_optional = 
 			this->context.getSemaBuffer().getConversionToOptional(expr.conversionToOptionalID());
 
-		const TypeInfo& target_type =
-			this->context.getTypeManager().getTypeInfo(conversion_to_optional.targetTypeID);
-
-		if(target_type.isPointer()){
+		if(this->type_is_pointer(conversion_to_optional.targetTypeID)){
 			return this->get_expr_impl<MODE>(conversion_to_optional.expr, store_locations);
 		}
 
@@ -5297,7 +5294,8 @@ namespace pcit::panther{
 			}
 		}
 
-		if(target_type_info.isPointer()){
+
+		if(this->type_is_pointer(unwrap.targetTypeID)){
 			if(this->context.getConfig().checkedOptionals){
 				const pir::BasicBlock::ID fail_block = 
 					this->handler.createBasicBlockInline(this->name("UNWRAP.CHECKED.FAIL"));
@@ -8602,8 +8600,12 @@ namespace pcit::panther{
 		
 		const TypeInfo& expr_type = this->context.getTypeManager().getTypeInfo(expr_type_id);
 
+		const TypeInfo& decayed_expr_type = this->context.getTypeManager().getTypeInfo(
+			this->context.getTypeManager().decayType<true, false>(expr_type_id)
+		);
+
 		if(expr_type.qualifiers().empty() == false){
-			if(expr_type.qualifiers().back().isPtr){
+			if(this->decayed_type_is_pointer(decayed_expr_type)){
 				evo::debugAssert(expr_type.isOptional(), "Unknown non-trivial default-initializable qualifier");
 
 				if constexpr(MODE == GetExprMode::REGISTER){
@@ -8698,7 +8700,7 @@ namespace pcit::panther{
 			}
 		}
 
-		switch(expr_type.baseTypeID().kind()){
+		switch(decayed_expr_type.baseTypeID().kind()){
 			case BaseType::Kind::PRIMITIVE: {
 				evo::debugAssert("Unknown non-trivial default-initializable type");
 			} break;
@@ -14042,7 +14044,12 @@ namespace pcit::panther{
 	auto SemaToPIR::get_type(TypeInfo::ID type_id) -> PIRType {
 		const TypeInfo& type_info = this->context.getTypeManager().getTypeInfo(type_id);
 
-		if(type_info.isPointer()){
+		const TypeInfo& decayed_type_info = this->context.getTypeManager().getTypeInfo(
+			this->context.getTypeManager().decayType<true, false>(type_id)
+		);
+
+
+		if(decayed_type_info.isPointer()){
 			if constexpr(GET_META){
 				if(this->data.config.includeDebugInfo == false){
 					return PIRType(this->module.createPtrType(), std::nullopt);
@@ -14051,13 +14058,13 @@ namespace pcit::panther{
 				std::string type_name = this->context.getTypeManager().printType(type_id, this->context);
 
 				const TypeInfo::ID pointee_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					type_info.copyWithPoppedQualifier()
+					decayed_type_info.copyWithPoppedQualifier()
 				);
 
 				PIRType pointee_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, true>(pointee_type_id);
 
 				const pir::meta::QualifiedType::Qualifier qualifier = [&]() -> pir::meta::QualifiedType::Qualifier {
-					if(type_info.qualifiers().back().isMut){
+					if(decayed_type_info.qualifiers().back().isMut){
 						return pir::meta::QualifiedType::Qualifier::MUT_POINTER;
 					}else{
 						return pir::meta::QualifiedType::Qualifier::POINTER;
@@ -14076,7 +14083,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(type_info.isOptionalNotPointer()){
+		if(decayed_type_info.isOptionalNotPointer()){
 			const auto lock = std::scoped_lock(this->data.optional_types_lock);
 			const auto find = this->data.optional_types.find(&type_info);
 			if(find != this->data.optional_types.end()){
@@ -14089,14 +14096,48 @@ namespace pcit::panther{
 			}
 
 
+			if(
+				decayed_type_info.baseTypeID().kind() == BaseType::Kind::PRIMITIVE
+				&& decayed_type_info.qualifiers().size() == 1
+			){
+				const BaseType::Primitive& decayed_primtiive = this->context.getTypeManager().getPrimitive(
+					decayed_type_info.baseTypeID().primitiveID()
+				);
+
+				if(decayed_primtiive.kind() == Token::Kind::TYPE_RAWPTR){
+					const pir::Type pir_type = this->module.createPtrType();
+
+					if constexpr(GET_META){
+						if(this->data.config.includeDebugInfo){
+							return PIRType(
+								pir_type,
+								this->data.get_or_create_meta_pointer_qualified_type(
+									type_id,
+									this->module,
+									this->context.getTypeManager().printType(type_id, this->context),
+									std::nullopt,
+									pir::meta::QualifiedType::Qualifier::MUT_POINTER
+								)
+							);
+						}else{
+							return PIRType(pir_type, std::nullopt);
+						}
+					}else{
+						return PIRType(pir_type, std::nullopt);
+					}
+				}
+			}
+
+
+
 			auto target_qualifiers = evo::SmallVector<TypeInfo::Qualifier>();
-			target_qualifiers.reserve(type_info.qualifiers().size() - 1);
-			for(size_t i = 0; i < type_info.qualifiers().size() - 1; i+=1){
-				target_qualifiers.emplace_back(type_info.qualifiers()[i]);
+			target_qualifiers.reserve(decayed_type_info.qualifiers().size() - 1);
+			for(size_t i = 0; i < decayed_type_info.qualifiers().size() - 1; i+=1){
+				target_qualifiers.emplace_back(decayed_type_info.qualifiers()[i]);
 			}
 
 			const TypeInfo::ID target_type_id = this->context.type_manager.getOrCreateTypeInfo(
-				TypeInfo(type_info.baseTypeID(), std::move(target_qualifiers))
+				TypeInfo(decayed_type_info.baseTypeID(), std::move(target_qualifiers))
 			);
 
 			const PIRType target_pir_type = this->get_type<MAY_LOWER_DEPENDENCY, GET_META>(target_type_id);
@@ -14991,6 +15032,26 @@ namespace pcit::panther{
 
 
 
+
+	auto SemaToPIR::type_is_pointer(TypeInfo::ID type_id) const -> bool {
+		return this->decayed_type_is_pointer(
+			this->context.getTypeManager().getTypeInfo(
+				this->context.getTypeManager().decayType<true, false>(type_id)
+			)
+		);
+	}
+
+	auto SemaToPIR::decayed_type_is_pointer(const TypeInfo& decayed_type_info) const -> bool {
+		if(decayed_type_info.isPointer()){ return true; }
+
+		if(decayed_type_info.qualifiers().size() > 1){ return false; }
+		if(decayed_type_info.baseTypeID().kind() != BaseType::Kind::PRIMITIVE){ return false; }
+
+		const BaseType::Primitive& decayed_primtiive = this->context.getTypeManager().getPrimitive(
+			decayed_type_info.baseTypeID().primitiveID()
+		);
+		return decayed_primtiive.kind() == Token::Kind::TYPE_RAWPTR;
+	}
 
 
 

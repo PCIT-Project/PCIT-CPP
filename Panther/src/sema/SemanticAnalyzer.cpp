@@ -35878,8 +35878,8 @@ namespace pcit::panther{
 					instr.designated_init_new.memberInits[1].ident,
 					Diagnostic::Info("Union can only hold one field at a time")
 				);
-				return Result::ERROR;
 			}
+			return Result::ERROR;
 		}
 
 

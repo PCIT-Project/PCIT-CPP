@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.8"></a>
+## v0.0.403.8
+
+### Panther
+- Fixed lowering of optional of alias to `RawPtr`
+
+
+<!---------------------------------->
 <a name="v0.0.403.7"></a>
 ## v0.0.403.7
 

@@ -535,6 +535,9 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto get_function_pir_type(const BaseType::Function& func_type) -> pir::Type;
 
+			[[nodiscard]] auto type_is_pointer(TypeInfo::ID type_id) const -> bool;
+			[[nodiscard]] auto decayed_type_is_pointer(const TypeInfo& decayed_type_info) const -> bool;
+
 
 			struct Location{
 				pir::meta::File::ID meta_file_id;
