@@ -26888,8 +26888,8 @@ namespace pcit::panther{
 
 
 		evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
-			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NONE>(
-				instr.rhs_ident, rhs_ident_str, *lhs_type_enum.scopeLevel, true, true, enum_source
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NOT_PRIV>(
+				instr.rhs_ident, rhs_ident_str, *lhs_type_enum.scopeLevel, true, false, enum_source
 			);
 
 
