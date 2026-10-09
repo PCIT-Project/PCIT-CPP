@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.10"></a>
+## v0.0.403.10
+
+### Panther
+- Fixed missing check for enumerator as LHS of accessor
+
+
+<!---------------------------------->
 <a name="v0.0.403.9"></a>
 ## v0.0.403.9
 

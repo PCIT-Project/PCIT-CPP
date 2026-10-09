@@ -26787,6 +26787,12 @@ namespace pcit::panther{
 		const TypeInfo& decayed_lhs_type,
 		bool is_pointer
 	) -> Result {
+		if(lhs.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+			this->emit_error("Accessor operator of this LHS is invalid", instr.infix.lhs);
+			return Result::ERROR;
+		}
+
+
 		const BaseType::Enum& lhs_type_enum = this->context.getTypeManager().getEnum(
 			decayed_lhs_type.baseTypeID().enumID()
 		);
@@ -28524,11 +28530,65 @@ namespace pcit::panther{
 
 		///////////////////////////////////
 		// didn't find identifier
-		
-		this->wait_on_symbol_proc_emit_error(
-			wait_on_symbol_proc_result, ident, std::format("Identifier \"{}\" was not defined in this scope", ident_str)
-		);
-		return evo::Unexpected(Result::ERROR);
+
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: {
+				const std::optional<BaseType::Enum::ID> current_enum_scope =
+					this->scope.getCurrentEnumScopeIfExists();
+
+				if(current_enum_scope.has_value()){
+					const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(*current_enum_scope);
+
+					for(const BaseType::Enum::Enumerator& enumerator : enum_type.enumerators){
+						if(enum_type.getEnumeratorName(enumerator, this->context.getSourceManager()) == ident_str){
+							this->emit_error(
+								std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+								ident,
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info("Note: Enum enumerators should be accessed through the type"),
+									Diagnostic::Info(
+										std::format(
+											"Did you mean: `{}.{}`?",
+											enum_type.getName(this->context.getSourceManager()),
+											ident_str
+										)
+									)
+								}
+							);
+							
+							return evo::Unexpected(Result::ERROR);
+						}
+					}
+				}
+
+				this->emit_error(std::format("Identifier \"{}\" was not defined in this scope", ident_str), ident);
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->emit_error(
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+					ident,
+					Diagnostic::Info("The identifier was declared in a when conditional block that wasn't taken")
+				);
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				evo::debugFatalBreak("WaitOnSymbolProcResult::NEED_TO_WAIT is not an error");
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				evo::debugFatalBreak("WaitOnSymbolProcResult::SEMAS_READY is not an error");
+			} break;
+		}
+
+		evo::unreachable();
 	}
 
 

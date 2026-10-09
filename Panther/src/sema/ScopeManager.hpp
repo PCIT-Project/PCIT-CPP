@@ -170,6 +170,19 @@ namespace pcit::panther::sema{
 						return std::nullopt;
 					}
 
+					[[nodiscard]] auto getCurrentEnumScopeIfExists() const -> std::optional<BaseType::Enum::ID> {
+						for(
+							const EncapsulatingSymbolData& encapsulating_symbol_data
+							: this->encapsulating_symbols | std::views::reverse
+						){
+							if(encapsulating_symbol_data.encapsulating_symbol_id.is<BaseType::Enum::ID>()){
+								return encapsulating_symbol_data.encapsulating_symbol_id.as<BaseType::Enum::ID>();
+							}
+						}
+
+						return std::nullopt;
+					}
+
 
 
 					auto addThisParam(sema::Param::ID param_id) -> void {
