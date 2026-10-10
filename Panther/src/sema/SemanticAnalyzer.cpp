@@ -22456,10 +22456,10 @@ namespace pcit::panther{
 		if(lhs.type_id.is<TypeInfo::ID>()){
 			if(rhs.type_id.is<TypeInfo::ID>()){ // neither lhs nor rhs fluid
 				const TypeInfo::ID lhs_decayed_type_id =
-					this->context.type_manager.decayType<false, false>(lhs.type_id.as<TypeInfo::ID>());
+					this->context.type_manager.decayType<true, false>(lhs.type_id.as<TypeInfo::ID>());
 
 				const TypeInfo::ID rhs_decayed_type_id =
-					this->context.type_manager.decayType<false, false>(rhs.type_id.as<TypeInfo::ID>());
+					this->context.type_manager.decayType<true, false>(rhs.type_id.as<TypeInfo::ID>());
 
 
 				const TypeInfo& lhs_decayed_type = this->context.getTypeManager().getTypeInfo(lhs_decayed_type_id);

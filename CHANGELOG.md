@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.12"></a>
+## v0.0.403.12
+
+### Panther
+- Fixed math infix of distinct alias of integral
+
+
+<!---------------------------------->
 <a name="v0.0.403.11"></a>
 ## v0.0.403.11
 
