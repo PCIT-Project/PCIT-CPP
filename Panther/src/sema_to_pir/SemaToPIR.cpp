@@ -2342,36 +2342,50 @@ namespace pcit::panther{
 				}
 
 				if(target_func_type.errorTypes[0].isVoid() == false){
-					const Data::InterfaceInfo& interface_info =
-						this->data.get_interface(try_else_interface.interfaceID);
+					if(target_func_type.hasNamedReturns){
+						const Data::InterfaceInfo& interface_info =
+							this->data.get_interface(try_else_interface.interfaceID);
 
-					const pir::Type error_return_type =
-						*interface_info.error_return_types[try_else_interface.vtableFuncIndex];
+						const pir::Type error_return_type = 
+							*interface_info.error_return_types[try_else_interface.vtableFuncIndex];
 
-					const pir::Expr error_value =
-						this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+						const pir::Expr error_value =
+							this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
 
-					for(const sema::ExceptParam::ID except_param_id : try_else_interface.exceptParams){
-						const sema::ExceptParam& except_param =
-							this->context.getSemaBuffer().getExceptParam(except_param_id);
+						for(const sema::ExceptParam::ID except_param_id : try_else_interface.exceptParams){
+							const sema::ExceptParam& except_param =
+								this->context.getSemaBuffer().getExceptParam(except_param_id);
 
-						const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
-							error_value,
-							error_return_type,
-							evo::SmallVector<pir::CalcPtr::Index>{
-								pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
-							},
-							this->name(
-								"EXCEPT_PARAM.{}",
-								this->current_source->getTokenBuffer()[
-									this->context.getSemaBuffer().getExceptParam(except_param_id).ident
-								].getString()
-							)
-						);
-						this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+							const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
+								error_value,
+								error_return_type,
+								evo::SmallVector<pir::CalcPtr::Index>{
+									pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+								},
+								this->name(
+									"EXCEPT_PARAM.{}",
+									this->current_source->getTokenBuffer()[
+										this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+									].getString()
+								)
+							);
+							
+							this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+						}
+
+						args.emplace_back(error_value);
+
+					}else{
+						const pir::Type error_return_type =
+							this->get_type<false, false>(target_func_type.errorTypes[0]).type;
+
+						const pir::Expr error_value =
+							this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+
+						this->local_func_exprs.emplace(sema::Expr(try_else_interface.exceptParams[0]), error_value);
+
+						args.emplace_back(error_value);
 					}
-
-					args.emplace_back(error_value);
 				}
 
 
@@ -7666,38 +7680,51 @@ namespace pcit::panther{
 
 
 		if(target_func_type.errorTypes[0].isVoid() == false){
-			const Data::InterfaceInfo& interface_info =
-				this->data.get_interface(attempt_func_interface_call.interfaceID);
+			if(target_func_type.hasNamedReturns){
+				const Data::InterfaceInfo& interface_info =
+					this->data.get_interface(attempt_func_interface_call.interfaceID);
 
-			const pir::Type error_return_type =
-				*interface_info.error_return_types[attempt_func_interface_call.vtableFuncIndex];
+				const pir::Type error_return_type = *interface_info.error_return_types[
+					attempt_func_interface_call.vtableFuncIndex
+				];
 
-			const pir::Expr error_value =
-				this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+				const pir::Expr error_value =
+					this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
 
-			for(const sema::ExceptParam::ID except_param_id : try_catch_interface_expr.exceptParams){
-				const sema::ExceptParam& except_param =
-					this->context.getSemaBuffer().getExceptParam(except_param_id);
+				for(const sema::ExceptParam::ID except_param_id : try_catch_interface_expr.exceptParams){
+					const sema::ExceptParam& except_param =
+						this->context.getSemaBuffer().getExceptParam(except_param_id);
 
-				const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
-					error_value,
-					error_return_type,
-					evo::SmallVector<pir::CalcPtr::Index>{
-						pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
-					},
-					this->name(
-						"EXCEPT_PARAM.{}",
-						this->current_source->getTokenBuffer()[
-							this->context.getSemaBuffer().getExceptParam(except_param_id).ident
-						].getString()
-					)
-				);
-				this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+					const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
+						error_value,
+						error_return_type,
+						evo::SmallVector<pir::CalcPtr::Index>{
+							pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+						},
+						this->name(
+							"EXCEPT_PARAM.{}",
+							this->current_source->getTokenBuffer()[
+								this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+							].getString()
+						)
+					);
+					
+					this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
+				}
+
+				args.emplace_back(error_value);
+				
+			}else{
+				const pir::Type error_return_type =
+					this->get_type<false, false>(target_func_type.errorTypes[0]).type;
+
+				const pir::Expr error_value = this->handler.createAlloca(error_return_type, this->name("ERR.ALLOCA"));
+
+				this->local_func_exprs.emplace(sema::Expr(try_catch_interface_expr.exceptParams[0]), error_value);
+
+				args.emplace_back(error_value);
 			}
-
-			args.emplace_back(error_value);
 		}
-
 
 
 		const pir::Expr err_occurred = this->handler.createCall(

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.13"></a>
+## v0.0.403.13
+
+### Panther
+- Fixed lowering calls to interface methods in `try/else` with a non-named error value
+
+
+<!---------------------------------->
 <a name="v0.0.403.12"></a>
 ## v0.0.403.12
 
