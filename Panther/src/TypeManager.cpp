@@ -2987,11 +2987,11 @@ namespace pcit::panther{
 	}
 
 
-	auto TypeManager::isNativelyTriviallySized(TypeInfo::ID id) const -> bool {
+	auto TypeManager::isTriviallySizedOnNativePlatform(TypeInfo::ID id) const -> bool {
 		return this->numBytes(id) <= core::Target::getNative().numBytesOfGeneralRegister();
 	}
 
-	auto TypeManager::isNativelyTriviallySized(BaseType::ID id) const -> bool {
+	auto TypeManager::isTriviallySizedOnNativePlatform(BaseType::ID id) const -> bool {
 		return this->numBytes(id) <= core::Target::getNative().numBytesOfGeneralRegister();
 	}
 
@@ -3008,12 +3008,12 @@ namespace pcit::panther{
 		return this->isTriviallySized(id) && this->isTriviallyCopyable(id);
 	}
 
-	auto TypeManager::isNativelyTriviallyParamReadable(TypeInfo::ID id) const -> bool {
-		return this->isNativelyTriviallySized(id) && this->isTriviallyCopyable(id);
+	auto TypeManager::isTriviallyParamReadableOnNativePlatform(TypeInfo::ID id) const -> bool {
+		return this->isTriviallySizedOnNativePlatform(id) && this->isTriviallyCopyable(id);
 	}
 
-	auto TypeManager::isNativelyTriviallyParamReadable(BaseType::ID id) const -> bool {
-		return this->isNativelyTriviallySized(id) && this->isTriviallyCopyable(id);
+	auto TypeManager::isTriviallyParamReadableOnNativePlatform(BaseType::ID id) const -> bool {
+		return this->isTriviallySizedOnNativePlatform(id) && this->isTriviallyCopyable(id);
 	}
 
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.403.14"></a>
+## v0.0.403.14
+
+### Panther
+- Fixed lowering of `try`/`else` polymorphic interface call
+
+
+<!---------------------------------->
 <a name="v0.0.403.13"></a>
 ## v0.0.403.13
 

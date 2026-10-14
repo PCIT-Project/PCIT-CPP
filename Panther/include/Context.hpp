@@ -560,6 +560,28 @@ namespace pcit::panther{
 			///////////////////////////////////
 			// emitting diagnostics
 
+			auto emitFatalExit(std::string&& message) -> void {
+				this->num_errors += 1;
+
+				if(this->encountered_fatal.exchange(true)){
+					std::exit(1);
+					return;
+				}
+
+				this->emit_diagnostic_impl(
+					Diagnostic(Diagnostic::Level::FATAL, std::move(message), Diagnostic::Location::NONE)
+				);
+
+				#if defined(PCIT_CONFIG_DEBUG)
+					evo::breakpoint();
+				#endif
+
+				this->clear_work_queue_if_needed();
+
+				std::exit(1);
+			}
+
+
 			auto emitFatal(auto&&... args) -> void {
 				this->num_errors += 1;
 				if(this->encountered_fatal.exchange(true)){ return; }
