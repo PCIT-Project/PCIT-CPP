@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.404.1"></a>
+## v0.0.404.1
+
+### Panther
+- Fixed lowering of circular dependencies of metadata such as `type Foo = struct { var foo: Foo*; }`
+
+
+<!---------------------------------->
 <a name="v0.0.404.0"></a>
 ## v0.0.404.0
 

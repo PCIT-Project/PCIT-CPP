@@ -427,12 +427,12 @@ namespace pcit::panther{
 				this->meta_forward_decl_structs.emplace(struct_id, forward_decl_struct);
 			}
 
-			[[nodiscard]] auto get_meta_forwrd_decl_struct(BaseType::Struct::ID struct_id) const -> pir::meta::Type {
+			[[nodiscard]] auto get_meta_forward_decl_struct(BaseType::Struct::ID struct_id) const -> pir::meta::Type {
 				const auto lock = std::scoped_lock(this->meta_forward_decl_structs_lock);
 				return this->meta_forward_decl_structs.at(struct_id);
 			}
 
-			[[nodiscard]] auto has_meta_forwrd_decl_struct(BaseType::Struct::ID struct_id) const -> bool {
+			[[nodiscard]] auto has_meta_forward_decl_struct(BaseType::Struct::ID struct_id) const -> bool {
 				const auto lock = std::scoped_lock(this->meta_forward_decl_structs_lock);
 				return this->meta_forward_decl_structs.contains(struct_id);
 			}

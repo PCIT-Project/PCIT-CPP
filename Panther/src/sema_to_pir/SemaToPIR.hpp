@@ -748,6 +748,8 @@ namespace pcit::panther{
 				-> bool;
 
 
+			[[nodiscard]] auto type_currently_being_lowered(BaseType::ID id) const -> bool;
+
 	
 		private:
 			class Context& context;
@@ -762,6 +764,8 @@ namespace pcit::panther{
 			std::unordered_map<sema::Expr, pir::Expr> local_func_exprs{};
 			evo::SmallVector<ScopeLevel, 16> scope_levels{};
 			evo::SmallVector<pir::Expr, 16> param_allocas{};
+
+			evo::SmallVector<BaseType::ID, 16> type_being_lowered_stack{};
 
 			std::stack<pir::meta::LocalScope, evo::SmallVector<pir::meta::LocalScope, 16>> local_scopes{};
 

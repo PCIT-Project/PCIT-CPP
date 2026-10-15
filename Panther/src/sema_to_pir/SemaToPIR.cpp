@@ -1544,6 +1544,10 @@ namespace pcit::panther{
 		}
 
 
+		this->type_being_lowered_stack.emplace_back(BaseType::ID(struct_id));
+		EVO_DEFER([&](){ this->type_being_lowered_stack.pop_back(); });
+
+
 		const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(struct_id);
 
 		this->current_source = struct_type.sourceID.visit([&](const auto& source) -> Source* {
@@ -1641,9 +1645,9 @@ namespace pcit::panther{
 				location.line_number
 			);
 
-			if(this->data.has_meta_forwrd_decl_struct(struct_id)){
+			if(this->data.has_meta_forward_decl_struct(struct_id)){
 				this->module.resolveForwardDeclType(
-					this->data.get_meta_forwrd_decl_struct(struct_id).as<pir::meta::ForwardDeclType::ID>(),
+					this->data.get_meta_forward_decl_struct(struct_id).as<pir::meta::ForwardDeclType::ID>(),
 					meta_struct_id
 				);
 			}
@@ -1667,6 +1671,11 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(value_handle.needsToBeSet(), "Already has this union");
 		}
+
+
+		this->type_being_lowered_stack.emplace_back(BaseType::ID(union_id));
+		EVO_DEFER([&](){ this->type_being_lowered_stack.pop_back(); });
+
 
 		const BaseType::Union& union_type = this->context.getTypeManager().getUnion(union_id);
 
@@ -1882,6 +1891,10 @@ namespace pcit::panther{
 		}else{
 			evo::debugAssert(value_handle.needsToBeSet(), "Already has this enum");
 		}
+
+
+		this->type_being_lowered_stack.emplace_back(BaseType::ID(enum_id));
+		EVO_DEFER([&](){ this->type_being_lowered_stack.pop_back(); });
 
 
 		const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(enum_id);
@@ -14964,9 +14977,24 @@ namespace pcit::panther{
 				}
 
 				if constexpr(GET_META){
-					if(this->data.structs.hasValue(base_type_id.structID())){
-						const pir::Type pir_type = this->data.structs.getExisting(base_type_id.structID());
-						return PIRType(pir_type, *this->module.lookupMetaStructType(pir_type));
+					// check for things like `type Foo = struct { var foo: Foo*; }`, where current type is `Foo*`
+					if(this->type_currently_being_lowered(base_type_id)){
+						evo::debugAssert(
+							this->data.getConfig().includeDebugInfo,
+							"Can only get forward decl if getting meta and including debug info"
+						);
+
+						return PIRType(
+							this->module.createVoidType(),
+							this->data.get_meta_forward_decl_struct(base_type_id.structID())
+						);
+					}
+
+
+					const pir::Type* pir_type = this->data.structs.getIfExists(base_type_id.structID());
+
+					if(pir_type != nullptr){
+						return PIRType(*pir_type, *this->module.lookupMetaStructType(*pir_type));
 
 					}else{
 						evo::debugAssert(
@@ -14976,7 +15004,7 @@ namespace pcit::panther{
 
 						return PIRType(
 							this->module.createVoidType(),
-							this->data.get_meta_forwrd_decl_struct(base_type_id.structID())
+							this->data.get_meta_forward_decl_struct(base_type_id.structID())
 						);
 					}
 
@@ -16697,5 +16725,14 @@ namespace pcit::panther{
 		return this->context.getTypeManager().isTriviallyParamReadableOnNativePlatform(func_param.typeID);
 	}
 
+
+
+	auto SemaToPIR::type_currently_being_lowered(BaseType::ID id) const -> bool {
+		for(const BaseType::ID id_in_stack : this->type_being_lowered_stack){
+			if(id_in_stack == id){ return true; }
+		}
+
+		return false;
+	}
 
 }

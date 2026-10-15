@@ -88,6 +88,24 @@ namespace pcit::core{
 				}
 			}
 
+			[[nodiscard]] auto getIfExists(const KEY& key) const -> const VALUE* { // nullptr if doesn't exist
+				this->spin_lock.lock();
+
+				const auto find = this->map.find(key);
+
+				if(find == this->map.end()){
+					this->spin_lock.unlock();
+					return nullptr;
+				}
+
+				const InternalValue& internal_value = *find->second;
+
+				this->spin_lock.unlock();
+
+				internal_value.waitForValue();
+				return &*internal_value.value;
+			}
+
 
 			[[nodiscard]] auto getExisting(const KEY& key) const -> const VALUE& {
 				evo::debugAssert(this->hasValue(key), "This key doesn't exist");
