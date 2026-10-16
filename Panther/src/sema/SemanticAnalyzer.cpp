@@ -7040,10 +7040,7 @@ namespace pcit::panther{
 
 			TermInfo& return_value_term = this->get_term_info(*instr.value);
 
-			if(
-				return_value_term.is_ephemeral() == false
-				&& return_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
-			){
+			if(return_value_term.is_ephemeral_or_null() == false){
 				this->emit_error("Value of return statement is not ephemeral", instr.return_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
@@ -7227,7 +7224,7 @@ namespace pcit::panther{
 
 			TermInfo& return_value_term = this->get_term_info(*instr.value);
 
-			if(return_value_term.is_ephemeral() == false){
+			if(return_value_term.is_ephemeral_or_null() == false){
 				this->emit_error("Return values must be ephemeral", instr.return_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
@@ -7342,10 +7339,7 @@ namespace pcit::panther{
 
 			TermInfo& error_value_term = this->get_term_info(*instr.value);
 
-			if(
-				error_value_term.is_ephemeral() == false
-				&& error_value_term.value_category != TermInfo::ValueCategory::NULL_VALUE
-			){
+			if(error_value_term.is_ephemeral_or_null() == false){
 				this->emit_error("Value of error return must be ephemeral", instr.error_stmt.value.as<AST::Node>());
 				return Result::ERROR;
 			}
@@ -9985,7 +9979,7 @@ namespace pcit::panther{
 		const Token::Kind op_kind = this->source.getTokenBuffer()[instr.infix.opTokenID].kind();
 
 		if(op_kind == Token::lookupKind("=")){
-			if(rhs.is_ephemeral() == false && rhs.value_category != TermInfo::ValueCategory::NULL_VALUE){
+			if(rhs.is_ephemeral_or_null() == false){
 				this->emit_error(
 					"RHS of assignment must be ephemeral or (if applicable) value [null]", instr.infix.rhs
 				);
@@ -18927,11 +18921,8 @@ namespace pcit::panther{
 
 				TermInfo& member_init_expr = this->get_term_info(instr.member_init_exprs[member_init_i]);
 
-				if(
-					member_init_expr.is_ephemeral() == false
-					&& member_init_expr.value_category != TermInfo::ValueCategory::NULL_VALUE
-				){
-					this->emit_error("Member initializer value is not ephemeral or `null`", member_init.expr);
+				if(member_init_expr.is_ephemeral_or_null() == false){
+					this->emit_error("Member initializer value is not ephemeral", member_init.expr);
 					return Result::ERROR;
 				}
 

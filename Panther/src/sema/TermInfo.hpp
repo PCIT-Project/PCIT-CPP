@@ -494,6 +494,12 @@ namespace pcit::panther{
 				|| this->value_category == ValueCategory::EPHEMERAL_FLUID;
 		}
 
+		[[nodiscard]] constexpr auto is_ephemeral_or_null() const -> bool {
+			return this->value_category == ValueCategory::EPHEMERAL
+				|| this->value_category == ValueCategory::EPHEMERAL_FLUID
+				|| this->value_category == ValueCategory::NULL_VALUE;
+		}
+
 		[[nodiscard]] constexpr auto is_concrete() const -> bool {
 			return this->value_category == ValueCategory::CONCRETE_CONST
 				|| this->value_category == ValueCategory::CONCRETE_MUT

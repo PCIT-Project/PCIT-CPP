@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.404.2"></a>
+## v0.0.404.2
+
+### Panther
+- Fixed passing `null` to a labelled return improperly being considered as non-ephemeral
+
+
+<!---------------------------------->
 <a name="v0.0.404.1"></a>
 ## v0.0.404.1
 
