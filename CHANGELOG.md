@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.406.0"></a>
+## v0.0.406.0
+
+### Panther
+- Renamed attribute `#priv` to `#private`
+- Fixed crashing when a function requires an implementation for `@panic` and the implementation errored in semantic analysis
+
+### Misc
+- Updated to [Panther-std v0.0.64.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.64.0)
+
+
+<!---------------------------------->
 <a name="v0.0.405.0"></a>
 ## v0.0.405.0
 

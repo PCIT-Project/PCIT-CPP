@@ -88,14 +88,14 @@ namespace pcit::panther::sema{
 				SourceID sourceID;
 				Token::ID tokenID;
 				std::optional<EncapsulatingSymbolID> parent;
-				bool isPriv;
+				bool isPrivate;
 			};
 
 			struct CFamilyModuleInfo{
 				CFamilySourceID cFamilySourceID;
 				Token::ID tokenID;
 				std::optional<EncapsulatingSymbolID> parent;
-				bool isPriv;
+				bool isPrivate;
 			};
 
 			struct TemplateTypeParamFlag{};

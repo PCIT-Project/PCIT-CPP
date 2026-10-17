@@ -184,9 +184,11 @@ namespace pcit::panther::sema{
 		Token::ID ident,
 		std::optional<EncapsulatingSymbolID> parent,
 		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>>&& aliasedOverloads,
-		bool isPriv
+		bool isPrivate
 	) -> FuncAlias::ID {
-		return this->internal->func_aliases.emplace_back(sourceID, ident, parent, std::move(aliasedOverloads), isPriv);
+		return this->internal->func_aliases.emplace_back(
+			sourceID, ident, parent, std::move(aliasedOverloads), isPrivate
+		);
 	}
 
 	auto SemaBuffer::getFuncAlias(FuncAlias::ID id) const -> const FuncAlias& {
@@ -244,10 +246,10 @@ namespace pcit::panther::sema{
 		evo::Variant<TemplatedStruct::ID, StructTemplateAlias::ID> aliasedID,
 		bool requiresPub,
 		bool isDistinct,
-		bool isPriv
+		bool isPrivate
 	) -> StructTemplateAlias::ID {
 		return this->internal->struct_template_aliases.emplace_back(
-			sourceID, ident, parent, aliasedID, requiresPub, isDistinct, isPriv
+			sourceID, ident, parent, aliasedID, requiresPub, isDistinct, isPrivate
 		);
 	}
 
@@ -293,12 +295,12 @@ namespace pcit::panther::sema{
 		std::optional<EncapsulatingSymbolID> parent,
 		evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value,
 		std::optional<TypeInfo::ID> typeID,
-		bool isPriv,
+		bool isPrivate,
 		std::optional<SymbolProcID> symbolProcID,
 		bool defCompleted
 	) -> GlobalVar::ID {
 		return this->internal->global_vars.emplace_back(
-			kind, sourceID, ident, cFamilyMangledName, parent, value, typeID, isPriv, symbolProcID, defCompleted
+			kind, sourceID, ident, cFamilyMangledName, parent, value, typeID, isPrivate, symbolProcID, defCompleted
 		);
 	}
 

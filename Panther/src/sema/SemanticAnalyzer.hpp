@@ -957,7 +957,7 @@ namespace pcit::panther{
 			// attributes
 
 			struct GlobalVarAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_global;
 			};
 			[[nodiscard]] auto analyze_global_var_attrs(
@@ -974,7 +974,7 @@ namespace pcit::panther{
 
 
 			struct FuncAliasAttrs{
-				bool is_priv;
+				bool is_private;
 			};
 			[[nodiscard]] auto analyze_func_alias_attrs(
 				const AST::FuncAliasDef& func_alias_def,
@@ -983,7 +983,7 @@ namespace pcit::panther{
 
 
 			struct AliasAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_distinct;
 			};
 			[[nodiscard]] auto analyze_alias_attrs(
@@ -999,7 +999,7 @@ namespace pcit::panther{
 
 
 			struct StructAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_ordered;
 				bool is_packed;
 				std::optional<uint32_t> alignment;
@@ -1010,7 +1010,7 @@ namespace pcit::panther{
 
 
 			struct UnionAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_untagged;
 				bool is_manual_lifetime;
 			};
@@ -1021,7 +1021,7 @@ namespace pcit::panther{
 
 
 			struct EnumAttrs{
-				bool is_priv;
+				bool is_private;
 			};
 			[[nodiscard]] auto analyze_enum_attrs(
 				const AST::EnumDef& enum_def,
@@ -1030,7 +1030,7 @@ namespace pcit::panther{
 
 
 			struct FuncAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_comptime;
 				bool is_runtime;
 				bool is_rt_diff;
@@ -1071,7 +1071,7 @@ namespace pcit::panther{
 
 
 			struct InterfaceAttrs{
-				bool is_priv;
+				bool is_private;
 				bool is_non_polymorphic;
 			};
 			[[nodiscard]] auto analyze_interface_attrs(

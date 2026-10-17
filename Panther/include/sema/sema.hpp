@@ -751,7 +751,7 @@ namespace pcit::panther::sema{
 		std::optional<EncapsulatingSymbolID> parent;
 		evo::Variant<std::monostate, Expr, DeletedInfo> value; // is monostate if def not done, or if c-family type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
-		bool isPriv;
+		bool isPrivate;
 		std::optional<SymbolProcID> symbolProcID;
 
 		std::atomic<bool> defCompleted = false;
@@ -787,7 +787,7 @@ namespace pcit::panther::sema{
 
 		template<class ForceInit>
 		struct AttributesImpl{
-			bool isPriv     = ForceInit(); // meaningless if not member
+			bool isPrivate  = ForceInit(); // meaningless if not member
 			bool isRTDiff   = ForceInit(); // meaningless if not both comptime and runtime
 			bool isExport   = ForceInit(); // always true if is clang
 			bool isImplicit = ForceInit(); // meaningless if not member
@@ -862,7 +862,7 @@ namespace pcit::panther::sema{
 		Token::ID ident;
 		std::optional<EncapsulatingSymbolID> parent;
 		evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> aliasedOverloads;
-		bool isPriv;
+		bool isPrivate;
 	};
 
 
@@ -978,7 +978,7 @@ namespace pcit::panther::sema{
 		evo::Variant<TemplatedStruct::ID, ID> aliasedID;
 		bool requiresPub;
 		bool isDistinct;
-		bool isPriv;
+		bool isPrivate;
 	};
 
 }

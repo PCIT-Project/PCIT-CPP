@@ -918,7 +918,7 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				std::monostate(),
 				got_type_info_id.asTypeID(),
-				var_attrs.value().is_priv,
+				var_attrs.value().is_private,
 				this->symbol_proc.getID()
 			);
 
@@ -948,7 +948,7 @@ namespace pcit::panther{
 					instr.var_def.ident,
 					got_type_info_id.asTypeID(),
 					std::nullopt,
-					var_attrs.value().is_priv
+					var_attrs.value().is_private
 				);
 				return uint32_t(current_struct.memberVars.size() - 1);
 			}();
@@ -1102,7 +1102,7 @@ namespace pcit::panther{
 				value_term_info.type_id.as<Source::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				var_attrs.value().is_priv
+				var_attrs.value().is_private
 			);
 
 			if(add_ident_result.isError()){ return Result::ERROR; }
@@ -1123,7 +1123,7 @@ namespace pcit::panther{
 				value_term_info.type_id.as<CFamilySource::ID>(),
 				instr.var_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
-				var_attrs.value().is_priv
+				var_attrs.value().is_private
 			);
 
 			if(add_ident_result.isError()){ return Result::ERROR; }
@@ -1251,7 +1251,7 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				value_term_info.getExpr(),
 				type_id,
-				var_attrs.value().is_priv,
+				var_attrs.value().is_private,
 				this->symbol_proc.getID(),
 				true
 			);
@@ -1328,7 +1328,7 @@ namespace pcit::panther{
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			message,
 			std::nullopt,
-			var_attrs.value().is_priv,
+			var_attrs.value().is_private,
 			this->symbol_proc.getID(),
 			true
 		);
@@ -1538,7 +1538,7 @@ namespace pcit::panther{
 					aliased_id,
 					aliased_type_term.value_category == TermInfo::ValueCategory::TEMPLATE_TYPE_PUB_REQUIRED,
 					alias_attrs.value().is_distinct,
-					alias_attrs.value().is_priv
+					alias_attrs.value().is_private
 				);
 
 			const std::string_view ident_str = this->source.getTokenBuffer()[instr.alias_def.ident].getString();
@@ -1574,7 +1574,7 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_priv
+					alias_attrs.value().is_private
 				)
 			);
 
@@ -1594,7 +1594,7 @@ namespace pcit::panther{
 					instr.alias_def.ident,
 					this->scope.getCurrentEncapsulatingSymbolIfExists(),
 					aliased_type.asTypeID(),
-					alias_attrs.value().is_priv
+					alias_attrs.value().is_private
 				)
 			);
 
@@ -1638,7 +1638,7 @@ namespace pcit::panther{
 				.memberVarsABI     = evo::SmallVector<BaseType::Struct::MemberVar*>(),
 				.namespacedMembers = &struct_info.member_symbols,
 				.scopeLevel        = nullptr,
-				.isPriv            = struct_attrs.value().is_priv,
+				.isPrivate         = struct_attrs.value().is_private,
 				.isOrdered         = struct_attrs.value().is_ordered,
 				.isPacked          = struct_attrs.value().is_packed,
 				.alignment         = struct_attrs.value().alignment,
@@ -2049,7 +2049,7 @@ namespace pcit::panther{
 					0,
 					false,
 					sema::Func::Attributes{
-						.isPriv     = false,
+						.isPrivate  = false,
 						.isRTDiff   = false,
 						.isExport   = false,
 						.isImplicit = false,
@@ -2238,7 +2238,7 @@ namespace pcit::panther{
 					1,
 					false,
 					sema::Func::Attributes{
-						.isPriv     = false,
+						.isPrivate  = false,
 						.isRTDiff   = false,
 						.isExport   = false,
 						.isImplicit = false,
@@ -2429,7 +2429,7 @@ namespace pcit::panther{
 						1,
 						false,
 						sema::Func::Attributes{
-							.isPriv     = false,
+							.isPrivate  = false,
 							.isRTDiff   = false,
 							.isExport   = false,
 							.isImplicit = false,
@@ -2643,7 +2643,7 @@ namespace pcit::panther{
 						1,
 						false,
 						sema::Func::Attributes{
-							.isPriv     = false,
+							.isPrivate  = false,
 							.isRTDiff   = false,
 							.isExport   = false,
 							.isImplicit = false,
@@ -2940,7 +2940,7 @@ namespace pcit::panther{
 				evo::SmallVector<BaseType::Union::Field>(),
 				&union_info.member_symbols,
 				nullptr,
-				union_attrs.value().is_priv,
+				union_attrs.value().is_private,
 				union_attrs.value().is_untagged,
 				union_attrs.value().is_manual_lifetime
 			)
@@ -3133,7 +3133,7 @@ namespace pcit::panther{
 				underlying_type_id,
 				&enum_info.member_symbols,
 				nullptr,
-				enum_attrs.value().is_priv
+				enum_attrs.value().is_private
 			)
 		);
 
@@ -3832,7 +3832,7 @@ namespace pcit::panther{
 			min_num_args,
 			has_in_param,
 			sema::Func::Attributes{
-				.isPriv     = func_attrs.value().is_priv,
+				.isPrivate  = func_attrs.value().is_private,
 				.isRTDiff   = func_attrs.value().is_rt_diff,
 				.isExport   = func_attrs.value().is_export,
 				.isImplicit = func_attrs.value().is_implicit,
@@ -5629,6 +5629,10 @@ namespace pcit::panther{
 				);
 				if(need_to_wait){ return Result::NEED_TO_WAIT; }
 
+				if(this->context.panic.has_value() == false){ // if panic function had compile error
+					return Result::ERROR;
+				}
+
 				func_info.dependent_funcs.emplace(*this->context.panic);
 
 				this->context.expecting_panic = true;
@@ -6133,7 +6137,7 @@ namespace pcit::panther{
 			instr.func_alias_def.ident,
 			this->scope.getCurrentEncapsulatingSymbolIfExists(),
 			evo::copy(target_term_info.type_id.as<TermInfo::FuncOverloadList>()),
-			func_alias.value().is_priv
+			func_alias.value().is_private
 		);
 
 		const std::string_view ident_str = this->source.getTokenBuffer()[instr.func_alias_def.ident].getString();
@@ -6159,7 +6163,7 @@ namespace pcit::panther{
 				instr.interface_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				this->symbol_proc.getID(),
-				interface_attrs.value().is_priv,
+				interface_attrs.value().is_private,
 				!interface_attrs.value().is_non_polymorphic
 			)
 		);
@@ -20862,9 +20866,9 @@ namespace pcit::panther{
 				const BaseType::Struct& instantiated_struct =
 					this->context.getTypeManager().getStruct(*actual_instantiation.structID);
 
-				if(instantiated_struct.isPriv){
+				if(instantiated_struct.isPrivate){
 					this->emit_error(
-						"This struct template instantiation has the `#priv` attribute",
+						"This struct template instantiation has the `#private` attribute",
 						instr.templated_expr.base,
 						Diagnostic::Info(
 							"Struct template defined here:", this->get_location(*actual_instantiation.structID)
@@ -26188,7 +26192,7 @@ namespace pcit::panther{
 
 			if(member_ident_str != rhs_ident_str){continue; }
 			
-			if(member_var->isPriv){
+			if(member_var->isPrivate){
 				const std::optional<EncapsulatingSymbolID> current_type_scope =
 					this->scope.getCurrentTypeScopeIfExists();
 
@@ -26199,7 +26203,7 @@ namespace pcit::panther{
 				){
 					this->emit_error(
 						std::format(
-							"Struct member \"{}\" has attribute `#priv` and cannot be accessed in this scope",
+							"Struct member \"{}\" has attribute `#private` and cannot be accessed in this scope",
 							member_ident_str
 						),
 						instr.infix.rhs
@@ -28641,10 +28645,10 @@ namespace pcit::panther{
 				const sema::FuncAlias& func_alias = this->context.getSemaBuffer().getFuncAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(func_alias.isPriv){
+					if(func_alias.isPrivate){
 						this->emit_error(
 							std::format(
-								"Function alias \"{}\" has the `#priv` attribute, "
+								"Function alias \"{}\" has the `#private` attribute, "
 									"and is not accessable in this scope",
 								ident_str
 							),
@@ -28660,10 +28664,10 @@ namespace pcit::panther{
 
 				}else{
 					if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-						if(func_alias.isPriv && func_alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+						if(func_alias.isPrivate && func_alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 							this->emit_error(
 								std::format(
-									"Function alias \"{}\" has the `#priv` attribute, "
+									"Function alias \"{}\" has the `#private` attribute, "
 										"and is not accessable from this scope",
 									ident_str
 								),
@@ -28751,9 +28755,9 @@ namespace pcit::panther{
 				const sema::GlobalVar& sema_var = this->context.getSemaBuffer().getGlobalVar(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(sema_var.isPriv){
+					if(sema_var.isPrivate){
 						this->emit_error(
-							std::format("Global variable \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Global variable \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info("Global variable defined here:", this->get_location(ident_id))
 						);
@@ -28761,10 +28765,11 @@ namespace pcit::panther{
 					}
 
 				}else if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(sema_var.isPriv && sema_var.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(sema_var.isPrivate && sema_var.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Global variable \"{}\" has the `#priv` attribute, and is not accessable from this scope",
+								"Global variable \"{}\" has the `#private` attribute,"
+									" and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -29135,9 +29140,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::ModuleInfo>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(ident_id.isPriv){
+					if(ident_id.isPrivate){
 						this->emit_error(
-							std::format("Module \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Module \"{}\" has the `#private` attribute", ident_str),
 							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
@@ -29149,10 +29154,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(ident_id.isPrivate && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Module \"{}\" has the `#priv` attribute, "
+								"Module \"{}\" has the `#private` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -29176,9 +29181,9 @@ namespace pcit::panther{
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::CFamilyModuleInfo>()){
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(ident_id.isPriv){
+					if(ident_id.isPrivate){
 						this->emit_error(
-							std::format("Module \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Module \"{}\" has the `#private` attribute", ident_str),
 							ident_id,
 							Diagnostic::Info(
 								"Defined here:",
@@ -29190,10 +29195,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(ident_id.isPriv && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(ident_id.isPrivate && ident_id.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Module \"{}\" has the `#priv` attribute, "
+								"Module \"{}\" has the `#private` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -29219,9 +29224,9 @@ namespace pcit::panther{
 				const BaseType::Alias& alias = this->context.getTypeManager().getAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(alias.isPriv){
+					if(alias.isPrivate){
 						this->emit_error(
-							std::format("Type alias \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Type alias \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Type alias declared here:",
@@ -29233,10 +29238,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(alias.isPrivate && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Type alias \"{}\" has the `#priv` attribute, "
+								"Type alias \"{}\" has the `#private` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -29285,9 +29290,9 @@ namespace pcit::panther{
 				const BaseType::DistinctAlias& alias = this->context.getTypeManager().getDistinctAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(alias.isPriv){
+					if(alias.isPrivate){
 						this->emit_error(
-							std::format("Distinct type alias \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Distinct type alias \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Distinct type alias declared here:",
@@ -29299,10 +29304,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(alias.isPriv && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(alias.isPrivate && alias.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Distinct type alias \"{}\" has the `#priv` attribute, "
+								"Distinct type alias \"{}\" has the `#private` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -29376,9 +29381,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(struct_info.isPriv){
+					if(struct_info.isPrivate){
 						this->emit_error(
-							std::format("Struct \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Struct \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Struct declared here:",
@@ -29390,10 +29395,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(struct_info.isPriv && struct_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(struct_info.isPrivate && struct_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Struct \"{}\" has the `#priv` attribute, and is not accessable from this scope",
+								"Struct \"{}\" has the `#private` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -29441,9 +29446,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(union_info.isPriv){
+					if(union_info.isPrivate){
 						this->emit_error(
-							std::format("Union \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Union \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Union declared here:",
@@ -29455,10 +29460,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(union_info.isPriv && union_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(union_info.isPrivate && union_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Union \"{}\" has the `#priv` attribute, and is not accessable from this scope",
+								"Union \"{}\" has the `#private` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -29506,9 +29511,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(enum_info.isPriv){
+					if(enum_info.isPrivate){
 						this->emit_error(
-							std::format("Enum \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Enum \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Enum declared here:",
@@ -29520,10 +29525,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(enum_info.isPriv && enum_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(enum_info.isPrivate && enum_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Enum \"{}\" has the `#priv` attribute, and is not accessable from this scope",
+								"Enum \"{}\" has the `#private` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -29571,9 +29576,9 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(interface_info.isPriv){
+					if(interface_info.isPrivate){
 						this->emit_error(
-							std::format("Interface \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Interface \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Interface declared here:",
@@ -29585,10 +29590,10 @@ namespace pcit::panther{
 				}
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
-					if(interface_info.isPriv && interface_info.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(interface_info.isPrivate && interface_info.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
 							std::format(
-								"Interface \"{}\" has the `#priv` attribute, and is not accessable from this scope",
+								"Interface \"{}\" has the `#private` attribute, and is not accessable from this scope",
 								ident_str
 							),
 							ident,
@@ -29619,9 +29624,9 @@ namespace pcit::panther{
 					this->context.getSemaBuffer().getStructTemplateAlias(ident_id);
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::PUB){
-					if(struct_template_alias.isPriv){
+					if(struct_template_alias.isPrivate){
 						this->emit_error(
-							std::format("Alias \"{}\" has the `#priv` attribute", ident_str),
+							std::format("Alias \"{}\" has the `#private` attribute", ident_str),
 							ident,
 							Diagnostic::Info(
 								"Alias declared here:",
@@ -29634,12 +29639,12 @@ namespace pcit::panther{
 
 				if constexpr(SCOPE_ACCESS_REQUIREMENT == ScopeAccessRequirement::NOT_PRIV){
 					if(
-						struct_template_alias.isPriv
+						struct_template_alias.isPrivate
 						&& struct_template_alias.parent != this->scope.getCurrentTypeScopeIfExists()
 					){
 						this->emit_error(
 							std::format(
-								"Struct template alias \"{}\" has the `#priv` attribute, "
+								"Struct template alias \"{}\" has the `#private` attribute, "
 									"and is not accessable from this scope",
 								ident_str
 							),
@@ -30528,7 +30533,7 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::unsuspend_template_func_if_needed(
 		const sema::TemplatedFunc::InstantiationInfo& instantiation_info,
-		std::string_view func_type_str, // "Selected _____ overload has the `#priv` attribute...";
+		std::string_view func_type_str, // "Selected _____ overload has the `#private` attribute...";
 		Diagnostic::Location location
 	) -> evo::Result<> {
 		const SymbolProc::ID instantiation_symbol_proc_id = 
@@ -30538,10 +30543,10 @@ namespace pcit::panther{
 
 		sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
-		if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+		if(sema_func.attributes.isPrivate && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 			this->emit_error(
 				std::format(
-					"Selected {} overload has the `#priv` attribute, and is not accessable in this scope", func_type_str
+					"Selected {} overload has the `#private` attribute, and is not accessable in this scope", func_type_str
 				),
 				location,
 				Diagnostic::Info(
@@ -31941,9 +31946,9 @@ namespace pcit::panther{
 					const sema::Func& selected_func =
 						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
 
-					if(selected_func.attributes.isPriv){
+					if(selected_func.attributes.isPrivate){
 						this->emit_error(
-							"Selected function overload has the `#priv` attribute, "
+							"Selected function overload has the `#private` attribute, "
 								"and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
@@ -31971,9 +31976,9 @@ namespace pcit::panther{
 
 					sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
-					if(sema_func.attributes.isPriv){
+					if(sema_func.attributes.isPrivate){
 						this->emit_error(
-							"Selected function overload has the #priv attribute, and is not accessable in this scope",
+							"Selected function overload has the #private attribute, and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
@@ -32002,9 +32007,9 @@ namespace pcit::panther{
 					const sema::Func& sema_func =
 						this->context.sema_buffer.getFunc(selected_func_id.as<sema::Func::ID>());
 
-					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(sema_func.attributes.isPrivate && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							"Selected function overload has the `#private` attribute, and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(selected_func_id.as<sema::Func::ID>())
@@ -32035,9 +32040,9 @@ namespace pcit::panther{
 
 					sema::Func& sema_func = this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID);
 
-					if(sema_func.attributes.isPriv && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+					if(sema_func.attributes.isPrivate && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 						this->emit_error(
-							"Selected function overload has the `#priv` attribute, and is not accessable in this scope",
+							"Selected function overload has the `#private` attribute, and is not accessable in this scope",
 							func_call.target,
 							Diagnostic::Info(
 								"Function defined here:", this->get_location(*instantiation_info.instantiation.funcID)
@@ -36497,7 +36502,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_global_var_attrs(
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<GlobalVarAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_global = Attribute(*this, "global");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -36508,7 +36513,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36521,7 +36526,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -36537,7 +36542,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -36559,8 +36564,8 @@ namespace pcit::panther{
 
 
 		return GlobalVarAttrs{
-			.is_priv   = attr_priv.is_set(),
-			.is_global = attr_global.is_set(),
+			.is_private = attr_priv.is_set(),
+			.is_global  = attr_global.is_set(),
 		};
 	}
 
@@ -36568,7 +36573,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_alias_attrs(
 		const AST::FuncAliasDef& func_alias_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAliasAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -36579,7 +36584,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36592,7 +36597,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -36605,7 +36610,7 @@ namespace pcit::panther{
 					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::Unexpected(Result::ERROR); }
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -36617,7 +36622,7 @@ namespace pcit::panther{
 
 
 		return FuncAliasAttrs{
-			.is_priv = attr_priv.is_set(),
+			.is_private = attr_priv.is_set(),
 		};
 	}
 
@@ -36645,11 +36650,11 @@ namespace pcit::panther{
 
 				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
 
-			}else if(attribute_str == "priv"){
+			}else if(attribute_str == "private"){
 				this->emit_error(
-					"Unknown variable attribute #priv",
+					"Unknown variable attribute #private",
 					attribute.attribute,
-					Diagnostic::Info("Note: attribute `#priv` is not allowed on local variables")
+					Diagnostic::Info("Note: attribute `#private` is not allowed on local variables")
 				);
 				return evo::resultError;
 
@@ -36668,7 +36673,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_alias_attrs(
 		const AST::AliasDef& alias_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<AliasAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_distinct = Attribute(*this, "distinct");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -36679,7 +36684,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36692,7 +36697,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -36707,7 +36712,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -36727,7 +36732,7 @@ namespace pcit::panther{
 		}
 
 		return AliasAttrs{
-			.is_priv     = attr_priv.is_set(),
+			.is_private  = attr_priv.is_set(),
 			.is_distinct = attr_distinct.is_set(),
 		};
 	}
@@ -36772,7 +36777,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_struct_attrs(
 		const AST::StructDef& struct_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<StructAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_packed = Attribute(*this, "packed");
 		auto attr_ordered = Attribute(*this, "ordered");
 
@@ -36788,7 +36793,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36801,7 +36806,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -36816,7 +36821,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -36950,7 +36955,7 @@ namespace pcit::panther{
 
 
 		return StructAttrs{
-			.is_priv    = attr_priv.is_set(),
+			.is_private = attr_priv.is_set(),
 			.is_ordered = attr_ordered.is_set(),
 			.is_packed  = attr_packed.is_set(),
 			.alignment  = alignment,
@@ -36961,7 +36966,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_union_attrs(
 		const AST::UnionDef& union_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<UnionAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_untagged = Attribute(*this, "untagged");
 		auto attr_manual_lifetime = Attribute(*this, "manualLifetime");
 
@@ -36974,7 +36979,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -36987,7 +36992,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -37002,7 +37007,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -37030,7 +37035,7 @@ namespace pcit::panther{
 
 
 		return UnionAttrs{
-			.is_priv            = attr_priv.is_set(),
+			.is_private         = attr_priv.is_set(),
 			.is_untagged        = attr_untagged.is_set(),
 			.is_manual_lifetime = attr_manual_lifetime.is_set(),
 		};
@@ -37041,7 +37046,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_enum_attrs(
 		const AST::EnumDef& enum_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<EnumAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -37052,7 +37057,7 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -37065,7 +37070,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -37080,7 +37085,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -37092,7 +37097,7 @@ namespace pcit::panther{
 
 
 		return EnumAttrs{
-			.is_priv = attr_priv.is_set(),
+			.is_private = attr_priv.is_set(),
 		};
 	}
 
@@ -37102,7 +37107,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAttrs, Result> {
-		auto attr_priv        = ConditionalAttribute(*this, "priv");
+		auto attr_priv        = ConditionalAttribute(*this, "private");
 		auto attr_rt          = ConditionalAttribute(*this, "rt");
 		auto attr_ct          = ConditionalAttribute(*this, "ct");
 		auto attr_rt_diff     = ConditionalAttribute(*this, "rtDiff");
@@ -37127,9 +37132,9 @@ namespace pcit::panther{
 			
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_error("Attribute #priv is not a valid extern function attribute", attribute.attribute);
+					this->emit_error("Attribute #private is not a valid extern function attribute", attribute.attribute);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -37145,7 +37150,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -37160,7 +37165,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -37575,7 +37580,7 @@ namespace pcit::panther{
 		}
 
 		return FuncAttrs{
-			.is_priv        = attr_priv.is_set(),
+			.is_private     = attr_priv.is_set(),
 			.is_comptime    = attr_ct.is_set(),
 			.is_runtime     = attr_rt.is_set(),
 			.is_rt_diff     = attr_rt_diff.is_set(),
@@ -37774,7 +37779,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_interface_attrs(
 		const AST::InterfaceDef& interface_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<InterfaceAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "priv");
+		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_non_polymorphic = Attribute(*this, "nonPolymorphic");
 
 		const AST::AttributeBlock& attribute_block = 
@@ -37786,7 +37791,7 @@ namespace pcit::panther{
 			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
 
 
-			if(attribute_str == "priv"){
+			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
 					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -37799,7 +37804,7 @@ namespace pcit::panther{
 					TypeCheckInfo type_check_info = this->type_check<true, true, true>(
 						this->context.getTypeManager().getTypeBool(),
 						cond_term_info,
-						"Condition in #priv",
+						"Condition in #private",
 						this->get_location(attribute.args[0])
 					);
 					if(type_check_info.ok == false){
@@ -37814,7 +37819,7 @@ namespace pcit::panther{
 					}
 
 				}else{
-					this->emit_error("Attribute #priv does not accept more than 1 argument", attribute.args[1]);
+					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -37834,7 +37839,7 @@ namespace pcit::panther{
 		}
 
 		return InterfaceAttrs{
-			.is_priv            = attr_priv.is_set(),
+			.is_private         = attr_priv.is_set(),
 			.is_non_polymorphic = attr_non_polymorphic.is_set(),
 		};
 	}
@@ -39274,11 +39279,11 @@ namespace pcit::panther{
 					return TypeCheckInfo::fail();
 				}
 
-				if(new_func.attributes.isPriv && new_func.parent != this->scope.getCurrentTypeScopeIfExists()){
+				if(new_func.attributes.isPrivate && new_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 					if constexpr(MAY_EMIT_ERROR){
 						this->emit_error(
 							"Cannot implicitly convert to this type as the selected operator "
-								"`new` has attribute `#priv` and is not accessable from this scope",
+								"`new` has attribute `#private` and is not accessable from this scope",
 							location,
 							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(new_func))
 						);
@@ -39462,12 +39467,13 @@ namespace pcit::panther{
 				}
 
 				if(
-					selected_func.attributes.isPriv && selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
+					selected_func.attributes.isPrivate
+					&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
 				){
 					if constexpr(MAY_EMIT_ERROR){
 						this->emit_error(
 							"Cannot implicitly convert to this type as the selected operator "
-								"`new` has attribute `#priv` and is not accessable from this scope",
+								"`new` has attribute `#private` and is not accessable from this scope",
 							location,
 							Diagnostic::Info("Selected operator `new` defined here:", this->get_location(selected_func))
 						);

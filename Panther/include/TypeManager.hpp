@@ -601,7 +601,7 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID aliasedType;
-			bool isPriv;
+			bool isPrivate;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isCFamilyType() const -> bool { return this->sourceID.is<CFamilySourceID>(); }
@@ -623,7 +623,7 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			TypeInfoID underlyingType;
-			bool isPriv;
+			bool isPrivate;
 
 			[[nodiscard]] auto isPTHRSourceType() const -> bool { return this->sourceID.is<SourceID>(); }
 			[[nodiscard]] auto isBuiltinType() const -> bool { return this->sourceID.is<BuiltinModuleID>(); }
@@ -652,7 +652,7 @@ namespace pcit::panther{
 				evo::Variant<Token::ID, CFamilySourceDeclInfoID, BuiltinModuleStringID> name;
 				TypeInfoID typeID;
 				std::optional<DefaultValue> defaultValue;
-				bool isPriv;
+				bool isPrivate;
 			};
 
 			struct DeletableOverload{
@@ -737,7 +737,7 @@ namespace pcit::panther{
 			evo::SmallVector<MemberVar*> memberVarsABI; // this is the order that members are for ABI
 			SymbolProcNamespace* namespacedMembers; // nullptr if not pthr src type
 			sema::ScopeLevel* scopeLevel; // nullptr if not pthr src type (although temporarily nullptr during creation)
-			bool isPriv;
+			bool isPrivate;
 			bool isOrdered;
 			bool isPacked;
 
@@ -912,7 +912,7 @@ namespace pcit::panther{
 			evo::SmallVector<Field> fields;
 			SymbolProcNamespace* namespacedMembers; // nullptr if is c family type
 			sema::ScopeLevel* scopeLevel; // nullopt if is c family type (although temporarily nullopt during creation)
-			bool isPriv;
+			bool isPrivate;
 			bool isUntagged;
 			bool isManualLifetime;
 
@@ -955,7 +955,7 @@ namespace pcit::panther{
 			BaseType::Primitive::ID underlyingTypeID;
 			SymbolProcNamespace* namespacedMembers; // nullptr if pthr src
 			sema::ScopeLevel* scopeLevel; // nullopt if not pthr src type (although temporarily nullopt during creation)
-			bool isPriv;
+			bool isPrivate;
 
 			std::atomic<bool> defCompleted = false; // if not pthr type, should always be `true`
 
@@ -1074,7 +1074,7 @@ namespace pcit::panther{
 			evo::Variant<Token::ID, BuiltinModuleStringID> name;
 			std::optional<EncapsulatingSymbolID> parent;
 			std::optional<SymbolProcID> symbolProcID; // nullopt if builtin
-			bool isPriv;
+			bool isPrivate;
 			bool isPolymorphic;
 
 			evo::SmallVector<sema::FuncID> methods{};

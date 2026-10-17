@@ -1751,7 +1751,7 @@ namespace pcit::panther{
 									.memberVarsABI     =  std::move(member_vars_abi),
 									.namespacedMembers =  nullptr,
 									.scopeLevel        =  nullptr,
-									.isPriv            =  true,
+									.isPrivate         =  true,
 									.isOrdered         =  false,
 									.isPacked          =  false,
 								}
@@ -1798,7 +1798,7 @@ namespace pcit::panther{
 									.fields            = std::move(fields),
 									.namespacedMembers = nullptr,
 									.scopeLevel        = nullptr,
-									.isPriv            = false,
+									.isPrivate         = false,
 									.isUntagged        = true,
 									.isManualLifetime  = false,
 									.defCompleted      = true,
@@ -1853,7 +1853,7 @@ namespace pcit::panther{
 									.underlyingTypeID  = panther_base_type_id.primitiveID(),
 									.namespacedMembers = nullptr,
 									.scopeLevel        = nullptr,
-									.isPriv            = false,
+									.isPrivate         = false,
 									.defCompleted      = true,
 								}
 							);
@@ -1909,7 +1909,7 @@ namespace pcit::panther{
 								uint32_t(function_decl.params.size()),
 								false,
 								sema::Func::Attributes{
-									.isPriv     = false,
+									.isPrivate  = false,
 									.isRTDiff   = false,
 									.isExport   = true,
 									.isImplicit = false,
@@ -2698,7 +2698,7 @@ namespace pcit::panther{
 					},
 					.namespacedMembers = nullptr,
 					.scopeLevel        = nullptr,
-					.isPriv            = false,
+					.isPrivate         = false,
 					.isUntagged        = false,
 					.isManualLifetime  = false,
 					.defCompleted      = true,
@@ -2906,7 +2906,7 @@ namespace pcit::panther{
 				},
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.isUntagged        = false,
 				.isManualLifetime  = false,
 				.defCompleted      = true,
@@ -3395,7 +3395,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		));
@@ -3438,7 +3438,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		));
@@ -3464,7 +3464,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		));
@@ -3513,7 +3513,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		));
@@ -3566,7 +3566,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		));
@@ -6105,7 +6105,7 @@ namespace pcit::panther{
 			min_num_params,
 			false,
 			sema::Func::Attributes{
-				.isPriv     = false,
+				.isPrivate  = false,
 				.isRTDiff   = false,
 				.isExport   = false,
 				.isImplicit = false,
@@ -6145,7 +6145,7 @@ namespace pcit::panther{
 				.memberVarsABI     = std::move(members_abi),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.isOrdered         = true,
 				.isPacked          = false,
 			}
@@ -6181,7 +6181,7 @@ namespace pcit::panther{
 					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
 				.namespacedMembers = nullptr,
 				.scopeLevel        = nullptr,
-				.isPriv            = false,
+				.isPrivate         = false,
 				.defCompleted      = true,
 			}
 		);
