@@ -263,9 +263,14 @@ namespace pcit::panther::sema{
 	// vars
 
 	auto SemaBuffer::createVar(
-		AST::VarDef::Kind kind, Token::ID ident, Expr expr, std::optional<TypeInfo::ID> typeID, Location location
+		AST::VarDef::Kind kind,
+		Token::ID ident,
+		Expr expr,
+		std::optional<TypeInfo::ID> typeID,
+		Location location,
+		bool isMovable
 	) -> Var::ID {
-		return this->internal->vars.emplace_back(kind, ident, expr, typeID, location);
+		return this->internal->vars.emplace_back(kind, ident, expr, typeID, location, isMovable);
 	}
 
 

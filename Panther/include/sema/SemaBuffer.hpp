@@ -119,7 +119,8 @@ namespace pcit::panther::sema{
 				Token::ID ident,
 				Expr expr,
 				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
-				Location location
+				Location location,
+				bool isMovable
 			) -> Var::ID;
 
 			[[nodiscard]] auto getVar(Var::ID id) const -> const Var&;

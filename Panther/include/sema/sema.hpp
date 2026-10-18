@@ -735,6 +735,7 @@ namespace pcit::panther::sema{
 		Expr expr;
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		Location location;
+		bool isMovable;
 	};
 
 

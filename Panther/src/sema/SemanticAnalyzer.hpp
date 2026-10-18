@@ -967,6 +967,7 @@ namespace pcit::panther{
 
 			struct VarAttrs{
 				bool is_global;
+				bool is_movable;
 			};
 			[[nodiscard]] auto analyze_var_attrs(
 				const AST::VarDef& var_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info

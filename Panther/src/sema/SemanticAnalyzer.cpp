@@ -6852,7 +6852,8 @@ namespace pcit::panther{
 				instr.var_def.ident,
 				value_term_info.getExpr(),
 				type_id,
-				this->get_sema_location(instr.var_def)
+				this->get_sema_location(instr.var_def),
+				var_attrs.value().is_movable
 			);
 			this->get_current_scope_level().stmtBlock().emplace_back(new_sema_var);
 
@@ -16468,19 +16469,31 @@ namespace pcit::panther{
 		const TermInfo& target = this->get_term_info(instr.target);
 
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
-			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
-				this->emit_error(
-					"Argument of operator [move] cannot be an in-parameter",
-					instr.prefix.rhs,
-					Diagnostic::Info("Use operator [forward] instead")
-				);
-			}else if(target.is_concrete() == false){
-				this->emit_error("Argument of operator [move] must be concrete", instr.prefix.rhs);
-			}else{
-				this->emit_error("Argument of operator [move] must be mutable", instr.prefix.rhs);
-			}
+			const sema::Expr target_expr = target.getExpr();
+			const bool is_local_var = target_expr.kind() == sema::Expr::Kind::VAR;
 
-			return Result::ERROR;
+			if(!is_local_var || this->context.getSemaBuffer().getVar(target_expr.varID()).isMovable == false){
+				if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
+					this->emit_error(
+						"Argument of operator [move] cannot be an in-parameter",
+						instr.prefix.rhs,
+						Diagnostic::Info("Use operator [forward] instead")
+					);
+					
+				}else if(target.is_concrete() == false){
+					this->emit_error("Argument of operator [move] must be concrete", instr.prefix.rhs);
+
+				}else if(is_local_var){
+					this->emit_error(
+						"Local variable can only be moved if it is [var] or has attribute `#movable`", instr.prefix.rhs
+					);
+
+				}else{
+					this->emit_error("Argument of operator [move] must be mutable", instr.prefix.rhs);
+				}
+
+				return Result::ERROR;
+			}
 		}
 
 
@@ -36502,8 +36515,8 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_global_var_attrs(
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<GlobalVarAttrs, Result> {
-		auto attr_priv = ConditionalAttribute(*this, "private");
 		auto attr_global = Attribute(*this, "global");
+		auto attr_private = ConditionalAttribute(*this, "private");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
@@ -36515,7 +36528,7 @@ namespace pcit::panther{
 
 			if(attribute_str == "private"){
 				if(attribute_params_info[i].empty()){
-					if(attr_priv.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
+					if(attr_private.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
 				}else if(attribute_params_info[i].size() == 1){
 					TermInfo& cond_term_info = this->get_term_info(attribute_params_info[i][0]);
@@ -36534,10 +36547,10 @@ namespace pcit::panther{
 					}
 
 
-					const bool priv_cond = this->context.sema_buffer
+					const bool private_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+					if(attr_private.set(attribute.attribute, private_cond).isError()){
 						return evo::Unexpected(Result::ERROR);
 					}
 
@@ -36554,6 +36567,15 @@ namespace pcit::panther{
 
 				if(attr_global.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+
+			}else if(attribute_str == "movable"){
+				this->emit_error(
+					"Unknown variable attribute #movable",
+					attribute.attribute,
+					Diagnostic::Info("Note: attribute `#movable` is only allowed on local variables")
+				);
+				return evo::Unexpected(Result::ERROR);
+
 			}else{
 				this->emit_error(
 					std::format("Unknown global variable attribute #{}", attribute_str), attribute.attribute
@@ -36564,7 +36586,7 @@ namespace pcit::panther{
 
 
 		return GlobalVarAttrs{
-			.is_private = attr_priv.is_set(),
+			.is_private = attr_private.is_set(),
 			.is_global  = attr_global.is_set(),
 		};
 	}
@@ -36632,6 +36654,7 @@ namespace pcit::panther{
 		const AST::VarDef& var_decl, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Result<VarAttrs> {
 		auto attr_global = Attribute(*this, "global");
+		auto attr_movable = Attribute(*this, "movable");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
@@ -36648,7 +36671,29 @@ namespace pcit::panther{
 					return evo::resultError;
 				}
 
+				if(attr_movable.is_set()){
+					this->emit_error(
+						"Variables cannot have both attributes `#movable` and `#global`", attribute.attribute
+					);
+					return evo::resultError;
+				}
+
 				if(attr_global.set(attribute.attribute).isError()){ return evo::resultError; }
+
+			}else if(attribute_str == "movable"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #movable does not accept any arguments", attribute.args.front());
+					return evo::resultError;
+				}
+
+				if(attr_global.is_set()){
+					this->emit_error(
+						"Variables cannot have both attributes `#global` and `#movable`", attribute.attribute
+					);
+					return evo::resultError;
+				}
+
+				if(attr_movable.set(attribute.attribute).isError()){ return evo::resultError; }
 
 			}else if(attribute_str == "private"){
 				this->emit_error(
@@ -36665,7 +36710,10 @@ namespace pcit::panther{
 		}
 
 
-		return VarAttrs(attr_global.is_set());
+		return VarAttrs{
+			.is_global  = attr_global.is_set(),
+			.is_movable = attr_movable.is_set(),
+		};
 	}
 
 
