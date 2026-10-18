@@ -1896,13 +1896,23 @@ auto main(int argc, const char* argv[]) -> int {
 			}
 		} break;
 
+		case pthr::CmdArgsConfig::Action::DOWNLOAD_LIBC: {
+			printer.print("Executing action `download-libc` isn't implemented yet. Follow these commands:\n\n");
+
+			printer.println("cd {}", cmd_args_config.value().executablePath.string());
+			printer.println("git clone https://github.com/PCIT-Project/libc --depth=1");
+		} break;
+
 		case pthr::CmdArgsConfig::Action::HELP: {
 			pthr::print_help(printer);
 		} break;
 
 		case pthr::CmdArgsConfig::Action::VERSION: {
-			pthr::print_logo(printer);
-			pthr::print_version(printer);
+			if(cmd_args_config.value().verbosity == pthr::CmdArgsConfig::Verbosity::NONE){
+				pthr::print_logo(printer);
+				pthr::print_version(printer);
+			}
+
 		} break;
 	}
 

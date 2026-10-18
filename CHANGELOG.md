@@ -1,6 +1,18 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.407.0"></a>
+## v0.0.407.0
+
+### pthr
+- Added action `download-libc`
+
+### Misc
+- Removed libc
+	- Moved to [https://github.com/PCIT-Project/libc](https://github.com/PCIT-Project/libc)
+
+
+<!---------------------------------->
 <a name="v0.0.406.0"></a>
 ## v0.0.406.0
 

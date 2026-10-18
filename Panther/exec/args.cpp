@@ -38,6 +38,7 @@ namespace pthr{
 		printer.print(R"(
 Actions:
     build                run the build system (if no target file is given, defaults to "./build.pthr")
+    download-libc        use git to download the libc extension
     script               run as a script (if no target file is given, defaults to "./script.pthr")
     version              prints the current version
     help                 prints the help page
@@ -95,6 +96,9 @@ Options:
 			if(args.empty() == false && args[0][0] != '-'){
 				cmd_args_config.file = args[0];
 			}
+
+		}else if(action == "download-libc"){
+			cmd_args_config.action = pthr::CmdArgsConfig::Action::DOWNLOAD_LIBC;
 
 		}else if(action == "help"){
 			cmd_args_config.action = pthr::CmdArgsConfig::Action::HELP;

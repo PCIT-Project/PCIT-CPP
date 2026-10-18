@@ -66,8 +66,6 @@ namespace pcit::plnk{
 			args.addArg(link_file_path.string());
 		}
 
-		// args.addArg("libcmt.lib");
-
 		if(options.outputFilePath.empty()){
 			args.addArg("/out:output.exe");
 		}else{

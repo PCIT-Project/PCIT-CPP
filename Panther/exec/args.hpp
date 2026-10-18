@@ -26,6 +26,7 @@ namespace pthr{
 			SCRIPT,
 			HELP,
 			VERSION,
+			DOWNLOAD_LIBC,
 		};
 
 		enum class Verbosity{
