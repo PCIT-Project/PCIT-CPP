@@ -9,7 +9,7 @@
 
 #pragma once
 
-#include <shared_mutex>
+#include <ranges>
 
 #include <Evo.hpp>
 #include <PCIT_core.hpp>
@@ -1196,6 +1196,9 @@ namespace pcit::panther{
 				: base_type(id), _qualifiers(std::move(qualifiers_list)) {};
 			~TypeInfo() = default;
 
+			TypeInfo(const TypeInfo& rhs) : base_type(rhs.base_type), _qualifiers(rhs._qualifiers) {}
+			TypeInfo(TypeInfo&& rhs) : base_type(rhs.base_type), _qualifiers(std::move(rhs._qualifiers)) {}
+
 
 			[[nodiscard]] auto baseTypeID() const -> BaseType::ID { return this->base_type; }
 			[[nodiscard]] auto qualifiers() const -> evo::ArrayProxy<Qualifier> { return this->_qualifiers; }
@@ -1244,6 +1247,13 @@ namespace pcit::panther{
 			// TODO(PERF): better allocation of qualifiers vector
 			[[nodiscard]] auto copyWithPushedQualifier(Qualifier qualifier) const -> TypeInfo {
 				TypeInfo copied_type = *this;
+
+				if(qualifier.isPtr && qualifier.isMut == false){ // make sure qualifiers are correctly converted
+					for(Qualifier& copied_qualifier : copied_type._qualifiers){
+						if(copied_qualifier.isPtr){ copied_qualifier.isMut = false; }
+					}
+				}
+
 				copied_type._qualifiers.emplace_back(qualifier);
 				return copied_type;
 			}
@@ -1255,8 +1265,16 @@ namespace pcit::panther{
 				return copied_type;
 			}
 
+			// TODO(PERF): don't do extra work
 			[[nodiscard]] auto copyWithDifferentLastQualifier(const Qualifier& qualifier) const -> TypeInfo {
 				TypeInfo copied_type = *this;
+
+				if(qualifier.isPtr && qualifier.isMut == false){ // make sure qualifiers are correctly converted
+					for(Qualifier& copied_qualifier : copied_type._qualifiers){
+						if(copied_qualifier.isPtr){ copied_qualifier.isMut = false; }
+					}
+				}
+
 				copied_type._qualifiers.back() = qualifier;
 				return copied_type;
 			}
@@ -1271,6 +1289,29 @@ namespace pcit::panther{
 				}
 				return copied_type;
 			}
+
+
+			#if defined(PCIT_CONFIG_DEBUG)
+				auto qualifiers_debug_verify() const -> void {
+					bool found_read_only_ptr = false;
+
+					for(const Qualifier& qualifier : this->_qualifiers | std::views::reverse){
+						qualifier.debug_verify();
+
+						if(found_read_only_ptr){
+							if(qualifier.isPtr){
+								evo::debugAssert(
+									qualifier.isMut == false,
+									"This qualifier is not allowed to be `mut` as subsequent pointers aren't `mut`"
+								);
+							}
+
+						}else if(qualifier.isPtr && qualifier.isMut == false){
+							found_read_only_ptr = true;
+						}
+					}
+				}
+			#endif
 	
 		private:
 			BaseType::ID base_type;

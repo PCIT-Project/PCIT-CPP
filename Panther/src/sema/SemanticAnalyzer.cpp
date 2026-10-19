@@ -16837,12 +16837,14 @@ namespace pcit::panther{
 
 		const TypeInfo& target_type = this->context.type_manager.getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
-		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			target_type.copyWithPushedQualifier(
-				TypeInfo::Qualifier(
-					true, target.is_mutable() && target.isUninitialized() == false, target.isUninitialized(), false
-				)
+		TypeInfo resultant_type_info = target_type.copyWithPushedQualifier(
+			TypeInfo::Qualifier(
+				true, target.is_mutable() && target.isUninitialized() == false, target.isUninitialized(), false
 			)
+		);
+
+		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			std::move(resultant_type_info)
 		);
 
 
@@ -23804,7 +23806,7 @@ namespace pcit::panther{
 			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
 		}
 
-		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+		this->make_qualifiers_read_only_if_needed(qualifiers);
 
 		this->return_type(
 			instr.output,
@@ -23897,8 +23899,8 @@ namespace pcit::panther{
 		for(const AST::Type::Qualifier& qualifier : instr.ast_type.qualifiers){
 			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
 		}
+		this->make_qualifiers_read_only_if_needed(qualifiers);
 
-		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
 
 		this->return_term_info(
 			instr.output,
@@ -24725,7 +24727,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+		this->make_qualifiers_read_only_if_needed(qualifiers);
 
 
 		this->return_type(
@@ -24801,7 +24803,7 @@ namespace pcit::panther{
 			qualifiers.emplace_back(qualifier.isPtr, qualifier.isMut, qualifier.isUninit, qualifier.isOptional);
 		}
 
-		if(this->check_type_qualifiers(qualifiers, instr.ast_type).isError()){ return Result::ERROR; }
+		this->make_qualifiers_read_only_if_needed(qualifiers);
 
 
 		this->return_term_info(
@@ -33430,7 +33432,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(this->check_type_qualifiers(qualifiers, ast_type).isError()){ return evo::resultError; }
+		this->make_qualifiers_read_only_if_needed(qualifiers);
 
 
 		return TypeInfo::VoidableID(
@@ -34542,7 +34544,7 @@ namespace pcit::panther{
 
 				if(deducer.qualifiers().size() < got_type.qualifiers().size()){
 					for(size_t i = 0; i < deducer.qualifiers().size(); i+=1){
-						if(deducer.qualifiers()[i] != got_type.qualifiers()[i - got_type.qualifiers().size()]){
+						if(deducer.qualifiers()[i] != got_type.qualifiers()[got_type.qualifiers().size() - i - 1]){
 							return evo::resultError;
 						}
 					}
@@ -40674,30 +40676,17 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::check_type_qualifiers(evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location)
-	-> evo::Result<> {
+	auto SemanticAnalyzer::make_qualifiers_read_only_if_needed(std::span<TypeInfo::Qualifier> qualifiers) -> void {
 		bool found_read_only_ptr = false;
-		for(ptrdiff_t i = qualifiers.size() - 1; i >= 0; i-=1){
-			const TypeInfo::Qualifier& qualifier = qualifiers[i];
 
+		for(TypeInfo::Qualifier& qualifier : qualifiers){
 			if(found_read_only_ptr){
-				if(qualifier.isPtr && qualifier.isMut){
-					this->emit_error(
-						"Invalid type qualifiers",
-						location,
-						Diagnostic::Info(
-							"If one type qualifier level is a not mut-qualified pointer, "
-							"all previous pointer qualifier levels must not also be mut-qualified"
-						)
-					);
-					return evo::resultError;
-				}
+				if(qualifier.isPtr){ qualifier.isMut = false; } // make sure its not mut
 
 			}else if(qualifier.isPtr && qualifier.isMut == false){
 				found_read_only_ptr = true;
 			}
 		}
-		return evo::Result<>();
 	}
 
 

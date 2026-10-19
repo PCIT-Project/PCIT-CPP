@@ -1418,9 +1418,7 @@ namespace pcit::panther{
 
 
 
-			[[nodiscard]] auto check_type_qualifiers(
-				evo::ArrayProxy<TypeInfo::Qualifier> qualifiers, const auto& location
-			) -> evo::Result<>;
+			[[nodiscard]] auto make_qualifiers_read_only_if_needed(std::span<TypeInfo::Qualifier> qualifiers) -> void;
 
 
 			[[nodiscard]] auto check_term_isnt_type(const TermInfo& term_info, const auto& location) -> evo::Result<>;

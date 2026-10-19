@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.409.0"></a>
+## v0.0.409.0
+
+### Panther
+- Added automatic removal of a `mut` pointer qualifier if it is invalid for it to be `mut` (such as `Int*mut*`)
+- Fixed semantic analysis of deducer matching checking for mismatching number of qualifiers
+
+
+<!---------------------------------->
 <a name="v0.0.408.0"></a>
 ## v0.0.408.0
 

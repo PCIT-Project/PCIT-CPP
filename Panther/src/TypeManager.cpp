@@ -447,11 +447,8 @@ namespace pcit::panther{
 
 	auto TypeManager::getOrCreateTypeInfo(TypeInfo&& lookup_type_info) -> TypeInfo::ID {
 		#if defined(PCIT_CONFIG_DEBUG)
-			for(const TypeInfo::Qualifier& qualifier : lookup_type_info.qualifiers()){
-				qualifier.debug_verify();
-			}
+			lookup_type_info.qualifiers_debug_verify();
 		#endif
-
 
 		const auto lock = std::scoped_lock(this->types_lock);
 
