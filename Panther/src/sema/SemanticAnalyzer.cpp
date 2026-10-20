@@ -28349,23 +28349,24 @@ namespace pcit::panther{
 	) -> evo::Expected<sema::Expr, Result> {
 		const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
 
+		if(func.symbolProcID.has_value()){
+			SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*func.symbolProcID);
 
-		SymbolProc& selected_func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*func.symbolProcID);
+			const SymbolProc::WaitOnResult wait_on_result =
+				selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
 
-		const SymbolProc::WaitOnResult wait_on_result =
-			selected_func_symbol_proc.waitOnPIRDefIfNeeded(this->symbol_proc.getID(), this->context);
-
-		switch(wait_on_result){
-			case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-			case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
-				this->context.symbol_proc_manager.symbol_proc_unsuspended();
-				this->context.add_task_to_work_manager(*func.symbolProcID);
-				[[fallthrough]];
+			switch(wait_on_result){
+				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+					this->context.symbol_proc_manager.symbol_proc_unsuspended();
+					this->context.add_task_to_work_manager(*func.symbolProcID);
+					[[fallthrough]];
+				}
+				case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
+				case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
 			}
-			case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
-			case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
 		}
 
 

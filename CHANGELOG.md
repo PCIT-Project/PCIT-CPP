@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.410.2"></a>
+## v0.0.410.2
+
+### Panther
+- Fixed comptime calling of compiler-generated special operators
+
+
+<!---------------------------------->
 <a name="v0.0.410.1"></a>
 ## v0.0.410.1
 
