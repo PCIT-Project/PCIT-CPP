@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.410.1"></a>
+## v0.0.410.1
+
+### Panther
+- Fixed returning default-initialized manual-lifetime non-optional pointer from comptime
+
+
+<!---------------------------------->
 <a name="v0.0.410.0"></a>
 ## v0.0.410.0
 

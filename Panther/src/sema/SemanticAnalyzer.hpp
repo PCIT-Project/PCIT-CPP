@@ -47,6 +47,7 @@ namespace pcit::panther{
 				const core::GenericValue& value,
 				TypeInfo::ID target_type_id,
 				evo::ArrayProxy<ContextComptimeContext::PtrArgData> comptime_ptr_arg_datas,
+				bool is_manual_lifetime,
 				Diagnostic::Location location
 			) -> evo::Result<sema::Expr>;
 

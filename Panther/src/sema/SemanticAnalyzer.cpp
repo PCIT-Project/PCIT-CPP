@@ -14622,7 +14622,7 @@ namespace pcit::panther{
 				if constexpr(IS_COMPTIME){
 					const core::GenericValue arg_generic_value = sema::exprToGenericValue(args[0], this->context);
 					const evo::Result<sema::Expr> converted_expr = this->genericValueToSemaExpr(
-						arg_generic_value, to_type_id, nullptr, this->get_location(instr.func_call)
+						arg_generic_value, to_type_id, nullptr, false, this->get_location(instr.func_call)
 					);
 					if(converted_expr.isError()){ return Result::ERROR; }
 
@@ -18542,7 +18542,7 @@ namespace pcit::panther{
 
 				if(array_type.terminator.has_value()){
 					const evo::Result<sema::Expr> terminator_value = this->genericValueToSemaExpr(
-						*array_type.terminator, array_type.elementTypeID, nullptr, Diagnostic::Location::NONE
+						*array_type.terminator, array_type.elementTypeID, nullptr, false, Diagnostic::Location::NONE
 					);
 					evo::debugAssert(terminator_value.isError(), "Converting terminator should never error");
 
@@ -18726,7 +18726,7 @@ namespace pcit::panther{
 			evo::debugAssert(target_type.dimensions.size() == 1, "multi-dimensional array cannot have terminator");
 
 			const evo::Result<sema::Expr> terminator_value = this->genericValueToSemaExpr(
-				*target_type.terminator, target_type.elementTypeID, nullptr, Diagnostic::Location::NONE
+				*target_type.terminator, target_type.elementTypeID, nullptr, false, Diagnostic::Location::NONE
 			);
 			if(terminator_value.isError()){ return Result::ERROR; }
 
@@ -26261,7 +26261,7 @@ namespace pcit::panther{
 					TermInfo::ValueState::NOT_APPLICABLE,
 					member_var->typeID,
 					this->genericValueToSemaExpr(
-						rhs_generic_value, member_var->typeID, nullptr, Diagnostic::Location::NONE
+						rhs_generic_value, member_var->typeID, nullptr, false, Diagnostic::Location::NONE
 					).value()
 				);
 
@@ -28334,7 +28334,7 @@ namespace pcit::panther{
 		}
 
 		const evo::Result<sema::Expr> return_sema_expr = this->genericValueToSemaExpr(
-			output, target_func_type.returnTypes[0].asTypeID(), comptime_ptr_arg_datas, location
+			output, target_func_type.returnTypes[0].asTypeID(), comptime_ptr_arg_datas, false, location
 		);
 
 		if(return_sema_expr.isError()){ return evo::resultError; }
@@ -33449,6 +33449,7 @@ namespace pcit::panther{
 		const core::GenericValue& value,
 		TypeInfo::ID target_type_id,
 		evo::ArrayProxy<ContextComptimeContext::PtrArgData> comptime_ptr_arg_datas,
+		bool is_manual_lifetime,
 		Diagnostic::Location location
 	) -> evo::Result<sema::Expr> {
 		const TypeInfo& target_type = this->context.getTypeManager().getTypeInfo(target_type_id);
@@ -33472,12 +33473,17 @@ namespace pcit::panther{
 			}
 
 			if(global_ptr == nullptr){
-				if(target_type.isOptional() == false){
-					this->emit_error("Comptime pointer that is not optional has value `Null`", location);
-					return evo::resultError;
-				}
+				if(is_manual_lifetime == false){
+					if(target_type.isOptional() == false){
+						this->emit_error("Comptime pointer that is not optional has value `Null`", location);
+						return evo::resultError;
+					}
 
-				return sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id, true));
+					return sema::Expr(this->context.sema_buffer.createDefaultNew(target_type_id, true));
+
+				}else{
+					return sema::Expr(this->context.sema_buffer.createNull(Token::ID::dummy()));
+				}
 			}
 
 
@@ -33492,6 +33498,7 @@ namespace pcit::panther{
 						core::GenericValue::fromData(comptime_ptr_arg_data.value_buffer),
 						comptime_ptr_arg_data.type_id,
 						comptime_ptr_arg_datas,
+						is_manual_lifetime,
 						location
 					);
 
@@ -33603,6 +33610,7 @@ namespace pcit::panther{
 					core::GenericValue::fromData(data_range.first(opt_data_type_size)),
 					opt_data_type_id,
 					comptime_ptr_arg_datas,
+					is_manual_lifetime,
 					location
 				);
 				if(opt_data_value.isError()){ return evo::resultError; }
@@ -33759,6 +33767,7 @@ namespace pcit::panther{
 						core::GenericValue::fromData(elem_range),
 						array_type.elementTypeID,
 						comptime_ptr_arg_datas,
+						is_manual_lifetime,
 						location
 					);
 					if(member_val.isError()){ return evo::resultError; }
@@ -33792,7 +33801,11 @@ namespace pcit::panther{
 				const auto ptr_expr_range = evo::ArrayProxy<std::byte>(data_cursor, sizeof(void*));
 				data_cursor += sizeof(void*);
 				const evo::Result<sema::Expr> ptr_expr = this->genericValueToSemaExpr(
-					core::GenericValue::fromData(ptr_expr_range), elem_ptr_type_id, comptime_ptr_arg_datas, location
+					core::GenericValue::fromData(ptr_expr_range),
+					elem_ptr_type_id,
+					comptime_ptr_arg_datas,
+					is_manual_lifetime,
+					location
 				);
 				if(ptr_expr.isError()){ return evo::resultError; }
 
@@ -33823,7 +33836,7 @@ namespace pcit::panther{
 				);
 
 				return this->genericValueToSemaExpr(
-					value, alias_type.aliasedType, comptime_ptr_arg_datas, location
+					value, alias_type.aliasedType, comptime_ptr_arg_datas, is_manual_lifetime, location
 				);
 			} break;
 
@@ -33833,7 +33846,7 @@ namespace pcit::panther{
 				);
 
 				return this->genericValueToSemaExpr(
-					value, distinct_alias_type.underlyingType, comptime_ptr_arg_datas, location
+					value, distinct_alias_type.underlyingType, comptime_ptr_arg_datas, is_manual_lifetime, location
 				);
 			} break;
 
@@ -33856,7 +33869,11 @@ namespace pcit::panther{
 					const auto member_range = evo::ArrayProxy<std::byte>(&value.dataRange()[offset], member_size);
 
 					const evo::Result<sema::Expr> member_val = this->genericValueToSemaExpr(
-						core::GenericValue::fromData(member_range), member_var->typeID, comptime_ptr_arg_datas, location
+						core::GenericValue::fromData(member_range),
+						member_var->typeID,
+						comptime_ptr_arg_datas,
+						is_manual_lifetime,
+						location
 					);
 					if(member_val.isError()){ return evo::resultError; }
 
@@ -33888,7 +33905,11 @@ namespace pcit::panther{
 				if(union_type.isUntagged){
 					if(union_type.fields.size() == 1){ // untagged union with 1 field
 						const evo::Result<sema::Expr> expr = this->genericValueToSemaExpr(
-							value, union_type.fields[0].typeID.asTypeID(), comptime_ptr_arg_datas, location
+							value,
+							union_type.fields[0].typeID.asTypeID(),
+							comptime_ptr_arg_datas,
+							is_manual_lifetime || union_type.isManualLifetime,
+							location
 						);
 
 						if(expr.isError()){ return evo::resultError; }
@@ -33917,6 +33938,7 @@ namespace pcit::panther{
 							core::GenericValue::fromData(elem_range),
 							TypeManager::getTypeByte(),
 							comptime_ptr_arg_datas,
+							is_manual_lifetime,
 							location
 						);
 						if(member_val.isError()){ return evo::resultError; }
@@ -33988,7 +34010,11 @@ namespace pcit::panther{
 					value.dataRange().data(), this->context.getTypeManager().numBytes(field_type_id.asTypeID())
 				);
 				const evo::Result<sema::Expr> expr = this->genericValueToSemaExpr(
-					core::GenericValue::fromData(expr_range), field_type_id.asTypeID(), comptime_ptr_arg_datas, location
+					core::GenericValue::fromData(expr_range),
+					field_type_id.asTypeID(),
+					comptime_ptr_arg_datas,
+					is_manual_lifetime,
+					location
 				);
 				if(expr.isError()){ return evo::resultError; }
 
@@ -34009,6 +34035,7 @@ namespace pcit::panther{
 						TypeInfo(BaseType::ID(enum_type.underlyingTypeID))
 					),
 					comptime_ptr_arg_datas,
+					is_manual_lifetime,
 					location
 				);
 			} break;
@@ -34084,7 +34111,11 @@ namespace pcit::panther{
 				evo::debugAssert(target_ptr != nullptr, "Target pointer is Null");
 
 				const evo::Result<sema::Expr> target_value = this->genericValueToSemaExpr(
-					core::GenericValue::createPtr(target_ptr), target_ptr_type, comptime_ptr_arg_datas, location
+					core::GenericValue::createPtr(target_ptr),
+					target_ptr_type,
+					comptime_ptr_arg_datas,
+					is_manual_lifetime,
+					location
 				);
 
 				if(target_value.isError()){ return evo::resultError; }
@@ -34105,7 +34136,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getInterfaceMap(target_type.baseTypeID().interfaceMapID());
 
 				return this->genericValueToSemaExpr(
-					value, interface_map_info.underlyingTypeID, comptime_ptr_arg_datas, location
+					value, interface_map_info.underlyingTypeID, comptime_ptr_arg_datas, is_manual_lifetime, location
 				);
 			} break;
 
@@ -34115,7 +34146,7 @@ namespace pcit::panther{
 
 				if(interface_ptr_map_type.isPolymorphic){
 					return this->genericValueToSemaExpr(
-						value, interface_ptr_map_type.targetTypeID, comptime_ptr_arg_datas, location
+						value, interface_ptr_map_type.targetTypeID, comptime_ptr_arg_datas, is_manual_lifetime, location
 					);
 
 				}else{
@@ -34130,6 +34161,7 @@ namespace pcit::panther{
 							)
 						),
 						comptime_ptr_arg_datas,
+						is_manual_lifetime,
 						location
 					);
 				}
@@ -34798,6 +34830,7 @@ namespace pcit::panther{
 							*got_array_type.terminator,
 							got_array_type.elementTypeID,
 							nullptr,
+							false,
 							Diagnostic::Location::NONE
 						);
 						if(deducer_value.isError()){ return evo::resultError; }
@@ -34933,6 +34966,7 @@ namespace pcit::panther{
 							*got_array_ref_type.terminator,
 							got_array_ref_type.elementTypeID,
 							nullptr,
+							false,
 							Diagnostic::Location::NONE
 						);
 						if(deducer_value.isError()){ return evo::resultError; }
@@ -35050,6 +35084,7 @@ namespace pcit::panther{
 									got_arg.as<core::GenericValue>(),
 									arg_type_id,
 									nullptr,
+									false,
 									Diagnostic::Location::NONE
 								);
 								if(deducer_value.isError()){ return evo::resultError; }
