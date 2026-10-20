@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.410.0"></a>
+## v0.0.410.0
+
+### Panther
+- Added better error diagnostics for why a function doesn't match an interface method
+- Fixed automatic removeal of `mut` pointer qualifiers for some cases
+
+
+<!---------------------------------->
 <a name="v0.0.409.0"></a>
 ## v0.0.409.0
 

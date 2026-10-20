@@ -16837,14 +16837,12 @@ namespace pcit::panther{
 
 		const TypeInfo& target_type = this->context.type_manager.getTypeInfo(target.type_id.as<TypeInfo::ID>());
 
-		TypeInfo resultant_type_info = target_type.copyWithPushedQualifier(
-			TypeInfo::Qualifier(
-				true, target.is_mutable() && target.isUninitialized() == false, target.isUninitialized(), false
-			)
-		);
-
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
-			std::move(resultant_type_info)
+			target_type.copyWithPushedQualifier(
+				TypeInfo::Qualifier(
+					true, target.is_mutable() && target.isUninitialized() == false, target.isUninitialized(), false
+				)
+			)
 		);
 
 
@@ -20312,6 +20310,8 @@ namespace pcit::panther{
 			false,
 			false
 		);
+
+		this->make_qualifiers_read_only_if_needed(resultant_qualifiers);
 
 		const TypeInfo::ID resultant_type_id = this->context.type_manager.getOrCreateTypeInfo(
 			TypeInfo(element_type->baseTypeID(), std::move(resultant_qualifiers))
@@ -36220,32 +36220,76 @@ namespace pcit::panther{
 						return Result::ERROR;
 					}
 
+
+
+
+
+					struct SigCheckFailReason{
+						struct UninstantiatedTemplate{};
+						struct WrongNumberOfParams{};
+						struct ParamMismatch{ size_t param_i; };
+						struct RetTypeMismatch{};
+						struct ErrTypeMismatch{};
+						struct ComptimeMismatch{};
+						struct RuntimeMismatch{};
+
+						using Reason = evo::Variant<
+							UninstantiatedTemplate,
+							WrongNumberOfParams,
+							ParamMismatch,
+							RetTypeMismatch,
+							ErrTypeMismatch,
+							ComptimeMismatch,
+							RuntimeMismatch
+						>;
+
+						Reason reason;
+					};
+
+
+					auto signature_check_fail_reasons = evo::SmallVector<SigCheckFailReason>();
+
 					// find if of the overloads any match
 					bool found_overload = false;
 					using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
-					for(
-						const Overload& overload : info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()
-					){
-						if(overload.is<sema::TemplatedFunc::ID>()){ continue; }
+
+					const TermInfo::FuncOverloadList& func_overload_list =
+						info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>();
+
+					const BaseType::Function& target_method_type = 
+						this->context.getTypeManager().getFunction(target_method.typeID);
+
+					for(const Overload& overload : func_overload_list){
+						if(overload.is<sema::TemplatedFunc::ID>()){
+							signature_check_fail_reasons.emplace_back(
+								SigCheckFailReason::UninstantiatedTemplate{}
+							);
+							continue;
+						}
 
 						const sema::Func& overload_sema =
 							this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
-
-						const BaseType::Function& target_method_type = 
-							this->context.getTypeManager().getFunction(target_method.typeID);
 
 						const BaseType::Function& overload_sema_type = 
 							this->context.getTypeManager().getFunction(overload_sema.typeID);
 
 
 						if(target_method.typeID != overload_sema.typeID){
-							if(target_method_type.params.size() != overload_sema_type.params.size()){ continue; }
+							if(target_method_type.params.size() != overload_sema_type.params.size()){
+								signature_check_fail_reasons.emplace_back(
+									SigCheckFailReason::WrongNumberOfParams{}
+								);
+								continue;
+							}
 
 							// params
 							bool params_check_success = true;
 							for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
 								if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){
 									params_check_success = false;
+									signature_check_fail_reasons.emplace_back(
+										SigCheckFailReason::ParamMismatch{param_i}
+									);
 									break;
 								}
 							}
@@ -36254,6 +36298,9 @@ namespace pcit::panther{
 							// return params
 							if(target_method_type.returnTypes != overload_sema_type.returnTypes){
 								if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
+									signature_check_fail_reasons.emplace_back(
+										SigCheckFailReason::RetTypeMismatch{}
+									);
 									continue;
 								}
 
@@ -36301,12 +36348,20 @@ namespace pcit::panther{
 									}
 								}
 
-								if(return_params_matched == false){ continue; }
+								if(return_params_matched == false){
+									signature_check_fail_reasons.emplace_back(
+										SigCheckFailReason::RetTypeMismatch{}
+									);
+									continue;
+								}
 							}
 
 							// error params
 							if(target_method_type.errorTypes != overload_sema_type.errorTypes){
 								if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
+									signature_check_fail_reasons.emplace_back(
+										SigCheckFailReason::ErrTypeMismatch{}
+									);
 									continue;
 								}
 
@@ -36354,7 +36409,12 @@ namespace pcit::panther{
 									}
 								}
 
-								if(error_params_matched == false){ continue; }
+								if(error_params_matched == false){
+									signature_check_fail_reasons.emplace_back(
+										SigCheckFailReason::ErrTypeMismatch{}
+									);
+									continue;
+								}
 							}
 
 						}
@@ -36363,6 +36423,19 @@ namespace pcit::panther{
 							target_method_type.attributes.isComptime
 							&& overload_sema_type.attributes.isComptime == false
 						){
+							signature_check_fail_reasons.emplace_back(
+								SigCheckFailReason::ComptimeMismatch{}
+							);
+							continue;
+						}
+
+						if(
+							target_method_type.attributes.isRuntime
+							&& overload_sema_type.attributes.isRuntime == false
+						){
+							signature_check_fail_reasons.emplace_back(
+								SigCheckFailReason::RuntimeMismatch{}
+							);
 							continue;
 						}
 
@@ -36372,10 +36445,99 @@ namespace pcit::panther{
 					}
 
 					if(found_overload == false){
+						auto infos = evo::SmallVector<Diagnostic::Info>();
+						infos.reserve(signature_check_fail_reasons.size() + 1);
+
+						infos.emplace_back("Interface method declared here:", this->get_location(target_method_id));
+
+						
+
+						for(
+							size_t i = 0;
+							const SigCheckFailReason& sig_check_fail_reason : signature_check_fail_reasons
+						){
+							const Diagnostic::Location overload_location = func_overload_list[i].visit(
+								[&](const auto& id) -> Diagnostic::Location {
+									return this->get_location(id);
+								}
+							);
+
+							sig_check_fail_reason.reason.visit([&](const auto& reason) -> void {
+								using ReasonType = std::decay_t<decltype(reason)>;
+
+								if constexpr(std::is_same<ReasonType, SigCheckFailReason::UninstantiatedTemplate>()){
+									infos.emplace_back("Failed to match: uninstantiated template", overload_location);
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::WrongNumberOfParams>()){
+									// TODO(FUTURE): more info
+									infos.emplace_back("Failed to match: wrong number of parameters", overload_location);
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ParamMismatch>()){
+									// TODO(FUTURE): more info
+									infos.emplace_back(
+										std::format("Failed to match: parameter index {} mismatch", reason.param_i),
+										overload_location
+									);
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RetTypeMismatch>()){
+									const sema::Func& overload_func = this->context.getSemaBuffer().getFunc(
+										func_overload_list[i].as<sema::Func::ID>()
+									);
+									const BaseType::Function& overload_func_type =
+										this->context.getTypeManager().getFunction(overload_func.typeID);
+
+
+									if(target_method_type.returnTypes.size() != overload_func_type.returnTypes.size()){
+										infos.emplace_back(
+											"Failed to match: wrong number of returns",
+											overload_location,
+											evo::SmallVector<Diagnostic::Info>{
+												Diagnostic::Info(
+													std::format("Expected: {}", target_method_type.returnTypes.size())
+												),
+												Diagnostic::Info(
+													std::format("Got:      {}", overload_func_type.returnTypes.size())
+												),
+											}
+										);
+
+									}else{
+										auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+										this->diagnostic_print_type_info(
+											target_method_type.returnTypes[0], sub_infos, "Expected return type: "
+										);
+										this->diagnostic_print_type_info(
+											overload_func_type.returnTypes[0], sub_infos, "Got return type:      "
+										);
+										infos.emplace_back(
+											"Failed to match: wrong return type",
+											overload_location,
+											std::move(sub_infos)
+										);
+									}
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ErrTypeMismatch>()){
+									// TODO(FUTURE): more info
+									infos.emplace_back("Failed to match: errors mismatch", overload_location);
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ComptimeMismatch>()){
+									// TODO(FUTURE): more info
+									infos.emplace_back("Failed to match: not comptime", overload_location);
+
+								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RuntimeMismatch>()){
+									// TODO(FUTURE): more info
+									infos.emplace_back("Failed to match: not runtime", overload_location);
+
+								}else{
+									static_assert(false, "Unknown signature check fail reason");
+								}
+							});
+
+						 	i += 1;
+						}
+
 						this->emit_error(
-							"No overload has correct signature in interface impl",
-							method_init.method,
-							Diagnostic::Info("Interface method declared here:", this->get_location(target_method_id))
+							"No overload has correct signature in interface impl", method_init.method, std::move(infos)
 						);
 						return Result::ERROR;
 					}
@@ -40679,7 +40841,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::make_qualifiers_read_only_if_needed(std::span<TypeInfo::Qualifier> qualifiers) -> void {
 		bool found_read_only_ptr = false;
 
-		for(TypeInfo::Qualifier& qualifier : qualifiers){
+		for(TypeInfo::Qualifier& qualifier : qualifiers | std::views::reverse){
 			if(found_read_only_ptr){
 				if(qualifier.isPtr){ qualifier.isMut = false; } // make sure its not mut
 
