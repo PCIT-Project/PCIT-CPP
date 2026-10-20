@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.410.3"></a>
+## v0.0.410.3
+
+### PIR
+- Fixed `ExecutionEngine`  incorrectly checking for wrapping of `@shr` nad `@shl`
+
+
+<!---------------------------------->
 <a name="v0.0.410.2"></a>
 ## v0.0.410.2
 

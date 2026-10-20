@@ -1968,7 +1968,7 @@ namespace pcit::pir{
 				const core::GenericInt rhs = this->get_expr(sshr_inst.rhs, stack_frame).getInt(num_bits);
 
 				core::GenericInt::WrapResult result = lhs.sshr(rhs);
-				if(result.wrapped){
+				if(result.wrapped && sshr_inst.isExact){
 					this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
 					break;
 				}
@@ -1986,7 +1986,7 @@ namespace pcit::pir{
 				const core::GenericInt rhs = this->get_expr(ushr_inst.rhs, stack_frame).getInt(num_bits);
 
 				core::GenericInt::WrapResult result = lhs.ushr(rhs);
-				if(result.wrapped){
+				if(result.wrapped && ushr_inst.isExact){
 					this->last_error = FuncRunError::Code::ARITHMETIC_WRAP;
 					break;
 				}
