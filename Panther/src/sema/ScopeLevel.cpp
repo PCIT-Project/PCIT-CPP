@@ -520,7 +520,7 @@ namespace pcit::panther::sema{
 
 		const auto lock = std::scoped_lock(this->value_states_lock);
 		this->value_states.emplace(
-			value_state_id, ValueStateInfo(state, ValueStateInfo::DeclInfo(), this->value_states.size())
+			value_state_id, ValueStateInfo(state, ValueStateInfo::DeclInfo())
 		);
 	}
 
@@ -531,7 +531,11 @@ namespace pcit::panther::sema{
 
 		if(find == this->value_states.end()){
 			this->value_states.emplace(
-				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(0), this->value_states.size())
+				value_state_id,
+				ValueStateInfo(
+					state,
+					ValueStateInfo::ModifyInfo{.scope_level_index = this->value_states.size() - 1, .num_sub_scopes = 0}
+				)
 			);
 
 		}else{
@@ -547,7 +551,11 @@ namespace pcit::panther::sema{
 
 		if(find == this->value_states.end()){
 			this->value_states.emplace(
-				value_state_id, ValueStateInfo(state, ValueStateInfo::ModifyInfo(1), this->value_states.size())
+				value_state_id,
+				ValueStateInfo(
+					state,
+					ValueStateInfo::ModifyInfo{.scope_level_index = this->value_states.size() - 1, .num_sub_scopes = 1}
+				)
 			);
 			return evo::Expected<void, ValueStateID>();
 
@@ -582,12 +590,21 @@ namespace pcit::panther::sema{
 		}
 	}
 
-	auto ScopeLevel::getIdentValueState(ValueStateID value_state_id) const -> std::optional<ValueState> {
+	auto ScopeLevel::getIdentValueState(ValueStateID value_state_id, size_t scope_level_index) const
+	-> std::optional<ValueState> {
 		const auto lock = std::scoped_lock(this->value_states_lock);
 
 		const auto find = this->value_states.find(value_state_id);
-		if(find != this->value_states.end()){ return find->second.state; }
-		return std::nullopt;
+		if(find == this->value_states.end()){ return std::nullopt; }
+
+		if(
+			find->second.info.is<ValueStateInfo::ModifyInfo>()
+			&& find->second.info.as<ValueStateInfo::ModifyInfo>().isPotential(scope_level_index)
+		){
+			return std::nullopt;
+		}
+
+		return find->second.state;
 	}
 
 

@@ -375,9 +375,6 @@ namespace pcit::panther{
 			case Instruction::Kind::COND_ELSE:
 				return this->instr_cond_else();
 
-			case Instruction::Kind::COND_ELSE_IF:
-				return this->instr_cond_else_if();
-
 			case Instruction::Kind::END_COND:
 				return this->instr_end_cond();
 
@@ -7733,11 +7730,6 @@ namespace pcit::panther{
 
 		this->push_scope_level(&current_conditional.elseStmts);
 
-		return Result::SUCCESS;
-	}
-
-	auto SemanticAnalyzer::instr_cond_else_if() -> Result {
-		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
 	}
 
@@ -29823,6 +29815,7 @@ namespace pcit::panther{
 				}
 
 				modify_info.num_sub_scopes = 0;
+				modify_info.scope_level_index -= 1;
 			}
 
 			if(value_state_id.is<sema::ReturnParamAccessorValueStateID>()){
@@ -29866,11 +29859,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::get_ident_value_state(sema::ScopeLevel::ValueStateID value_state_id)
 	-> TermInfo::ValueState {
-		for(const sema::ScopeLevel::ID scope_id : this->scope){
+		for(size_t scope_level_index = this->scope.size() - 1; const sema::ScopeLevel::ID scope_id : this->scope){
 			const sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(scope_id);
 
 			const std::optional<sema::ScopeLevel::ValueState> value_state =
-				scope_level.getIdentValueState(value_state_id);
+				scope_level.getIdentValueState(value_state_id, scope_level_index);
 
 			if(value_state.has_value()){
 				switch(*value_state){
@@ -29882,6 +29875,8 @@ namespace pcit::panther{
 				}
 				evo::debugFatalBreak("unknown value state");
 			}
+
+			scope_level_index -= 1;
 		}
 
 		return TermInfo::ValueState::NOT_APPLICABLE;
@@ -29891,11 +29886,11 @@ namespace pcit::panther{
 
 	auto SemanticAnalyzer::ident_value_state_is_uninit_with_default(sema::ScopeLevel::ValueStateID value_state_id)
 	-> bool {
-		for(const sema::ScopeLevel::ID scope_id : this->scope){
+		for(size_t scope_level_index = this->scope.size() - 1; const sema::ScopeLevel::ID scope_id : this->scope){
 			const sema::ScopeLevel& scope_level = this->context.sema_buffer.getScopeManager().getLevel(scope_id);
 
 			const std::optional<sema::ScopeLevel::ValueState> value_state =
-				scope_level.getIdentValueState(value_state_id);
+				scope_level.getIdentValueState(value_state_id, scope_level_index);
 
 			if(value_state.has_value()){
 				switch(*value_state){
@@ -29907,6 +29902,8 @@ namespace pcit::panther{
 				}
 				evo::debugFatalBreak("unknown value state");
 			}
+
+			scope_level_index -= 1;
 		}
 
 		return false;

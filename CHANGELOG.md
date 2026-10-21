@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.410.4"></a>
+## v0.0.410.4
+
+### Panther
+- Fixed semantic analysis of `else if` creating incorrect control flow in some cases
+- Fixed some cases of value state tracking
+
+
+<!---------------------------------->
 <a name="v0.0.410.3"></a>
 ## v0.0.410.3
 

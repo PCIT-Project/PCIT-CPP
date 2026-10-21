@@ -227,15 +227,17 @@ namespace pcit::panther::sema{
 				};
 
 				struct ModifyInfo{
+					size_t scope_level_index;
 					unsigned num_sub_scopes;
 
-					explicit ModifyInfo(unsigned _num_sub_scopes) : num_sub_scopes(_num_sub_scopes) {}
+					[[nodiscard]] auto isPotential(size_t residing_scope_level_index) const -> bool {
+						return residing_scope_level_index < this->scope_level_index;
+					}
 				};
 
 
 				ValueState state;
 				evo::Variant<DeclInfo, ModifyInfo> info;
-				size_t creation_index;
 			};
 
 		public:
@@ -393,7 +395,8 @@ namespace pcit::panther::sema{
 			auto setIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
 			[[nodiscard]] auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
 				-> evo::Expected<void, ValueStateID>;
-			[[nodiscard]] auto getIdentValueState(ValueStateID value_state_id) const -> std::optional<ValueState>;
+			[[nodiscard]] auto getIdentValueState(ValueStateID value_state_id, size_t scope_level_index) const
+				-> std::optional<ValueState>;
 
 			[[nodiscard]] auto getValueStateInfos() const
 				-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::const_iterator>;

@@ -45,7 +45,7 @@ namespace pthr{
 		std::filesystem::path workingDirectory = {};
 		bool printColor = core::Printer::platformSupportsColor() == core::Printer::DetectResult::YES;
 
-		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::single();
+		panther::Context::NumThreads numBuildThreads = panther::Context::NumThreads::optimalMulti();
 		panther::Context::ExecutionMode execMode     = panther::Context::ExecutionMode::INTERPRETER;
 
 		[[nodiscard]] static auto useInterpreterDebugger() -> bool;

@@ -151,7 +151,6 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_begin_cond_set(const Instruction::BeginCondSet& instr) -> Result;
 			[[nodiscard]] auto instr_cond_no_else() -> Result;
 			[[nodiscard]] auto instr_cond_else() -> Result;
-			[[nodiscard]] auto instr_cond_else_if() -> Result;
 			[[nodiscard]] auto instr_end_cond() -> Result;
 			[[nodiscard]] auto instr_end_cond_set(const Instruction::EndCondSet& instr) -> Result;
 			[[nodiscard]] auto instr_begin_local_when_cond(const Instruction::BeginLocalWhenCond& instr) -> Result;

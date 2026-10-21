@@ -1020,14 +1020,6 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// CondElseIf
-
-			[[nodiscard]] auto createCondElseIf() -> Instruction {
-				return Instruction(Instruction::Kind::COND_ELSE_IF, 0);
-			}
-
-
-			//////////////////
 			// EndCond
 
 			[[nodiscard]] auto createEndCond() -> Instruction {

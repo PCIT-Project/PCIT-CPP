@@ -2559,6 +2559,8 @@ namespace pcit::panther{
 
 		this->add_instruction(this->context.symbol_proc_manager.createBeginCondSet(conditional_stmt));
 
+		unsigned num_end_conds = 0;
+
 		while(true){
 			const evo::Result<SymbolProc::TermInfoID> cond = this->analyze_expr<false>(target_conditional->cond);
 			if(cond.isError()){ return evo::resultError; }
@@ -2573,6 +2575,7 @@ namespace pcit::panther{
 			if(target_conditional->elseBlock.has_value() == false){
 				this->add_instruction(this->context.symbol_proc_manager.createCondNoElse());
 				close_brace = then_block.closeBrace;
+				this->add_instruction(this->context.symbol_proc_manager.createEndCondSet(*close_brace));
 				break;
 			}
 
@@ -2584,16 +2587,22 @@ namespace pcit::panther{
 					if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 				}
 
-				this->add_instruction(this->context.symbol_proc_manager.createEndCond());
 				close_brace = else_block.closeBrace;
+				num_end_conds += 1;
 				break;
 			}
-
-			this->add_instruction(this->context.symbol_proc_manager.createCondElseIf());
+				
+			this->add_instruction(this->context.symbol_proc_manager.createCondElse());
 			target_conditional = &this->source.getASTBuffer().getConditional(*target_conditional->elseBlock);
+
+			close_brace = conditional_stmt.closeBraceToken;
+			num_end_conds += 1;
 		}
 
-		this->add_instruction(this->context.symbol_proc_manager.createEndCondSet(*close_brace));
+		for(size_t i = 0; i < num_end_conds; i+=1){
+			this->add_instruction(this->context.symbol_proc_manager.createEndCond());
+			this->add_instruction(this->context.symbol_proc_manager.createEndCondSet(*close_brace));
+		}
 
 		return evo::Result<>();
 	}

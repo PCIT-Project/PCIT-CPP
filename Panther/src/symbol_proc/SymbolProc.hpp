@@ -1300,7 +1300,6 @@ namespace pcit::panther{
 			BEGIN_COND,
 			COND_NO_ELSE,
 			COND_ELSE,
-			COND_ELSE_IF,
 			END_COND,
 			END_COND_SET,
 			BEGIN_LOCAL_WHEN_COND,
