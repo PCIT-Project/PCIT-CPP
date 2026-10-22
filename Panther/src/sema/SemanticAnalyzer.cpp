@@ -39801,6 +39801,33 @@ namespace pcit::panther{
 					return TypeCheckInfo::fail();
 				}
 
+				if(this->currently_in_func()){
+					if(
+						this->func_scope_current_value_stage().requiresComptime()
+						&& selected_func_type.attributes.isComptime == false
+					){
+						if constexpr(MAY_EMIT_ERROR){
+							this->emit_error(
+								"Cannot call a non-comptime operator [new] within a comptime function", location
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
+
+					if(
+						this->func_scope_current_value_stage().requiresRuntime()
+						&& selected_func_type.attributes.isRuntime == false
+					){
+						if constexpr(MAY_EMIT_ERROR){
+							this->emit_error(
+								"Cannot call a non-runtime operator [new] within a runtime function", location
+							);
+						}
+						return TypeCheckInfo::fail();
+					}
+				}
+
+
 				if(
 					selected_func.attributes.isPrivate
 					&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()

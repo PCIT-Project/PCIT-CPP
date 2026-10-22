@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.412.2"></a>
+## v0.0.412.2
+
+### Panther
+- Fixed missing check for comptime and runtime of implicit initialization operator `new`
+
+
+<!---------------------------------->
 <a name="v0.0.412.1"></a>
 ## v0.0.412.1
 
