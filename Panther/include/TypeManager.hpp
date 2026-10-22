@@ -1097,7 +1097,7 @@ namespace pcit::panther{
 		};
 
 
-		struct PolyInterfaceRef{
+		struct PolyInterfaceRef{ // such as: impl(*:Interface)
 			using ID = PolyInterfaceRefID;
 			
 			evo::Variant<Interface::ID, TypeDeducer::ID> interfaceID;
@@ -1110,7 +1110,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto operator==(const PolyInterfaceRef&) const -> bool = default;
 		};
 
-		struct InterfaceMap{
+		struct InterfaceMap{ // such as: impl(T:Interface)
 			using ID = InterfaceMapID;
 			
 			TypeInfoID underlyingTypeID;
@@ -1124,7 +1124,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto operator==(const InterfaceMap&) const -> bool = default;
 		};
 
-		struct InterfacePtrMap{
+		struct InterfacePtrMap{ // such as: `impl*mut(T:Interface)` or `impl*mut(*:Interface)`
 			using ID = InterfacePtrMapID;
 			
 			TypeInfoID targetTypeID;

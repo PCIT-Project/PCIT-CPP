@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.412.0"></a>
+## v0.0.412.0
+
+### Panther
+- Added operator `as` from interface ptr map to polymorphic interface reference
+
+
+<!---------------------------------->
 <a name="v0.0.411.1"></a>
 ## v0.0.411.1
 

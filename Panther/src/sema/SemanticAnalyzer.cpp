@@ -22206,6 +22206,67 @@ namespace pcit::panther{
 						decayed_to_type.baseTypeID().polyInterfaceRefID()
 					);
 
+
+				if(
+					decayed_from_type.baseTypeID().kind() == BaseType::Kind::INTERFACE_PTR_MAP
+					&& decayed_from_type.qualifiers().empty()
+				){
+					const BaseType::InterfacePtrMap& from_interface_ptr_map =
+						this->context.getTypeManager().getInterfacePtrMap(
+							decayed_from_type.baseTypeID().interfacePtrMapID()
+						);
+
+					if(
+						from_interface_ptr_map.interfaceID.as<BaseType::Interface::ID>()
+						!= target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
+					){
+						this->emit_error("Operator [as] cannot convert as interfaces do not match", ast_infix);
+						return Result::ERROR;
+					}
+
+					if(target_poly_interface_ref.isMut && from_interface_ptr_map.isMut == false){
+						this->emit_error("Operator [as] cannot convert as target requires mutability", ast_infix);
+						return Result::ERROR;
+					}
+
+					if(from_interface_ptr_map.isPolymorphic){
+						this->return_term_info(output_id,
+							TermInfo::ValueCategory::EPHEMERAL,
+							IS_COMPTIME,
+							from_expr.ableToBeComptime,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							from_interface_ptr_map.targetTypeID,
+							sema::Expr(from_expr.getExpr())
+						);
+						return Result::SUCCESS;
+
+					}else{
+						const sema::MakeInterfacePtr::ID make_interface_ptr_id = 
+							this->context.sema_buffer.createMakeInterfacePtr(
+								sema::Expr(
+									this->context.sema_buffer.createDeref(
+										from_expr.getExpr(), from_interface_ptr_map.targetTypeID
+									)
+								),
+								target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>(),
+								from_interface_ptr_map.targetTypeID
+							);
+
+						this->return_term_info(output_id,
+							TermInfo::ValueCategory::EPHEMERAL,
+							IS_COMPTIME,
+							from_expr.ableToBeComptime,
+							TermInfo::ValueState::NOT_APPLICABLE,
+							to_type_id,
+							sema::Expr(make_interface_ptr_id)
+						);
+						return Result::SUCCESS;
+					}
+
+					// evo::unimplemented();
+				}
+
+
 				BaseType::Interface& target_interface = this->context.type_manager.getInterface(
 					target_poly_interface_ref.interfaceID.as<BaseType::Interface::ID>()
 				);
