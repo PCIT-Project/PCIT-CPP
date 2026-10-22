@@ -25437,7 +25437,7 @@ namespace pcit::panther{
 				namespaced_members = lhs_struct.namespacedMembers;
 				scope_level = lhs_struct.scopeLevel;
 
-				if(lhs_struct.isCFamilyType() == false){
+				if(lhs_struct.isPTHRSourceType()){
 					type_source = &this->context.getSourceManager()[lhs_struct.sourceID.as<Source::ID>()];
 				}
 			} break;
