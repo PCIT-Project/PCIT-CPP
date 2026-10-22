@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.411.1"></a>
+## v0.0.411.1
+
+### Panther
+- Fixed missing check for operator `as` to an interface
+
+
+<!---------------------------------->
 <a name="v0.0.411.0"></a>
 ## v0.0.411.0
 

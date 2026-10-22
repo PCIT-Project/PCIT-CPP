@@ -20966,6 +20966,15 @@ namespace pcit::panther{
 		}
 
 
+		if(
+			this->context.getTypeManager().getTypeInfo(target_type.asTypeID()).baseTypeID().kind()
+				== BaseType::Kind::INTERFACE
+		){
+			this->emit_error("Operator [as] cannot convert to an interface type", instr.infix.rhs);
+			return Result::ERROR;
+		}
+
+
 		switch(expr.value_category){
 			case TermInfo::ValueCategory::EPHEMERAL: 
 			case TermInfo::ValueCategory::CONCRETE_CONST: 
