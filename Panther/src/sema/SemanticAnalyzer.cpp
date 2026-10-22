@@ -10679,6 +10679,26 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
+				if(
+					this->func_scope_current_value_stage().requiresComptime()
+					&& selected_func_type.attributes.isComptime == false
+				){
+					this->emit_error(
+						"Cannot call a non-comptime operator [new] within a comptime function", instr.infix.rhs
+					);
+					return Result::ERROR;
+				}
+
+				if(
+					this->func_scope_current_value_stage().requiresRuntime()
+					&& selected_func_type.attributes.isRuntime == false
+				){
+					this->emit_error(
+						"Cannot call a non-runtime operator [new] within a runtime function", instr.infix.rhs
+					);
+					return Result::ERROR;
+				}
+
 
 				auto output_args = evo::SmallVector<sema::Expr>();
 				if(should_run_initialization){
@@ -39897,6 +39917,31 @@ namespace pcit::panther{
 					} break;
 				}
 
+
+				if(
+					this->func_scope_current_value_stage().requiresComptime()
+					&& new_func_type.attributes.isComptime == false
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot call a non-comptime operator [new] within a comptime function", location
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(
+					this->func_scope_current_value_stage().requiresRuntime()
+					&& new_func_type.attributes.isRuntime == false
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot call a non-runtime operator [new] within a runtime function", location
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
 				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 					switch(got_expr.getExpr().kind()){
 						case sema::Expr::Kind::COPY: {
@@ -39972,6 +40017,32 @@ namespace pcit::panther{
 						evo::debugFatalBreak("Unsupported");
 					} break;
 				}
+
+
+				if(
+					this->func_scope_current_value_stage().requiresComptime()
+					&& new_func_type.attributes.isComptime == false
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot call a non-comptime operator [new] within a comptime function", location
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+
+				if(
+					this->func_scope_current_value_stage().requiresRuntime()
+					&& new_func_type.attributes.isRuntime == false
+				){
+					if constexpr(MAY_EMIT_ERROR){
+						this->emit_error(
+							"Cannot call a non-runtime operator [new] within a runtime function", location
+						);
+					}
+					return TypeCheckInfo::fail();
+				}
+				
 
 				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
 					switch(got_expr.getExpr().kind()){
