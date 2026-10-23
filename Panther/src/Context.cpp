@@ -3307,13 +3307,6 @@ namespace pcit::panther{
 				),
 				BaseType::Struct::MemberVar(
 					AST::VarDef::Kind::VAR,
-					build_module.createString("autoComptime"),
-					TypeManager::getTypeBool(),
-					std::nullopt,
-					false
-				),
-				BaseType::Struct::MemberVar(
-					AST::VarDef::Kind::VAR,
 					build_module.createString("addDebugInfo"),
 					TypeManager::getTypeBool(),
 					std::nullopt,

@@ -98,7 +98,6 @@ namespace pcit::panther{
 				bool checkedUnions;
 				bool checkedIndexing;
 				bool checkedIntegralMath;
-				bool autoComptime;
 				std::filesystem::path compilerExecutablePath;
 				std::filesystem::path workingDirectory;
 
@@ -391,7 +390,6 @@ namespace pcit::panther{
 				bool checkedUnions;
 				bool checkedIndexing;
 				bool checkedIntegralMath;
-				bool autoComptime;
 				bool addDebugInfo;
 
 				evo::ArrayProxy<Package> packages;

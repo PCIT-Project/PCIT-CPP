@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.413.0"></a>
+## v0.0.413.0
+
+### Panther
+- Removed `@build.PantherBuildConfig.autoComptime`
+	- Behavior is now equivalent to it being `true`
+
+
+<!---------------------------------->
 <a name="v0.0.412.4"></a>
 ## v0.0.412.4
 

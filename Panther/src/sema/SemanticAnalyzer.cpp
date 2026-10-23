@@ -13284,9 +13284,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_comptime_func_call_run(const Instruction::ComptimeFuncCallRun& instr) -> Result {
 		const TermInfo& func_call_term = this->get_term_info(instr.target);
 
-		if(func_call_term.isComptime == false){
+		if(func_call_term.ableToBeComptime == false){
 			this->return_term_info(instr.output, func_call_term);
-			return Result::SUCCESS;	
+			return Result::SUCCESS;
 		}
 
 
@@ -27286,7 +27286,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
-				lhs.isComptime && this->context.getConfig().autoComptime,
+				lhs.isComptime,
 				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
@@ -39634,9 +39634,7 @@ namespace pcit::panther{
 				}
 
 				if constexpr(MAY_DO_IMPLICIT_CONVERSION){
-					const bool comptime_run = new_func_type.attributes.isComptime
-						&& got_expr.isComptime
-						&& this->context.getConfig().autoComptime;
+					const bool comptime_run = new_func_type.attributes.isComptime && got_expr.isComptime;
 
 					if(comptime_run){
 						const evo::Expected<sema::Expr, Result> comptime_call_res =
@@ -39858,9 +39856,7 @@ namespace pcit::panther{
 					if(unsuspend_result.isError()){ return TypeCheckInfo::fail(); }
 
 
-					const bool comptime_run = selected_func_type.attributes.isComptime
-						&& got_expr.isComptime
-						&& this->context.getConfig().autoComptime;
+					const bool comptime_run = selected_func_type.attributes.isComptime && got_expr.isComptime;
 
 					if(comptime_run){
 						const evo::Expected<sema::Expr, Result> comptime_call_res =

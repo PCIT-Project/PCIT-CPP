@@ -284,7 +284,6 @@ static auto print_num_context_errors(const panther::Context& context, core::Prin
 		.checkedUnions          = config.checkedUnions,
 		.checkedIndexing        = config.checkedIndexing,
 		.checkedIntegralMath    = config.checkedIntegralMath,
-		.autoComptime           = config.autoComptime,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1428,7 +1427,6 @@ static auto run_build_system(const pthr::CmdArgsConfig& cmd_args_config, core::P
 		.checkedUnions          = true,
 		.checkedIndexing        = true,
 		.checkedIntegralMath    = true,
-		.autoComptime           = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
@@ -1607,7 +1605,6 @@ static auto run_scripting(const pthr::CmdArgsConfig& cmd_args_config, core::Prin
 		.checkedUnions          = true,
 		.checkedIndexing        = true,
 		.checkedIntegralMath    = true,
-		.autoComptime           = true,
 		.compilerExecutablePath = cmd_args_config.executablePath,
 		.workingDirectory       = cmd_args_config.workingDirectory,
 
