@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.412.4"></a>
+## v0.0.412.4
+
+### Panther
+- Fixed variables with attribute `#global` with values that require comptime evaluation being considiered as non-comptime values
+
+
+<!---------------------------------->
 <a name="v0.0.412.3"></a>
 ## v0.0.412.3
 

@@ -6666,11 +6666,6 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 
-			if(value_term_info.isComptime == false){
-				this->emit_error("Global variables must be defined with a comptime value", instr.var_def);
-				return Result::ERROR;	
-			}
-
 		}else if(value_term_info.value_category == TermInfo::ValueCategory::MODULE){
 			if(instr.var_def.kind != AST::VarDef::Kind::DEF){
 				this->emit_error("Variable that has a module value must be declared as [def]", *instr.var_def.value);

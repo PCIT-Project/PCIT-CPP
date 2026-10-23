@@ -2349,7 +2349,17 @@ namespace pcit::panther{
 		const evo::Result<SymbolProc::TermInfoID> value = [&](){
 			if(var_def.kind == AST::VarDef::Kind::DEF){
 				return this->analyze_expr<true>(*var_def.value);
+
 			}else{
+				for(
+					const AST::AttributeBlock::Attribute& attribute
+					: this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock).attributes
+				){
+					if(this->source.getTokenBuffer()[attribute.attribute].getString() == "global"){
+						return this->analyze_expr<true>(*var_def.value);
+					}
+				}
+
 				return this->analyze_expr<false>(*var_def.value);
 			}
 		}();
