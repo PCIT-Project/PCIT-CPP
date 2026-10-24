@@ -12698,15 +12698,34 @@ namespace pcit::panther{
 						this->func_scope_current_value_stage().requiresRuntime()
 						&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
 					){
-						this->emit_error(
-							"Cannot call a non-runtime function within a runtime function",
-							instr.func_call.target,
-							Diagnostic::Info(
-								"Called function was defined here:",
-								this->get_location(*func_call_impl_res.value().selected_func_id)
-							)
-						);
-						return Result::ERROR;
+						const bool may_auto_comptime_call = [&]() -> bool {
+							for(
+								const TypeInfo::VoidableID ret_type_id
+								: func_call_impl_res.value().selected_func_type.returnTypes
+							){
+								if(this->context.getTypeManager().isTriviallyDeletable(ret_type_id.asTypeID()) == false){
+									return false;
+								}
+							}
+
+							for(const SymbolProc::TermInfoID arg_info_id : instr.args){
+								if(this->get_term_info(arg_info_id).isComptime == false){ return false; }
+							}
+
+							return true;
+						}();
+
+						if(may_auto_comptime_call == false){
+							this->emit_error(
+								"Cannot call a non-runtime function within a runtime function",
+								instr.func_call.target,
+								Diagnostic::Info(
+									"Called function was defined here:",
+									this->get_location(*func_call_impl_res.value().selected_func_id)
+								)
+							);
+							return Result::ERROR;
+						}
 					}
 				}
 
@@ -12867,15 +12886,34 @@ namespace pcit::panther{
 				this->func_scope_current_value_stage().requiresRuntime()
 				&& func_call_impl_res.value().selected_func_type.attributes.isRuntime == false
 			){
-				this->emit_error(
-					"Cannot call a non-runtime function within a runtime function",
-					instr.func_call.target,
-					Diagnostic::Info(
-						"Called function was defined here:",
-						this->get_location(*func_call_impl_res.value().selected_func_id)
-					)
-				);
-				return Result::ERROR;
+				const bool may_auto_comptime_call = [&]() -> bool {
+					for(
+						const TypeInfo::VoidableID ret_type_id
+						: func_call_impl_res.value().selected_func_type.returnTypes
+					){
+						if(this->context.getTypeManager().isTriviallyDeletable(ret_type_id.asTypeID()) == false){
+							return false;
+						}
+					}
+
+					for(const SymbolProc::TermInfoID arg_info_id : expanded_args){
+						if(this->get_term_info(arg_info_id).isComptime == false){ return false; }
+					}
+
+					return true;
+				}();
+
+				if(may_auto_comptime_call == false){
+					this->emit_error(
+						"Cannot call a non-runtime function within a runtime function",
+						instr.func_call.target,
+						Diagnostic::Info(
+							"Called function was defined here:",
+							this->get_location(*func_call_impl_res.value().selected_func_id)
+						)
+					);
+					return Result::ERROR;
+				}
 			}
 
 			return Result::SUCCESS;
@@ -31950,44 +31988,63 @@ namespace pcit::panther{
 				this->func_scope_current_value_stage().requiresRuntime()
 				&& selected_func_type.attributes.isRuntime == false
 			){
-				const Diagnostic::Location decl_location =
-					func_infos[selected_func_overload_index.value()].func_id.visit(
-						[&](const auto& selected_func_id) -> Diagnostic::Location {
-							using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
-						
-							if constexpr(std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()){
-								return Diagnostic::Location::BUILTIN;
-						
-							}else if constexpr(
-								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
-							){
-								return Diagnostic::Location::BUILTIN;
-
-							}else if constexpr(
-								std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()
-							){
-								return Diagnostic::Location::BUILTIN;
-
-							}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
-								return this->get_location(selected_func_id);
-
-							}else if constexpr(
-								std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()
-							){
-								return this->get_location(*selected_func_id.instantiation.funcID);
-						
-							}else{
-								static_assert(false, "Unknown select function overload id kind");
-							}
+				const bool may_auto_comptime_call = [&]() -> bool {
+					for(const TypeInfo::VoidableID ret_type_id : selected_func_type.returnTypes){
+						if(this->context.getTypeManager().isTriviallyDeletable(ret_type_id.asTypeID()) == false){
+							return false;
 						}
-					);
+					}
 
-				this->emit_error(
-					"Cannot call a non-runtime function within a runtime function",
-					func_call.target,
-					Diagnostic::Info("Called function was defined here:", decl_location)
-				);
-				return evo::Unexpected(Result::ERROR);
+					for(const SymbolProc::TermInfoID arg_info_id : args){
+						if(this->get_term_info(arg_info_id).isComptime == false){ return false; }
+					}
+
+					return true;
+				}();
+
+
+				if(may_auto_comptime_call == false){
+					const Diagnostic::Location decl_location =
+						func_infos[selected_func_overload_index.value()].func_id.visit(
+							[&](const auto& selected_func_id) -> Diagnostic::Location {
+								using SelectedFuncType = std::decay_t<decltype(selected_func_id)>;
+							
+								if constexpr(
+									std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::IntrinsicFlag>()
+								){
+									return Diagnostic::Location::BUILTIN;
+							
+								}else if constexpr(
+									std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::BuiltinTypeMethodFlag>()
+								){
+									return Diagnostic::Location::BUILTIN;
+
+								}else if constexpr(
+									std::is_same<SelectedFuncType, SelectFuncOverloadFuncInfo::FuncPtrFlag>()
+								){
+									return Diagnostic::Location::BUILTIN;
+
+								}else if constexpr(std::is_same<SelectedFuncType, sema::Func::ID>()){
+									return this->get_location(selected_func_id);
+
+								}else if constexpr(
+									std::is_same<SelectedFuncType, sema::TemplatedFunc::InstantiationInfo>()
+								){
+									return this->get_location(*selected_func_id.instantiation.funcID);
+							
+								}else{
+									static_assert(false, "Unknown select function overload id kind");
+								}
+							}
+						);
+
+					this->emit_error(
+						"Cannot call a non-runtime function within a runtime function",
+						func_call.target,
+						Diagnostic::Info("Called function was defined here:", decl_location)
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
 			}
 		}
 
@@ -39810,6 +39867,8 @@ namespace pcit::panther{
 					if(
 						this->func_scope_current_value_stage().requiresRuntime()
 						&& selected_func_type.attributes.isRuntime == false
+						&& got_expr.isComptime == false
+						&& this->context.getTypeManager().isTriviallyDeletable(expected_type_id) == false
 					){
 						if constexpr(MAY_EMIT_ERROR){
 							this->emit_error(
@@ -39951,6 +40010,8 @@ namespace pcit::panther{
 				if(
 					this->func_scope_current_value_stage().requiresRuntime()
 					&& new_func_type.attributes.isRuntime == false
+					&& got_expr.isComptime == false
+					&& this->context.getTypeManager().isTriviallyDeletable(expected_type_id) == false
 				){
 					if constexpr(MAY_EMIT_ERROR){
 						this->emit_error(
@@ -40052,6 +40113,8 @@ namespace pcit::panther{
 				if(
 					this->func_scope_current_value_stage().requiresRuntime()
 					&& new_func_type.attributes.isRuntime == false
+					&& got_expr.isComptime == false
+					&& this->context.getTypeManager().isTriviallyDeletable(expected_type_id) == false
 				){
 					if constexpr(MAY_EMIT_ERROR){
 						this->emit_error(

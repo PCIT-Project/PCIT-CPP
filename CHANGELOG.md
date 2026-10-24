@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.414.0"></a>
+## v0.0.414.0
+
+### Panther
+- Added comptime execution of comptime functions in runtime contexts
+
+
+<!---------------------------------->
 <a name="v0.0.413.0"></a>
 ## v0.0.413.0
 
