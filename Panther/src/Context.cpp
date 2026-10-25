@@ -3603,7 +3603,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_id));
 			BaseType::Interface& iterator_type = this->type_manager.getInterface(iterator_id.interfaceID());
 
-			iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3667,7 +3667,7 @@ namespace pcit::panther{
 			const TypeInfo::ID mut_iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(mut_iterator_id));
 			BaseType::Interface& mut_iterator_type = this->type_manager.getInterface(mut_iterator_id.interfaceID());
 
-			mut_iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			mut_iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3730,7 +3730,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterable_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_id));
 			BaseType::Interface& iterable_type = this->type_manager.getInterface(iterable_id.interfaceID());
 
-			iterable_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) -> impl($$:@pthr.IIterator);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3801,7 +3801,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterable_ref_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_ref_id));
 			BaseType::Interface& iterable_ref_type = this->type_manager.getInterface(iterable_ref_id.interfaceID());
 
-			iterable_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) -> impl($$:@pthr.IIterator);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3853,7 +3853,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_mut_ref_id.interfaceID());
 
 
-			iterable_mut_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_mut_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) -> impl($$:@pthr.IMutIterator);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3900,7 +3900,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_rt_id));
 			BaseType::Interface& iterator_type = this->type_manager.getInterface(iterator_rt_id.interfaceID());
 
-			iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) #rt -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -3966,7 +3966,7 @@ namespace pcit::panther{
 
 			BaseType::Interface& mut_iterator_type = this->type_manager.getInterface(mut_iterator_rt_id.interfaceID());
 
-			mut_iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			mut_iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) #rt -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4029,7 +4029,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterable_rt_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_rt_id));
 			BaseType::Interface& iterable_rt_type = this->type_manager.getInterface(iterable_rt_id.interfaceID());
 
-			iterable_rt_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_rt_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4104,7 +4104,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_ref_id.interfaceID());
 
 
-			iterable_rt_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_rt_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IIteratorRT);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4156,7 +4156,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_rt_mut_ref_id.interfaceID());
 
 
-			iterable_rt_mut_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_rt_mut_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IMutIteratorRT);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4203,7 +4203,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterator_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterator_ct_id));
 			BaseType::Interface& iterator_type = this->type_manager.getInterface(iterator_ct_id.interfaceID());
 
-			iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) #rt -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4269,7 +4269,7 @@ namespace pcit::panther{
 
 			BaseType::Interface& mut_iterator_type = this->type_manager.getInterface(mut_iterator_ct_id.interfaceID());
 
-			mut_iterator_type.methods = evo::SmallVector<sema::Func::ID>{
+			mut_iterator_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func next = (this mut) #rt -> Void;
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4332,7 +4332,7 @@ namespace pcit::panther{
 			const TypeInfo::ID iterable_ct_type_id = this->type_manager.getOrCreateTypeInfo(TypeInfo(iterable_ct_id));
 			BaseType::Interface& iterable_ct_type = this->type_manager.getInterface(iterable_ct_id.interfaceID());
 
-			iterable_ct_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_ct_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IIterator);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4407,7 +4407,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_ct_ref_id.interfaceID());
 
 
-			iterable_ct_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_ct_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IIteratorCT);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,
@@ -4459,7 +4459,7 @@ namespace pcit::panther{
 				this->type_manager.getInterface(iterable_ct_mut_ref_id.interfaceID());
 
 
-			iterable_ct_mut_ref_type.methods = evo::SmallVector<sema::Func::ID>{
+			iterable_ct_mut_ref_type.methods = evo::SmallVector<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>>{
 				// func createIterator = (this) #rt -> impl($$:@pthr.IMutIteratorCT);
 				this->create_builtin_interface_method(
 					BuiltinModule::ID::PTHR,

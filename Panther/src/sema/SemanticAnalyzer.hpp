@@ -693,6 +693,23 @@ namespace pcit::panther{
 			) -> evo::Expected<size_t, Result>; // returns index of selected overload
 
 
+			[[nodiscard]] auto select_matching_interface_impl_function(
+				SymbolProc::InterfaceImplInfo& info,
+				sema::Func::ID target_method_id,
+				size_t method_init_i,
+				const AST::InterfaceImpl::Method& method_init
+			) -> evo::Expected<size_t, Result>; // returns index of selected overload
+
+
+			[[nodiscard]] auto select_matching_interface_impl_function(
+				SymbolProc::InterfaceImplInfo& info,
+				sema::TemplatedFunc::ID target_method_id,
+				size_t method_init_i,
+				const AST::InterfaceImpl::Method& method_init
+			) -> evo::Expected<size_t, Result>; // returns index of selected overload
+
+
+
 			struct FuncCallImplData{
 				std::optional<sema::Func::ID> selected_func_id; // nullopt if is intrinsic/builtin-type method
 				const sema::Func* selected_func; // nullptr if is intrinsic/builtin-type method

@@ -921,12 +921,6 @@ namespace pcit::panther{
 			current_symbol = &this->get_current_symbol();
 
 		}else{
-			if(func_def.value.has_value() == false){
-				this->emit_error("Interface methods cannot be templates", func_def);
-				return evo::resultError;
-			}
-
-
 			if(func_def.isVariadic && this->is_named_deducer(*func_def.params.back().type)){
 				this->emit_error("Variadic function parameter cannot be a named deducer", *func_def.params.back().type);
 				return evo::resultError;

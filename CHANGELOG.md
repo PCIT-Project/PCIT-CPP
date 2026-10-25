@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.415.0"></a>
+## v0.0.415.0
+
+### Panther
+- Added templated interface methods if `#nonPolymorphic`
+- Fixed lowering default new of character in string
+
+
+<!---------------------------------->
 <a name="v0.0.414.0"></a>
 ## v0.0.414.0
 

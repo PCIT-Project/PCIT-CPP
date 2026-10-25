@@ -5948,14 +5948,14 @@ namespace pcit::panther{
 
 		const Token& name_token = this->source.getTokenBuffer()[instr.func_def.name];
 
+
 		if(name_token.kind() == Token::Kind::IDENT || name_token.kind() == Token::Kind::ESCAPE_IDENT){
 			const std::string_view ident_str = name_token.getString();
 
 			const bool include_shadow_checks = [&]() -> bool {
 				if(this->scope.inEncapsulatingSymbol() == false){ return true; }
 
-				const EncapsulatingSymbolID& current_encapsulating_symbol =
-					this->scope.getCurrentEncapsulatingSymbol();
+				const EncapsulatingSymbolID& current_encapsulating_symbol = this->scope.getCurrentEncapsulatingSymbol();
 
 				return current_encapsulating_symbol.is<sema::Func::ID>();
 			}();
@@ -6005,6 +6005,29 @@ namespace pcit::panther{
 				parent_struct.newInitOverloads.emplace_back(templated_func_id);
 			}
 		}
+
+
+		if(this->scope.inEncapsulatingSymbol()){
+			const EncapsulatingSymbolID& current_encapsulating_symbol = this->scope.getCurrentEncapsulatingSymbol();
+
+			if(current_encapsulating_symbol.is<BaseType::Interface::ID>()){
+				BaseType::Interface& current_interface = this->context.type_manager.getInterface(
+					current_encapsulating_symbol.as<BaseType::Interface::ID>()
+				);
+				current_interface.methods.emplace_back(templated_func_id);
+			}
+		}
+
+
+		if(
+			this->symbol_proc.parent != nullptr
+			&& this->symbol_proc.parent->extra_info.is<SymbolProc::InterfaceImplInfo>()
+		){
+			this->symbol_proc.parent->extra_info.as<SymbolProc::InterfaceImplInfo>().targets.emplace_back(
+				TermInfo::ValueCategory::FUNCTION, TermInfo::FuncOverloadList{templated_func_id}
+			);
+		}
+
 
 		this->propagate_finished_decl_def();
 
@@ -6193,13 +6216,24 @@ namespace pcit::panther{
 		BaseType::Interface& current_interface = this->context.type_manager.getInterface(current_interface_id);
 
 		if(current_interface.isPolymorphic){
-			for(const sema::Func::ID method_id : current_interface.methods){
-				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+			for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : current_interface.methods){
+				if(method_id.is<sema::TemplatedFunc::ID>()){
+					this->emit_error(
+						"Method of a polymorphic interface cannot be a template",
+						method_id.as<sema::TemplatedFunc::ID>()
+					);
+					return Result::ERROR;
+				}
+
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
 				const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 				for(TypeInfo::VoidableID return_type : method_type.returnTypes){
 					if(this->context.getTypeManager().isTypeDeducer(return_type)){
-						this->emit_error("Method of a polymorphic interface cannot return type deducers", method_id);
+						this->emit_error(
+							"Method of a polymorphic interface cannot return type deducers",
+							method_id.as<sema::Func::ID>()
+						);
 						return Result::ERROR;
 					}
 				}
@@ -6615,7 +6649,11 @@ namespace pcit::panther{
 
 			const bool should_comptime_lower = [&]() -> bool {
 				if(info.target_interface.methods.size() == 1){
-					const sema::Func& func = this->context.getSemaBuffer().getFunc(info.target_interface.methods[0]);
+					if(info.target_interface.methods[0].is<sema::TemplatedFunc::ID>()){ return false; }
+
+					const sema::Func& func = this->context.getSemaBuffer().getFunc(
+						info.target_interface.methods[0].as<sema::Func::ID>()
+					);
 					const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
 					return func_type.attributes.isComptime;
@@ -8425,8 +8463,9 @@ namespace pcit::panther{
 
 
 			const TypeInfo::ID created_iterator_type_id = [&]() -> TypeInfo::ID {
-				const sema::Func& create_iterator_func =
-					this->context.getSemaBuffer().getFunc(iterable_impl.methods[create_iterator_func_index]);
+				const sema::Func& create_iterator_func = this->context.getSemaBuffer().getFunc(
+					iterable_impl.methods[create_iterator_func_index].as<sema::Func::ID>()
+				);
 
 				const BaseType::Function& create_iterator_func_type =
 					this->context.getTypeManager().getFunction(create_iterator_func.typeID);
@@ -8459,7 +8498,8 @@ namespace pcit::panther{
 			//////////////////
 			// check param type
 
-			const sema::Func& get_func = this->context.getSemaBuffer().getFunc(iterator_impl.methods[1]);
+			const sema::Func& get_func =
+				this->context.getSemaBuffer().getFunc(iterator_impl.methods[1].as<sema::Func::ID>());
 			const BaseType::Function& get_func_type =
 				this->context.getTypeManager().getFunction(get_func.typeID);
 			const TypeInfo::ID get_func_ret_type = get_func_type.returnTypes[0].asTypeID();
@@ -8534,14 +8574,18 @@ namespace pcit::panther{
 			if(in_comptime_func){
 				SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
 
-				func_info.dependent_funcs.emplace(iterable_impl.methods[create_iterator_func_index]);
-				func_info.dependent_funcs.emplace(iterator_impl.methods[0]);
-				func_info.dependent_funcs.emplace(iterator_impl.methods[1]);
-				func_info.dependent_funcs.emplace(iterator_impl.methods[2]);
+				func_info.dependent_funcs.emplace(
+					iterable_impl.methods[create_iterator_func_index].as<sema::Func::ID>()
+				);
+				func_info.dependent_funcs.emplace(iterator_impl.methods[0].as<sema::Func::ID>());
+				func_info.dependent_funcs.emplace(iterator_impl.methods[1].as<sema::Func::ID>());
+				func_info.dependent_funcs.emplace(iterator_impl.methods[2].as<sema::Func::ID>());
 			}
 
 			iterables.emplace_back(
-				iterable.getExpr(), iterable_impl.methods[create_iterator_func_index], iterator_impl
+				iterable.getExpr(),
+				iterable_impl.methods[create_iterator_func_index].as<sema::Func::ID>(),
+				iterator_impl
 			);
 		}
 
@@ -9903,8 +9947,15 @@ namespace pcit::panther{
 					this->context.getTypeManager().getInterface(target_interface_id);
 
 
-				for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
-					if(method == *func_call_impl_res.value().selected_func_id){
+				for(
+					size_t i = 0;
+					const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method : target_interface.methods
+				){
+					evo::debugAssert(
+						method.is<sema::Func::ID>(), "Polymorphic interface cannot have a template method"
+					);
+
+					if(method.as<sema::Func::ID>() == *func_call_impl_res.value().selected_func_id){
 						const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
 							fake_term_info.expr,
 							func_call_impl_res.value().selected_func->typeID,
@@ -11903,8 +11954,13 @@ namespace pcit::panther{
 			const sema::Func& selected_func =
 				this->context.getSemaBuffer().getFunc(*func_call_impl_res.value().selected_func_id);
 
-			for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
-				if(method == *func_call_impl_res.value().selected_func_id){
+			for(
+				size_t i = 0;
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method : target_interface.methods
+			){
+				evo::debugAssert(method.is<sema::Func::ID>(), "Polymorphic interface cannot have templated method");
+
+				if(method.as<sema::Func::ID>() == *func_call_impl_res.value().selected_func_id){
 					const sema::TryElseInterface::ID sema_try_else_interface_id = 
 						this->context.sema_buffer.createTryElseInterface(
 							fake_term_info.expr,
@@ -13270,47 +13326,51 @@ namespace pcit::panther{
 		const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_call_id);
 		const BaseType::Function& selected_func_type = this->context.getTypeManager().getFunction(selected_func.typeID);
 
-		for(size_t i = 0; const sema::Func::ID method : target_interface.methods){
-			if(method == selected_func_call_id){
-				const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
-					fake_term_info.expr,
-					selected_func.typeID,
-					target_interface_id,
-					uint32_t(i),
-					std::move(args)
+		for(
+			size_t i = 0; const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method : target_interface.methods
+		){	
+			EVO_DEFER([&](){ i += 1; });
+
+			evo::debugAssert(method.is<sema::Func::ID>(), "Polymorphic interfaces cannot have template methods");
+
+			if(method.as<sema::Func::ID>() != selected_func_call_id){ continue; }
+
+			const sema::InterfaceCall::ID interface_call_id = this->context.sema_buffer.createInterfaceCall(
+				fake_term_info.expr,
+				selected_func.typeID,
+				target_interface_id,
+				uint32_t(i),
+				std::move(args)
+			);
+
+			if(selected_func_type.returnTypes.size() == 1){ // single return
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					IS_COMPTIME,
+					target_term_info.ableToBeComptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					selected_func_type.returnTypes[0].asTypeID(),
+					sema::Expr(interface_call_id)
 				);
-
-				if(selected_func_type.returnTypes.size() == 1){ // single return
-					this->return_term_info(output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						IS_COMPTIME,
-						target_term_info.ableToBeComptime,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						selected_func_type.returnTypes[0].asTypeID(),
-						sema::Expr(interface_call_id)
-					);
-					
-				}else{ // multi-return
-					auto return_types = evo::SmallVector<TypeInfo::ID>();
-					return_types.reserve(selected_func_type.returnTypes.size());
-					for(TypeInfo::VoidableID return_param : selected_func_type.returnTypes){
-						return_types.emplace_back(return_param.asTypeID());
-					}
-
-					this->return_term_info(output,
-						TermInfo::ValueCategory::EPHEMERAL,
-						IS_COMPTIME,
-						target_term_info.ableToBeComptime,
-						TermInfo::ValueState::NOT_APPLICABLE,
-						std::move(return_types),
-						sema::Expr(interface_call_id)
-					);
+				
+			}else{ // multi-return
+				auto return_types = evo::SmallVector<TypeInfo::ID>();
+				return_types.reserve(selected_func_type.returnTypes.size());
+				for(TypeInfo::VoidableID return_param : selected_func_type.returnTypes){
+					return_types.emplace_back(return_param.asTypeID());
 				}
 
-				return Result::SUCCESS;
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					IS_COMPTIME,
+					target_term_info.ableToBeComptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					std::move(return_types),
+					sema::Expr(interface_call_id)
+				);
 			}
 
-			i += 1;
+			return Result::SUCCESS;
 		}
 
 		evo::debugFatalBreak("Didn't find selected func id");
@@ -26022,12 +26082,14 @@ namespace pcit::panther{
 
 		if(is_polymorphic){
 			auto methods = TermInfo::FuncOverloadList();
-			for(const sema::Func::ID method_id : target_interface.methods){
-				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+			for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : target_interface.methods){
+				evo::debugAssert(method_id.is<sema::Func::ID>(), "Polymorphic interface cannot have templated method");
+
+				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
 				const std::string_view method_name = method.getName(this->context.getSourceManager());
 
 				if(method_name == rhs_ident_str){
-					methods.emplace_back(method_id);
+					methods.emplace_back(method_id.as<sema::Func::ID>());
 				}
 			}
 
@@ -26106,13 +26168,29 @@ namespace pcit::panther{
 
 
 			auto func_overload_list = TermInfo::FuncOverloadList();
-			for(size_t i = 0; const sema::Func::ID method_id : target_interface.methods){
-				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-				const std::string_view method_name = method.getName(this->context.getSourceManager());
+			for(
+				size_t i = 0;
+				const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : target_interface.methods
+			){
+				if(method_id.is<sema::Func::ID>()){
+					const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
+					const std::string_view method_name = method.getName(this->context.getSourceManager());
 
-				if(method_name == rhs_ident_str){
-					func_overload_list.emplace_back(interface_impl.methods[i]);
+					if(method_name == rhs_ident_str){
+						func_overload_list.emplace_back(interface_impl.methods[i]);
+					}
+					
+				}else{
+					const sema::TemplatedFunc& method = this->context.getSemaBuffer().getTemplatedFunc(
+						method_id.as<sema::TemplatedFunc::ID>()
+					);
+					const std::string_view method_name = method.symbolProc.ident;
+
+					if(method_name == rhs_ident_str){
+						func_overload_list.emplace_back(interface_impl.methods[i]);
+					}
 				}
+
 
 				i += 1;
 			}
@@ -30682,7 +30760,8 @@ namespace pcit::panther{
 		if(sema_func.attributes.isPrivate && sema_func.parent != this->scope.getCurrentTypeScopeIfExists()){
 			this->emit_error(
 				std::format(
-					"Selected {} overload has the `#private` attribute, and is not accessable in this scope", func_type_str
+					"Selected {} overload has the `#private` attribute, and is not accessable in this scope",
+					func_type_str
 				),
 				location,
 				Diagnostic::Info(
@@ -31617,6 +31696,465 @@ namespace pcit::panther{
 	}
 
 
+	auto SemanticAnalyzer::select_matching_interface_impl_function(
+		SymbolProc::InterfaceImplInfo& info,
+		sema::Func::ID target_method_id,
+		size_t method_init_i,
+		const AST::InterfaceImpl::Method& method_init
+	) -> evo::Expected<size_t, Result> {
+		struct SigCheckFailReason{
+			struct UninstantiatedTemplate{};
+			struct WrongNumberOfParams{};
+			struct ParamMismatch{ size_t param_i; };
+			struct RetTypeMismatch{};
+			struct ErrTypeMismatch{};
+			struct ComptimeMismatch{};
+			struct RuntimeMismatch{};
+
+			using Reason = evo::Variant<
+				UninstantiatedTemplate,
+				WrongNumberOfParams,
+				ParamMismatch,
+				RetTypeMismatch,
+				ErrTypeMismatch,
+				ComptimeMismatch,
+				RuntimeMismatch
+			>;
+
+			Reason reason;
+		};
+
+
+		auto signature_check_fail_reasons = evo::SmallVector<SigCheckFailReason>();
+
+		// find if of the overloads any match
+		using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
+
+
+		const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
+
+		const BaseType::Function& target_method_type = 
+			this->context.getTypeManager().getFunction(target_method.typeID);
+
+		const TermInfo::FuncOverloadList& func_overload_list =
+			info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>();
+		for(size_t overload_i = 0; const Overload& overload : func_overload_list){
+			EVO_DEFER([&](){ overload_i += 1; });
+
+			if(overload.is<sema::TemplatedFunc::ID>()){
+				signature_check_fail_reasons.emplace_back(SigCheckFailReason::UninstantiatedTemplate{});
+				continue;
+			}
+
+			const sema::Func& overload_sema =
+				this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
+
+			const BaseType::Function& overload_sema_type = 
+				this->context.getTypeManager().getFunction(overload_sema.typeID);
+
+
+			if(target_method.typeID != overload_sema.typeID){
+				if(target_method_type.params.size() != overload_sema_type.params.size()){
+					signature_check_fail_reasons.emplace_back(SigCheckFailReason::WrongNumberOfParams{});
+					continue;
+				}
+
+				// params
+				bool params_check_success = true;
+				for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
+					if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){
+						params_check_success = false;
+						signature_check_fail_reasons.emplace_back(SigCheckFailReason::ParamMismatch{param_i});
+						break;
+					}
+				}
+				if(params_check_success == false){ continue; }
+
+				// return params
+				if(target_method_type.returnTypes != overload_sema_type.returnTypes){
+					if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
+						signature_check_fail_reasons.emplace_back(SigCheckFailReason::RetTypeMismatch{});
+						continue;
+					}
+
+					bool return_params_matched = true;
+					for(size_t i = 0; i < target_method_type.returnTypes.size(); i+=1){
+						if(target_method_type.returnTypes[i].isVoid()){
+							return_params_matched = overload_sema_type.returnTypes[i].isVoid();
+							break;
+
+						}else if(overload_sema_type.returnTypes[i].isVoid()){
+							return_params_matched = false;
+							break;
+						}
+
+						const TypeInfo::ID target_ret_param_type_id = target_method_type.returnTypes[i].asTypeID();
+						const TypeInfo::ID overload_ret_param_type_id = overload_sema_type.returnTypes[i].asTypeID();
+
+						if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+						//////////////////
+						// deducers
+
+						const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+							target_ret_param_type_id, overload_ret_param_type_id
+						);
+
+						switch(deducer_match_output.outcome()){
+							case DeducerMatchOutput::Outcome::MATCH: {
+								continue;
+							} break;
+
+							case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+							case DeducerMatchOutput::Outcome::NO_MATCH: {
+								return_params_matched = false;
+								break;
+							} break;
+
+							case DeducerMatchOutput::Outcome::RESULT: {
+								return evo::Unexpected(deducer_match_output.result());
+							} break;
+						}
+					}
+
+					if(return_params_matched == false){
+						signature_check_fail_reasons.emplace_back(SigCheckFailReason::RetTypeMismatch{});
+						continue;
+					}
+				}
+
+				// error params
+				if(target_method_type.errorTypes != overload_sema_type.errorTypes){
+					if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
+						signature_check_fail_reasons.emplace_back(SigCheckFailReason::ErrTypeMismatch{});
+						continue;
+					}
+
+					bool error_params_matched = true;
+					for(size_t i = 0; i < target_method_type.errorTypes.size(); i+=1){
+						if(target_method_type.errorTypes[i].isVoid()){
+							error_params_matched = overload_sema_type.errorTypes[i].isVoid();
+							break;
+
+						}else if(overload_sema_type.errorTypes[i].isVoid()){
+							error_params_matched = false;
+							break;
+						}
+
+						const TypeInfo::ID target_ret_param_type_id = target_method_type.errorTypes[i].asTypeID();
+						const TypeInfo::ID overload_ret_param_type_id = overload_sema_type.errorTypes[i].asTypeID();
+
+						if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
+
+
+						//////////////////
+						// deducers
+
+						const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
+							target_ret_param_type_id, overload_ret_param_type_id
+						);
+
+						switch(deducer_match_output.outcome()){
+							case DeducerMatchOutput::Outcome::MATCH: {
+								continue;
+							} break;
+
+							case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
+							case DeducerMatchOutput::Outcome::NO_MATCH: {
+								error_params_matched = false;
+								break;
+							} break;
+
+							case DeducerMatchOutput::Outcome::RESULT: {
+								return evo::Unexpected(deducer_match_output.result());
+							} break;
+						}
+					}
+
+					if(error_params_matched == false){
+						signature_check_fail_reasons.emplace_back(SigCheckFailReason::ErrTypeMismatch{});
+						continue;
+					}
+				}
+
+			}
+
+			if(target_method_type.attributes.isComptime && overload_sema_type.attributes.isComptime == false){
+				signature_check_fail_reasons.emplace_back(SigCheckFailReason::ComptimeMismatch{});
+				continue;
+			}
+
+			if(target_method_type.attributes.isRuntime && overload_sema_type.attributes.isRuntime == false){
+				signature_check_fail_reasons.emplace_back(SigCheckFailReason::RuntimeMismatch{});
+				continue;
+			}
+
+			return overload_i;
+		}
+
+
+		///////////////////////////////////
+		// didn't find match
+
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+		infos.reserve(signature_check_fail_reasons.size() + 1);
+
+		infos.emplace_back("Interface method declared here:", this->get_location(target_method_id));
+
+		for(
+			size_t i = 0;
+			const SigCheckFailReason& sig_check_fail_reason : signature_check_fail_reasons
+		){
+			const Diagnostic::Location overload_location = func_overload_list[i].visit(
+				[&](const auto& id) -> Diagnostic::Location {
+					return this->get_location(id);
+				}
+			);
+
+			sig_check_fail_reason.reason.visit([&](const auto& reason) -> void {
+				using ReasonType = std::decay_t<decltype(reason)>;
+
+				if constexpr(std::is_same<ReasonType, SigCheckFailReason::UninstantiatedTemplate>()){
+					infos.emplace_back("Failed to match: uninstantiated template", overload_location);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::WrongNumberOfParams>()){
+					// TODO(FUTURE): more info
+					infos.emplace_back("Failed to match: wrong number of parameters", overload_location);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ParamMismatch>()){
+					// TODO(FUTURE): more info
+					infos.emplace_back(
+						std::format("Failed to match: parameter index {} mismatch", reason.param_i), overload_location
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RetTypeMismatch>()){
+					const sema::Func& overload_func = this->context.getSemaBuffer().getFunc(
+						func_overload_list[i].as<sema::Func::ID>()
+					);
+					const BaseType::Function& overload_func_type =
+						this->context.getTypeManager().getFunction(overload_func.typeID);
+
+
+					if(target_method_type.returnTypes.size() != overload_func_type.returnTypes.size()){
+						infos.emplace_back(
+							"Failed to match: wrong number of returns",
+							overload_location,
+							evo::SmallVector<Diagnostic::Info>{
+								Diagnostic::Info(
+									std::format("Expected: {}", target_method_type.returnTypes.size())
+								),
+								Diagnostic::Info(
+									std::format("Got:      {}", overload_func_type.returnTypes.size())
+								),
+							}
+						);
+
+					}else{
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>();
+						this->diagnostic_print_type_info(
+							target_method_type.returnTypes[0], sub_infos, "Expected return type: "
+						);
+						this->diagnostic_print_type_info(
+							overload_func_type.returnTypes[0], sub_infos, "Got return type:      "
+						);
+						infos.emplace_back(
+							"Failed to match: wrong return type", overload_location, std::move(sub_infos)
+						);
+					}
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ErrTypeMismatch>()){
+					// TODO(FUTURE): more info
+					infos.emplace_back("Failed to match: errors mismatch", overload_location);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ComptimeMismatch>()){
+					// TODO(FUTURE): more info
+					infos.emplace_back("Failed to match: not comptime", overload_location);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RuntimeMismatch>()){
+					// TODO(FUTURE): more info
+					infos.emplace_back("Failed to match: not runtime", overload_location);
+
+				}else{
+					static_assert(false, "Unknown signature check fail reason");
+				}
+			});
+
+		 	i += 1;
+		}
+
+		this->emit_error("No overload has correct signature in interface impl", method_init.method, std::move(infos));
+		return evo::Unexpected(Result::ERROR);
+	}
+
+
+
+	auto SemanticAnalyzer::select_matching_interface_impl_function(
+		SymbolProc::InterfaceImplInfo& info,
+		sema::TemplatedFunc::ID target_method_id,
+		size_t method_init_i,
+		const AST::InterfaceImpl::Method& method_init
+	) -> evo::Expected<size_t, Result> {
+		struct SigCheckFailReason{
+			struct NumTemplateParams{};
+			struct TemplateParam{ size_t i; };
+			struct NumParams{};
+			struct Param{ size_t i; };
+			struct Variadic{};
+			struct NumReturns{};
+			struct NumErrors{};
+
+			using Reason = evo::Variant<
+				NumTemplateParams,
+				TemplateParam,
+				NumParams,
+				Param,
+				Variadic,
+				NumReturns,
+				NumErrors
+			>;
+
+			Reason reason;
+		};
+
+
+
+		const sema::TemplatedFunc& target_method = this->context.getSemaBuffer().getTemplatedFunc(target_method_id);
+
+		const Source& target_method_source = this->context.getSourceManager()[target_method.symbolProc.getSourceID()];
+		const AST::FuncDef& target_ast_func =
+			target_method_source.getASTBuffer().getFuncDef(target_method.symbolProc.getASTNode());
+
+		const TermInfo::FuncOverloadList& func_overload_list =
+			info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>();
+
+
+		auto sig_check_fail_reasons = evo::SmallVector<SigCheckFailReason>();
+		for(size_t overload_i = 0; const sema::ScopeLevel::Overload overload_id : func_overload_list){
+			EVO_DEFER([&](){ overload_i += 1; });
+		
+			const sema::TemplatedFunc& overload = this->context.getSemaBuffer().getTemplatedFunc(
+				overload_id.as<sema::TemplatedFunc::ID>()
+			);
+
+			const Source& overload_method_source = this->context.getSourceManager()[overload.symbolProc.getSourceID()];
+			const AST::FuncDef& overload_ast_func =
+				overload_method_source.getASTBuffer().getFuncDef(overload.symbolProc.getASTNode());
+
+
+			if(target_method.templateParams.size() != overload.templateParams.size()){
+				sig_check_fail_reasons.emplace_back(SigCheckFailReason::Variadic{});
+				continue;
+			}
+
+			bool template_params_check_success = true;
+			for(size_t i = 0; i < target_method.templateParams.size(); i+=1){
+				if(target_method.templateParams[i].typeID != overload.templateParams[i].typeID){
+					sig_check_fail_reasons.emplace_back(SigCheckFailReason::TemplateParam{i});
+					template_params_check_success = false;
+					break;
+				}
+			}
+			if(template_params_check_success == false){ continue; }
+
+
+			if(target_method.paramIsDeducer.size() != overload.paramIsDeducer.size()){
+				sig_check_fail_reasons.emplace_back(SigCheckFailReason::NumParams{});
+				continue;
+			}
+
+			bool params_check_success = true;
+			for(size_t i = 0; i < target_method.paramIsDeducer.size(); i+=1){
+				if(target_method.paramIsDeducer[i] != overload.paramIsDeducer[i]){
+					sig_check_fail_reasons.emplace_back(SigCheckFailReason::Param{i});
+					params_check_success = false;
+					break;
+				}
+			}
+			if(params_check_success == false){ continue; }
+
+
+			if(target_method.isVariadic != overload.isVariadic){
+				sig_check_fail_reasons.emplace_back(SigCheckFailReason::Variadic{});
+				continue;
+			}
+
+
+			if(target_ast_func.errorReturns.size() != overload_ast_func.errorReturns.size()){
+				sig_check_fail_reasons.emplace_back(SigCheckFailReason::NumErrors{});
+				continue;
+			}
+
+
+			return overload_i;
+		}
+
+
+		///////////////////////////////////
+		// failed to find match
+
+		auto infos = evo::SmallVector<Diagnostic::Info>();
+		for(size_t i = 0; const SigCheckFailReason& sig_check_fail_reason : sig_check_fail_reasons){
+			sig_check_fail_reason.reason.visit([&](const auto& reason) -> void {
+				using ReasonType = std::decay_t<decltype(reason)>;
+			
+				if constexpr(std::is_same<ReasonType, SigCheckFailReason::NumTemplateParams>()){
+					infos.emplace_back(
+						"Failed to match: number of template parameters",
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::TemplateParam>()){
+					infos.emplace_back(
+						std::format("Failed to match: template parameter (index {}) doesn't match", reason.i),
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::NumParams>()){
+					infos.emplace_back(
+						"Failed to match: number of parameters",
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::Param>()){
+					infos.emplace_back(
+						std::format("Failed to match: parameter (index {}) doesn't match", reason.i),
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::Variadic>()){
+					infos.emplace_back(
+						"Failed to match: variadic paramters",
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::NumReturns>()){
+					infos.emplace_back(
+						"Failed to match: number of returns",
+						this->get_location(target_method_id)
+					);
+
+				}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::NumErrors>()){
+					infos.emplace_back(
+						"Failed to match: number of errors",
+						this->get_location(target_method_id)
+					);
+
+				}else{
+					static_assert(false, "Unknown ");
+				}
+			});
+
+			i += 1;
+		}
+
+		this->emit_error("No overload has correct signature in interface impl", method_init.method, std::move(infos));
+		return evo::Unexpected(Result::ERROR);
+	}
+
+
+
+
 	template<bool IS_COMPTIME, bool ERRORS>
 	auto SemanticAnalyzer::func_call_impl(
 		const AST::FuncCall& func_call,
@@ -32050,7 +32588,7 @@ namespace pcit::panther{
 
 
 		switch(target_term_info.value_category){
-			case TermInfo::ValueCategory::FUNCTION: case TermInfo::ValueCategory::INTERFACE_CALL: {
+			case TermInfo::ValueCategory::FUNCTION: {
 				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
 					func_infos[selected_func_overload_index.value()].func_id;
 
@@ -32081,6 +32619,343 @@ namespace pcit::panther{
 							*instantiation_info.instantiation.funcID
 						);
 						sema_func.status = sema::Func::Status::NOT_DONE;
+
+						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
+					}
+
+					return FuncCallImplData(
+						*instantiation_info.instantiation.funcID,
+						&this->context.sema_buffer.getFunc(*instantiation_info.instantiation.funcID),
+						selected_func_type
+					);
+				}
+			} break;
+
+			case TermInfo::ValueCategory::INTERFACE_CALL: {
+				const SelectFuncOverloadFuncInfo::FuncID& selected_func_id = 
+					func_infos[selected_func_overload_index.value()].func_id;
+
+				if(selected_func_id.is<sema::Func::ID>()){
+					const sema::Func& selected_func =
+						this->context.getSemaBuffer().getFunc(selected_func_id.as<sema::Func::ID>());
+
+					return FuncCallImplData(selected_func_id.as<sema::Func::ID>(), &selected_func, selected_func_type);
+
+				}else{
+					evo::debugAssert(
+						selected_func_id.is<sema::TemplatedFunc::InstantiationInfo>(),
+						"Unsupported func id type for this value category"
+					);
+
+
+					const sema::TemplatedFunc::InstantiationInfo& instantiation_info =
+						selected_func_id.as<sema::TemplatedFunc::InstantiationInfo>();
+
+					sema::Func& instantiated_func = this->context.sema_buffer.getFunc(
+						*instantiation_info.instantiation.funcID
+					);
+
+
+					const std::string_view instantiated_func_name =
+						instantiated_func.getName(this->context.getSourceManager());
+
+
+					//////////////////
+					// check if instantiation matches interface 
+
+					const TypeInfo::ID method_this_type_id = method_this_term_info->type_id.as<TypeInfo::ID>();
+					const TypeInfo& method_this_type = this->context.getTypeManager().getTypeInfo(method_this_type_id);
+
+					const BaseType::InterfaceMap& interface_map = this->context.getTypeManager().getInterfaceMap(
+						method_this_type.baseTypeID().interfaceMapID()
+					);
+
+					const BaseType::Interface& target_interface = this->context.getTypeManager().getInterface(
+						interface_map.interfaceID.as<BaseType::Interface::ID>()
+					);
+
+
+					const BaseType::Interface::Impl& target_impl = [&]() -> const BaseType::Interface::Impl& {
+						const auto lock = std::scoped_lock(target_interface.implsLock);
+						return target_interface.impls.at(interface_map.underlyingTypeID);
+					}();
+
+
+
+
+					const TermInfo::FuncOverloadList& func_overload_list =
+						target_term_info.type_id.as<TermInfo::FuncOverloadList>();
+					const sema::TemplatedFunc::ID selected_templated_func_id =
+						func_overload_list[selected_func_overload_index.value()].as<sema::TemplatedFunc::ID>();
+
+
+					size_t method_in_interface_index = 0;
+					for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>& method_id : target_impl.methods){
+						if(method_id.is<sema::TemplatedFunc::ID>() == false){
+							method_in_interface_index += 1;
+							continue;
+						}
+
+						if(method_id.as<sema::TemplatedFunc::ID>() == selected_templated_func_id){
+							break;
+						}
+
+						method_in_interface_index += 1;
+					}
+
+					evo::debugAssert(
+						method_in_interface_index < target_impl.methods.size(), "Didn't find interface impl method decl"
+					);
+
+					evo::Expected<sema::TemplatedFunc::InstantiationInfo, TemplateOverloadMatchFail> template_res =
+						this->get_select_func_overload_func_info_for_template(
+							target_interface.methods[method_in_interface_index].as<sema::TemplatedFunc::ID>(),
+							args,
+							template_args,
+							true,
+							this->get_location(func_call)
+						);
+
+					if(template_res.has_value() == false){
+						// TODO(FUTURE): more info from `template_res.error()`
+						this->emit_error(
+							"Type of interface method declaration and interface impl method do not match",
+							func_call,
+							Diagnostic::Info("Interface method declaration fails instantiation")
+						);
+						return evo::Unexpected(Result::ERROR);
+					}
+
+
+					{
+						std::optional<SymbolProc::ID> loaded_instantiation_symbol_proc_id =
+							template_res.value().instantiation.symbolProcID.load(std::memory_order::relaxed);
+						while(loaded_instantiation_symbol_proc_id.has_value() == false){ // wait for it to be ready
+							std::this_thread::yield();
+							loaded_instantiation_symbol_proc_id =
+								template_res.value().instantiation.symbolProcID.load(std::memory_order::relaxed);
+						}
+
+						SymbolProc& instantiation_symbol_proc =
+							this->context.symbol_proc_manager.getSymbolProc(*loaded_instantiation_symbol_proc_id);
+
+						SymbolProc::WaitOnResult wait_on_result = 
+							instantiation_symbol_proc.waitOnDeclIfNeeded(this->symbol_proc.getID(), this->context);
+
+
+						switch(wait_on_result){
+							case SymbolProc::WaitOnResult::NOT_NEEDED: {
+								// do nothing
+							} break;
+
+							case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+								this->context.symbol_proc_manager.symbol_proc_unsuspended();
+								this->context.add_task_to_work_manager(*loaded_instantiation_symbol_proc_id);
+								[[fallthrough]];
+							}
+
+							case SymbolProc::WaitOnResult::WAITING: {
+								return evo::Unexpected(Result::NEED_TO_WAIT);
+							} break;
+
+							case SymbolProc::WaitOnResult::WAS_ERRORED:
+								return evo::Unexpected(Result::ERROR);
+
+							case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: break;
+
+							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+								return evo::Unexpected(Result::ERROR);
+						}
+					}
+
+
+
+					sema::Func& interface_method_decl_instantiated_func = this->context.sema_buffer.getFunc(
+						*template_res.value().instantiation.funcID
+					);
+
+
+					if(instantiated_func.typeID != interface_method_decl_instantiated_func.typeID){
+						const BaseType::Function& got_type = this->context.getTypeManager().getFunction(
+							instantiated_func.typeID
+						);
+
+						const BaseType::Function& expected_type = this->context.getTypeManager().getFunction(
+							interface_method_decl_instantiated_func.typeID
+						);
+
+
+
+						if(expected_type.isMethod){
+							if(got_type.isMethod == false){
+								this->emit_error(
+									"Type of interface method declaration and interface impl method do not match",
+									func_call,
+									Diagnostic::Info("mismatched `this` paramters")
+								);
+								return evo::Unexpected(Result::ERROR);
+							}
+
+							if(expected_type.params[0].kind != got_type.params[0].kind){
+								if(got_type.isMethod == false){
+									this->emit_error(
+										"Type of interface method declaration and interface impl method do not match",
+										func_call,
+										Diagnostic::Info("mismatched `this` paramters")
+									);
+									return evo::Unexpected(Result::ERROR);
+								}
+							}
+
+						}else{
+							if(got_type.isMethod){
+								this->emit_error(
+									"Type of interface method declaration and interface impl method do not match",
+									func_call,
+									Diagnostic::Info("mismatched `this` paramters")
+								);
+								return evo::Unexpected(Result::ERROR);
+							}
+						}
+
+
+						if(expected_type.params.size() != got_type.params.size()){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Number of parameters mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						for(size_t i = size_t(expected_type.isMethod); i < expected_type.params.size(); i+=1){
+							if(expected_type.params[i] != got_type.params[i]){
+								this->emit_error(
+									"Type of interface method declaration and interface impl method do not match",
+									func_call,
+									Diagnostic::Info(std::format("Paramter (index {}) mismatch", i))
+								);
+								return evo::Unexpected(Result::ERROR);
+							}
+						}
+
+
+						if(expected_type.returnTypes.size() != got_type.returnTypes.size()){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Number of returns mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						if(expected_type.hasNamedReturns != got_type.hasNamedReturns){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Return (index 0) mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						for(size_t i = 0; i < expected_type.returnTypes.size(); i+=1){
+							if(expected_type.returnTypes[i] != got_type.returnTypes[i]){
+								this->emit_error(
+									"Type of interface method declaration and interface impl method do not match",
+									func_call,
+									Diagnostic::Info(std::format("Return (index {}) mismatch", i))
+								);
+								return evo::Unexpected(Result::ERROR);
+							}
+						}
+
+
+						if(expected_type.errorTypes.size() != got_type.errorTypes.size()){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Number of errors mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+						for(size_t i = 0; i < expected_type.errorTypes.size(); i+=1){
+							if(expected_type.errorTypes[i] != got_type.errorTypes[i]){
+								this->emit_error(
+									"Type of interface method declaration and interface impl method do not match",
+									func_call,
+									Diagnostic::Info(std::format("Error (index {}) mismatch", i))
+								);
+								return evo::Unexpected(Result::ERROR);
+							}
+						}
+
+
+						if(expected_type.attributes.callingConvention != got_type.attributes.callingConvention){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Calling convention mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+						if(expected_type.attributes.abi != got_type.attributes.abi){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("ABI mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+						if(expected_type.attributes.isNoReturn != got_type.attributes.isNoReturn){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("`#noReturn` mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+						if(expected_type.attributes.isUnsafe != got_type.attributes.isUnsafe){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("`#unsafe` mismatch")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+
+						if(expected_type.attributes.isComptime && got_type.attributes.isComptime == false){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Comptime required")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+
+						if(expected_type.attributes.isRuntime && got_type.attributes.isRuntime == false){
+							this->emit_error(
+								"Type of interface method declaration and interface impl method do not match",
+								func_call,
+								Diagnostic::Info("Runtime required")
+							);
+							return evo::Unexpected(Result::ERROR);
+						}
+					}
+
+
+					//////////////////
+					// unsuspend if needed, and return
+
+					const SymbolProc::ID instantiation_symbol_proc_id = 
+						*instantiation_info.instantiation.symbolProcID.load(std::memory_order::relaxed);
+					SymbolProc& instantiation_symbol_proc =
+						this->context.symbol_proc_manager.getSymbolProc(instantiation_symbol_proc_id);
+
+					if(instantiation_symbol_proc.unsuspendIfNeeded()){
+						this->context.symbol_proc_manager.symbol_proc_unsuspended();
+
+						instantiated_func.status = sema::Func::Status::NOT_DONE;
 
 						this->context.add_task_to_work_manager(instantiation_symbol_proc_id);
 					}
@@ -36317,10 +37192,19 @@ namespace pcit::panther{
 		interface_impl.methods.reserve(info.target_interface.methods.size());
 
 		const auto interface_has_member = [&](std::string_view ident) -> bool {
-			for(const sema::Func::ID method_id : info.target_interface.methods){
-				const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
-				const std::string_view target_method_name = method.getName(this->context.getSourceManager());
-				if(target_method_name == ident){ return true; }
+			for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : info.target_interface.methods){
+				if(method_id.is<sema::Func::ID>()){
+					const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
+					const std::string_view target_method_name = method.getName(this->context.getSourceManager());
+					if(target_method_name == ident){ return true; }
+					
+				}else{
+					const sema::TemplatedFunc& method = this->context.getSemaBuffer().getTemplatedFunc(
+						method_id.as<sema::TemplatedFunc::ID>()
+					);
+					const std::string_view target_method_name = method.symbolProc.ident;
+					if(target_method_name == ident){ return true; }
+				}
 			}
 
 			return false;
@@ -36329,12 +37213,49 @@ namespace pcit::panther{
 
 		if(info.target_interface.methods.empty() == false){
 			size_t method_init_i = 0;
-			for(sema::Func::ID target_method_id : info.target_interface.methods){
-				const sema::Func& target_method = this->context.getSemaBuffer().getFunc(target_method_id);
-				const std::string_view target_method_name = target_method.getName(this->context.getSourceManager());
+			for(evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> target_method_id : info.target_interface.methods){
+				const std::string_view target_method_name = [&]() -> std::string_view {
+					if(target_method_id.is<sema::Func::ID>()){
+						const sema::Func& target_method = this->context.getSemaBuffer().getFunc(
+							target_method_id.as<sema::Func::ID>()
+						);
+						return target_method.getName(this->context.getSourceManager());
+						
+					}else{
+						const sema::TemplatedFunc& target_method = this->context.getSemaBuffer().getTemplatedFunc(
+							target_method_id.as<sema::TemplatedFunc::ID>()
+						);
+
+						return target_method.symbolProc.ident;
+					}
+				}();
+
+				const bool has_default = [&]() -> bool {
+					if(target_method_id.is<sema::Func::ID>()){
+						const sema::Func& target_method = this->context.getSemaBuffer().getFunc(
+							target_method_id.as<sema::Func::ID>()
+						);
+						return target_method.status == sema::Func::Status::DEF_DONE;
+						
+					}else{
+						const sema::TemplatedFunc& target_method = this->context.getSemaBuffer().getTemplatedFunc(
+							target_method_id.as<sema::TemplatedFunc::ID>()
+						);
+
+						const Source& target_source =
+							this->context.getSourceManager()[target_method.symbolProc.source_id];
+						const AST::FuncDef& target_ast_func = target_source.getASTBuffer().getFuncDef(
+							target_method.symbolProc.ast_node
+						);
+
+						return target_ast_func.value.has_value();
+					}
+				}();
+
+
 
 				if(method_init_i >= instr.interface_impl.methods.size()){
-					if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
+					if(has_default){
 						interface_impl.methods.emplace_back(target_method_id);
 						continue;
 					}
@@ -36365,7 +37286,7 @@ namespace pcit::panther{
 						this->source.getTokenBuffer()[method_init.method].getString();
 
 					if(target_method_name != method_init_name){
-						if(target_method.status == sema::Func::Status::DEF_DONE){ // has default
+						if(has_default){
 							interface_impl.methods.emplace_back(target_method_id);
 							continue;
 						}
@@ -36398,323 +37319,29 @@ namespace pcit::panther{
 
 
 
-
-					struct SigCheckFailReason{
-						struct UninstantiatedTemplate{};
-						struct WrongNumberOfParams{};
-						struct ParamMismatch{ size_t param_i; };
-						struct RetTypeMismatch{};
-						struct ErrTypeMismatch{};
-						struct ComptimeMismatch{};
-						struct RuntimeMismatch{};
-
-						using Reason = evo::Variant<
-							UninstantiatedTemplate,
-							WrongNumberOfParams,
-							ParamMismatch,
-							RetTypeMismatch,
-							ErrTypeMismatch,
-							ComptimeMismatch,
-							RuntimeMismatch
-						>;
-
-						Reason reason;
-					};
-
-
-					auto signature_check_fail_reasons = evo::SmallVector<SigCheckFailReason>();
-
-					// find if of the overloads any match
-					bool found_overload = false;
-					using Overload = evo::Variant<sema::FuncID, sema::TemplatedFuncID>;
-
-					const TermInfo::FuncOverloadList& func_overload_list =
-						info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>();
-
-					const BaseType::Function& target_method_type = 
-						this->context.getTypeManager().getFunction(target_method.typeID);
-
-					for(const Overload& overload : func_overload_list){
-						if(overload.is<sema::TemplatedFunc::ID>()){
-							signature_check_fail_reasons.emplace_back(
-								SigCheckFailReason::UninstantiatedTemplate{}
-							);
-							continue;
-						}
-
-						const sema::Func& overload_sema =
-							this->context.getSemaBuffer().getFunc(overload.as<sema::Func::ID>());
-
-						const BaseType::Function& overload_sema_type = 
-							this->context.getTypeManager().getFunction(overload_sema.typeID);
-
-
-						if(target_method.typeID != overload_sema.typeID){
-							if(target_method_type.params.size() != overload_sema_type.params.size()){
-								signature_check_fail_reasons.emplace_back(
-									SigCheckFailReason::WrongNumberOfParams{}
-								);
-								continue;
-							}
-
-							// params
-							bool params_check_success = true;
-							for(size_t param_i = 1; param_i < target_method_type.params.size(); param_i+=1){
-								if(target_method_type.params[param_i] != overload_sema_type.params[param_i]){
-									params_check_success = false;
-									signature_check_fail_reasons.emplace_back(
-										SigCheckFailReason::ParamMismatch{param_i}
-									);
-									break;
-								}
-							}
-							if(params_check_success == false){ continue; }
-
-							// return params
-							if(target_method_type.returnTypes != overload_sema_type.returnTypes){
-								if(target_method_type.returnTypes.size() != overload_sema_type.returnTypes.size()){
-									signature_check_fail_reasons.emplace_back(
-										SigCheckFailReason::RetTypeMismatch{}
-									);
-									continue;
-								}
-
-								bool return_params_matched = true;
-								for(size_t i = 0; i < target_method_type.returnTypes.size(); i+=1){
-									if(target_method_type.returnTypes[i].isVoid()){
-										return_params_matched = overload_sema_type.returnTypes[i].isVoid();
-										break;
-
-									}else if(overload_sema_type.returnTypes[i].isVoid()){
-										return_params_matched = false;
-										break;
-									}
-
-									const TypeInfo::ID target_ret_param_type_id = 
-										target_method_type.returnTypes[i].asTypeID();
-
-									const TypeInfo::ID overload_ret_param_type_id = 
-										overload_sema_type.returnTypes[i].asTypeID();
-
-									if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-									//////////////////
-									// deducers
-
-									const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-										target_ret_param_type_id, overload_ret_param_type_id
-									);
-
-									switch(deducer_match_output.outcome()){
-										case DeducerMatchOutput::Outcome::MATCH: {
-											continue;
-										} break;
-
-										case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
-										case DeducerMatchOutput::Outcome::NO_MATCH: {
-											return_params_matched = false;
-											break;
-										} break;
-
-										case DeducerMatchOutput::Outcome::RESULT: {
-											return deducer_match_output.result();
-										} break;
-									}
-								}
-
-								if(return_params_matched == false){
-									signature_check_fail_reasons.emplace_back(
-										SigCheckFailReason::RetTypeMismatch{}
-									);
-									continue;
-								}
-							}
-
-							// error params
-							if(target_method_type.errorTypes != overload_sema_type.errorTypes){
-								if(target_method_type.errorTypes.size() != overload_sema_type.errorTypes.size()){
-									signature_check_fail_reasons.emplace_back(
-										SigCheckFailReason::ErrTypeMismatch{}
-									);
-									continue;
-								}
-
-								bool error_params_matched = true;
-								for(size_t i = 0; i < target_method_type.errorTypes.size(); i+=1){
-									if(target_method_type.errorTypes[i].isVoid()){
-										error_params_matched = overload_sema_type.errorTypes[i].isVoid();
-										break;
-
-									}else if(overload_sema_type.errorTypes[i].isVoid()){
-										error_params_matched = false;
-										break;
-									}
-
-									const TypeInfo::ID target_ret_param_type_id = 
-										target_method_type.errorTypes[i].asTypeID();
-
-									const TypeInfo::ID overload_ret_param_type_id = 
-										overload_sema_type.errorTypes[i].asTypeID();
-
-									if(target_ret_param_type_id == overload_ret_param_type_id){ continue; }
-
-
-									//////////////////
-									// deducers
-
-									const DeducerMatchOutput deducer_match_output = this->deducer_matches_and_extract(
-										target_ret_param_type_id, overload_ret_param_type_id
-									);
-
-									switch(deducer_match_output.outcome()){
-										case DeducerMatchOutput::Outcome::MATCH: {
-											continue;
-										} break;
-
-										case DeducerMatchOutput::Outcome::MATCH_WITH_IMPLICIT_CONVERT:
-										case DeducerMatchOutput::Outcome::NO_MATCH: {
-											error_params_matched = false;
-											break;
-										} break;
-
-										case DeducerMatchOutput::Outcome::RESULT: {
-											return deducer_match_output.result();
-										} break;
-									}
-								}
-
-								if(error_params_matched == false){
-									signature_check_fail_reasons.emplace_back(
-										SigCheckFailReason::ErrTypeMismatch{}
-									);
-									continue;
-								}
-							}
-
-						}
-
-						if(
-							target_method_type.attributes.isComptime
-							&& overload_sema_type.attributes.isComptime == false
-						){
-							signature_check_fail_reasons.emplace_back(
-								SigCheckFailReason::ComptimeMismatch{}
-							);
-							continue;
-						}
-
-						if(
-							target_method_type.attributes.isRuntime
-							&& overload_sema_type.attributes.isRuntime == false
-						){
-							signature_check_fail_reasons.emplace_back(
-								SigCheckFailReason::RuntimeMismatch{}
-							);
-							continue;
-						}
-
-						interface_impl.methods.emplace_back(overload.as<sema::Func::ID>());
-						found_overload = true;
-						break;
-					}
-
-					if(found_overload == false){
-						auto infos = evo::SmallVector<Diagnostic::Info>();
-						infos.reserve(signature_check_fail_reasons.size() + 1);
-
-						infos.emplace_back("Interface method declared here:", this->get_location(target_method_id));
-
-						
-
-						for(
-							size_t i = 0;
-							const SigCheckFailReason& sig_check_fail_reason : signature_check_fail_reasons
-						){
-							const Diagnostic::Location overload_location = func_overload_list[i].visit(
-								[&](const auto& id) -> Diagnostic::Location {
-									return this->get_location(id);
-								}
+					if(target_method_id.is<sema::Func::ID>()){
+						const evo::Expected<size_t, Result> selected_function =
+							this->select_matching_interface_impl_function(
+								info, target_method_id.as<sema::Func::ID>(), method_init_i, method_init
 							);
 
-							sig_check_fail_reason.reason.visit([&](const auto& reason) -> void {
-								using ReasonType = std::decay_t<decltype(reason)>;
+						if(selected_function.has_value() == false){ return selected_function.error(); }
 
-								if constexpr(std::is_same<ReasonType, SigCheckFailReason::UninstantiatedTemplate>()){
-									infos.emplace_back("Failed to match: uninstantiated template", overload_location);
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::WrongNumberOfParams>()){
-									// TODO(FUTURE): more info
-									infos.emplace_back("Failed to match: wrong number of parameters", overload_location);
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ParamMismatch>()){
-									// TODO(FUTURE): more info
-									infos.emplace_back(
-										std::format("Failed to match: parameter index {} mismatch", reason.param_i),
-										overload_location
-									);
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RetTypeMismatch>()){
-									const sema::Func& overload_func = this->context.getSemaBuffer().getFunc(
-										func_overload_list[i].as<sema::Func::ID>()
-									);
-									const BaseType::Function& overload_func_type =
-										this->context.getTypeManager().getFunction(overload_func.typeID);
-
-
-									if(target_method_type.returnTypes.size() != overload_func_type.returnTypes.size()){
-										infos.emplace_back(
-											"Failed to match: wrong number of returns",
-											overload_location,
-											evo::SmallVector<Diagnostic::Info>{
-												Diagnostic::Info(
-													std::format("Expected: {}", target_method_type.returnTypes.size())
-												),
-												Diagnostic::Info(
-													std::format("Got:      {}", overload_func_type.returnTypes.size())
-												),
-											}
-										);
-
-									}else{
-										auto sub_infos = evo::SmallVector<Diagnostic::Info>();
-										this->diagnostic_print_type_info(
-											target_method_type.returnTypes[0], sub_infos, "Expected return type: "
-										);
-										this->diagnostic_print_type_info(
-											overload_func_type.returnTypes[0], sub_infos, "Got return type:      "
-										);
-										infos.emplace_back(
-											"Failed to match: wrong return type",
-											overload_location,
-											std::move(sub_infos)
-										);
-									}
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ErrTypeMismatch>()){
-									// TODO(FUTURE): more info
-									infos.emplace_back("Failed to match: errors mismatch", overload_location);
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::ComptimeMismatch>()){
-									// TODO(FUTURE): more info
-									infos.emplace_back("Failed to match: not comptime", overload_location);
-
-								}else if constexpr(std::is_same<ReasonType, SigCheckFailReason::RuntimeMismatch>()){
-									// TODO(FUTURE): more info
-									infos.emplace_back("Failed to match: not runtime", overload_location);
-
-								}else{
-									static_assert(false, "Unknown signature check fail reason");
-								}
-							});
-
-						 	i += 1;
-						}
-
-						this->emit_error(
-							"No overload has correct signature in interface impl", method_init.method, std::move(infos)
+						interface_impl.methods.emplace_back(
+							info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()[*selected_function]
 						);
-						return Result::ERROR;
+
+					}else{
+						const evo::Expected<size_t, Result> selected_function =
+							this->select_matching_interface_impl_function(
+								info, target_method_id.as<sema::TemplatedFunc::ID>(), method_init_i, method_init
+							);
+
+						if(selected_function.has_value() == false){ return selected_function.error(); }
+
+						interface_impl.methods.emplace_back(
+							info.targets[method_init_i].type_id.as<TermInfo::FuncOverloadList>()[*selected_function]
+						);
 					}
 
 					method_init_i += 1;
@@ -36789,11 +37416,14 @@ namespace pcit::panther{
 
 
 		bool any_waiting = false;
-		for(const sema::Func::ID method_id : interface_impl.methods){
-			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+		for(const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : interface_impl.methods){
+			if(method_id.is<sema::TemplatedFunc::ID>()){ continue; }
+
+			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
 			const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 			if(method_type.attributes.isComptime == false){ continue; }
+
 
 			SymbolProc& method_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*method.symbolProcID);
 

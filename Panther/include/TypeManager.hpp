@@ -319,7 +319,7 @@ namespace pcit::panther{
 			};
 
 			template<class ForceInit>
-			struct AttributesImpl{
+			struct AttributesImpl{ // TODO(PERF): pack members better
 				bool isComptime                          = ForceInit();
 				bool isRuntime                           = ForceInit();
 				bool isUnsafe                            = ForceInit();
@@ -1002,8 +1002,7 @@ namespace pcit::panther{
 
 			struct Impl{
 				const AST::InterfaceImpl& astInterfaceImpl;
-				evo::SmallVector<sema::FuncID> methods{}; // may only access if instantiatingSymbolProc is nullopt 
-				                                          // 	or waited on def
+				evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> methods{}; // may only access if symbolProc is nullopt or waited on def
 				
 				std::optional<SymbolProcID> symbolProc = std::nullopt;
 				mutable std::atomic<bool> isDefCompleted = false;
@@ -1077,7 +1076,8 @@ namespace pcit::panther{
 			bool isPrivate;
 			bool isPolymorphic;
 
-			evo::SmallVector<sema::FuncID> methods{};
+			// may only be templated if `isPolymorphic == false`
+			evo::SmallVector<evo::Variant<sema::FuncID, sema::TemplatedFuncID>> methods{};
 
 			std::unordered_map<TypeInfoID, const Impl&> impls{};
 			mutable evo::SpinLock implsLock{};

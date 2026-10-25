@@ -1163,8 +1163,10 @@ namespace pcit::panther{
 
 		auto error_return_types = evo::SmallVector<std::optional<pir::Type>>();
 		error_return_types.reserve(interface.methods.size());
-		for(size_t i = 0; const sema::Func::ID method_id : interface.methods){
-			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id);
+		for(size_t i = 0; const evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> method_id : interface.methods){
+			evo::debugAssert(method_id.is<sema::Func::ID>(), "Polymorphic interface cannot have templated method");
+
+			const sema::Func& method = this->context.getSemaBuffer().getFunc(method_id.as<sema::Func::ID>());
 			const BaseType::Function& method_type = this->context.getTypeManager().getFunction(method.typeID);
 
 			if(method.hasNamedErrors()){
@@ -1199,7 +1201,9 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::lowerInterfaceVTableComptime(
-		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
+		BaseType::Interface::ID interface_id,
+		TypeInfo::ID type_id,
+		evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> funcs
 	) -> void {
 		const BaseType::Interface& interface_type = this->context.getTypeManager().getInterface(interface_id);
 
@@ -1207,7 +1211,8 @@ namespace pcit::panther{
 
 		if(funcs.size() == 1){
 			this->data.create_single_method_vtable(
-				Data::VTableID(interface_id, type_id), this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
+				Data::VTableID(interface_id, type_id),
+				this->data.get_func(funcs[0].as<sema::Func::ID>()).pir_ids[0].as<pir::Function::ID>()
 			);
 			return;
 		}
@@ -1263,14 +1268,14 @@ namespace pcit::panther{
 
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
-		for(sema::Func::ID func_id : funcs){
-			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id);
+		for(evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> func_id : funcs){
+			const sema::Func& func = this->context.getSemaBuffer().getFunc(func_id.as<sema::Func::ID>());
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(func.typeID);
 
 			if(func_type.attributes.isComptime){
 				vtable_values.emplace_back(
 					this->handler.createFunctionPointer(
-						this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>()
+						this->data.get_func(func_id.as<sema::Func::ID>()).pir_ids[0].as<pir::Function::ID>()
 					)
 				);
 			}else{
@@ -1295,7 +1300,9 @@ namespace pcit::panther{
 
 
 	auto SemaToPIR::lowerInterfaceVTableDef(
-		BaseType::Interface::ID interface_id, TypeInfo::ID type_id, const evo::SmallVector<sema::Func::ID>& funcs
+		BaseType::Interface::ID interface_id,
+		TypeInfo::ID type_id,
+		evo::ArrayProxy<evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID>> funcs
 	) -> void {
 		evo::debugAssert(
 			this->context.getTypeManager().getInterface(interface_id).isPolymorphic,
@@ -1304,14 +1311,14 @@ namespace pcit::panther{
 
 
 		if(funcs.size() == 1){
-			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(funcs[0]);
+			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(funcs[0].as<sema::Func::ID>());
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
 			if(func_type.attributes.isRuntime){
 				if(func_type.attributes.isComptime == false || sema_func.attributes.isRTDiff){
 					this->data.create_single_method_vtable(
 						Data::VTableID(interface_id, type_id),
-						this->data.get_func(funcs[0]).pir_ids[0].as<pir::Function::ID>()
+						this->data.get_func(funcs[0].as<sema::Func::ID>()).pir_ids[0].as<pir::Function::ID>()
 					);
 				}
 			}
@@ -1323,13 +1330,15 @@ namespace pcit::panther{
 		// TODO(FUTURE): make it so the non-runtime functions can be skipped
 		auto vtable_values = evo::SmallVector<pir::GlobalVar::Value>();
 		vtable_values.reserve(funcs.size());
-		for(sema::Func::ID func_id : funcs){
-			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id);
+		for(evo::Variant<sema::Func::ID, sema::TemplatedFunc::ID> func_id : funcs){
+			const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(func_id.as<sema::Func::ID>());
 			const BaseType::Function& func_type = this->context.getTypeManager().getFunction(sema_func.typeID);
 
 			if(func_type.attributes.isRuntime){
 				vtable_values.emplace_back(
-					this->handler.createFunctionPointer(this->data.get_func(func_id).pir_ids[0].as<pir::Function::ID>())
+					this->handler.createFunctionPointer(
+						this->data.get_func(func_id.as<sema::Func::ID>()).pir_ids[0].as<pir::Function::ID>()
+					)
 				);
 				
 			}else{
@@ -3349,8 +3358,9 @@ namespace pcit::panther{
 				static constexpr size_t ITERATOR_AT_END = 2;
 
 				{
-					const Data::FuncInfo& at_end_func_info = 
-						this->data.get_func(for_stmt.iterables[0].iteratorImpl.methods[ITERATOR_AT_END]);
+					const Data::FuncInfo& at_end_func_info = this->data.get_func(
+						for_stmt.iterables[0].iteratorImpl.methods[ITERATOR_AT_END].as<sema::Func::ID>()
+					);
 
 					const pir::Expr cond_value = this->create_call(
 						at_end_func_info.pir_ids[0].as<pir::Function::ID>(),
@@ -3440,8 +3450,9 @@ namespace pcit::panther{
 					//////////////////
 					// get
 
-					const Data::FuncInfo& get_func_info =
-						this->data.get_func(iterable.iteratorImpl.methods[ITERATOR_GET]);
+					const Data::FuncInfo& get_func_info = this->data.get_func(
+						iterable.iteratorImpl.methods[ITERATOR_GET].as<sema::Func::ID>()
+					);
 
 					const pir::Expr get_value = this->create_call(
 						get_func_info.pir_ids[0].as<pir::Function::ID>(),
@@ -3455,8 +3466,9 @@ namespace pcit::panther{
 					//////////////////
 					// next
 
-					const Data::FuncInfo& next_func_info =
-						this->data.get_func(iterable.iteratorImpl.methods[ITERATOR_NEXT]);
+					const Data::FuncInfo& next_func_info = this->data.get_func(
+						iterable.iteratorImpl.methods[ITERATOR_NEXT].as<sema::Func::ID>()
+					);
 
 					this->get_current_scope_level().defers.emplace_back(
 						[this, pir_func = next_func_info.pir_ids[0], iterator_alloca = iterator_allocas[i]]() -> void {
@@ -13798,7 +13810,27 @@ namespace pcit::panther{
 						auto string_value = std::string();
 						string_value.reserve(aggregate_value.values.size());
 						for(const sema::Expr value : aggregate_value.values){
-							string_value += this->context.getSemaBuffer().getCharValue(value.charValueID()).value;
+							if(value.kind() == sema::Expr::Kind::CHAR_VALUE){
+								string_value += this->context.getSemaBuffer().getCharValue(value.charValueID()).value;
+								
+							}else{
+								#if defined(PCIT_CONFIG_DEBUG)
+									evo::debugAssert(
+										value.kind() == sema::Expr::Kind::DEFAULT_NEW,
+										"Unexpected string character value"
+									);
+
+									const sema::DefaultNew& default_new =
+										this->context.getSemaBuffer().getDefaultNew(value.defaultNewID());
+
+									evo::debugAssert(
+										default_new.targetTypeID == TypeManager::getTypeChar(),
+										"String must have character elements"
+									);
+								#endif
+
+								string_value += '\0';
+							}
 						}
 
 						return this->module.createGlobalString(std::move(string_value));
