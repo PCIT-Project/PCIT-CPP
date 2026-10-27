@@ -2649,13 +2649,13 @@ namespace pcit::panther{
 
 			[[nodiscard]] auto createAsComptime(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::AS_CONTEXPR,
+					Instruction::Kind::AS_COMPTIME,
 					this->as_contexprs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
 			[[nodiscard]] auto getAsComptime(Instruction instr) const -> const Instruction::As<true>& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::AS_CONTEXPR, "Not a As<true>");
+				evo::debugAssert(instr.kind() == Instruction::Kind::AS_COMPTIME, "Not a As<true>");
 				return this->as_contexprs[instr._index];
 			}
 
@@ -2667,13 +2667,46 @@ namespace pcit::panther{
 			[[nodiscard]] auto createAs(auto&&... args) -> Instruction {
 				return Instruction(
 					Instruction::Kind::AS,
-					this->ass.emplace_back(std::forward<decltype(args)>(args)...)
+					this->as_instrs.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
 			[[nodiscard]] auto getAs(Instruction instr) const -> const Instruction::As<false>& {
 				evo::debugAssert(instr.kind() == Instruction::Kind::AS, "Not a As<false>");
-				return this->ass[instr._index];
+				return this->as_instrs[instr._index];
+			}
+
+
+
+			//////////////////
+			// OrElse<true>
+
+			[[nodiscard]] auto createOrElseComptime(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::OR_ELSE_COMPTIME,
+					this->or_else_constexprs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getOrElseComptime(Instruction instr) const -> const Instruction::OrElse<true>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::OR_ELSE_COMPTIME, "Not a OrElse<true>");
+				return this->or_else_constexprs[instr._index];
+			}
+
+
+			//////////////////
+			// OrElse<false>
+
+			[[nodiscard]] auto createOrElse(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::OR_ELSE,
+					this->or_elses.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getOrElse(Instruction instr) const -> const Instruction::OrElse<false>& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::OR_ELSE, "Not a OrElse<false>");
+				return this->or_elses[instr._index];
 			}
 
 
@@ -3619,7 +3652,9 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::As<true>, uint32_t> as_contexprs{};
-			core::SyncLinearStepAlloc<Instruction::As<false>, uint32_t> ass{};
+			core::SyncLinearStepAlloc<Instruction::As<false>, uint32_t> as_instrs{}; // name breaks convention because the plural of `as` is ...
+			core::SyncLinearStepAlloc<Instruction::OrElse<true>, uint32_t> or_else_constexprs{};
+			core::SyncLinearStepAlloc<Instruction::OrElse<false>, uint32_t> or_elses{};
 			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck<true>, uint32_t> optional_null_check_comptimes{};
 			core::SyncLinearStepAlloc<Instruction::OptionalNullCheck<false>, uint32_t> optional_null_checks{};
 

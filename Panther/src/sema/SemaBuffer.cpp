@@ -62,6 +62,7 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<FuncPtr, FuncPtr::ID> func_ptrs{};
 		core::SyncLinearStepAlloc<Deref, Deref::ID> derefs{};
 		core::SyncLinearStepAlloc<Unwrap, Unwrap::ID> unwraps{};
+		core::SyncLinearStepAlloc<OrElse, OrElse::ID> or_elses{};
 		core::SyncLinearStepAlloc<ConversionToOptional, ConversionToOptional::ID> conversion_to_optionals{};
 		core::SyncLinearStepAlloc<OptionalNullCheck, OptionalNullCheck::ID> optional_null_checks{};
 		core::SyncLinearStepAlloc<OptionalExtract, OptionalExtract::ID> optional_extracts{};
@@ -928,6 +929,18 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::getUnwrap(Unwrap::ID id) const -> const Unwrap& {
 		return this->internal->unwraps[id];
+	}
+
+
+	///////////////////////////////////
+	// or elses
+
+	auto SemaBuffer::createOrElse(Expr lhs, Expr rhs, TypeInfo::ID lhsTypeID, Location location) -> OrElse::ID {
+		return this->internal->or_elses.emplace_back(lhs, rhs, lhsTypeID, location);
+	}
+
+	auto SemaBuffer::getOrElse(OrElse::ID id) const -> const OrElse& {
+		return this->internal->or_elses[id];
 	}
 
 

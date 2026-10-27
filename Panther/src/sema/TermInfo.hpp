@@ -574,6 +574,10 @@ namespace pcit::panther{
 			return this->type_id.is<TypeInfo::ID>() || this->type_id.is<FluidType>();
 		}
 
+		[[nodiscard]] auto isSingleNormalOrNullValue() const -> bool {
+			return this->type_id.is<TypeInfo::ID>() || this->type_id.is<FluidType>() || this->type_id.is<NullType>();
+		}
+
 		[[nodiscard]] auto getExpr() const -> const sema::Expr& {
 			evo::debugAssert(
 				this->isSingleValue() || (this->isMultiValue() && this->exprs.size() == 1), "does not hold expr value"

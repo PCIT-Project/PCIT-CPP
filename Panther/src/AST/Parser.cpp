@@ -3108,39 +3108,39 @@ namespace pcit::panther{
 
 	[[nodiscard]] static constexpr auto get_infix_op_precedence(Token::Kind kind) -> int {
 		switch(kind){
-			case Token::lookupKind("||"):  return 1;
+			case Token::lookupKind("||"):      return 1;
+			case Token::lookupKind("&&"):      return 1;
 
-			case Token::lookupKind("&&"):  return 2;
+			case Token::lookupKind("=="):      return 2;
+			case Token::lookupKind("!="):      return 2;
+			case Token::lookupKind("<"):       return 2;
+			case Token::lookupKind("<="):      return 2;
+			case Token::lookupKind(">"):       return 2;
+			case Token::lookupKind(">="):      return 2;
 
-			case Token::lookupKind("=="):  return 3;
-			case Token::lookupKind("!="):  return 3;
-			case Token::lookupKind("<"):   return 3;
-			case Token::lookupKind("<="):  return 3;
-			case Token::lookupKind(">"):   return 3;
-			case Token::lookupKind(">="):  return 3;
+			case Token::lookupKind("&"):       return 3;
+			case Token::lookupKind("|"):       return 3;
+			case Token::lookupKind("^"):       return 3;
 
-			case Token::lookupKind("&"):   return 4;
-			case Token::lookupKind("|"):   return 4;
-			case Token::lookupKind("^"):   return 4;
+			case Token::lookupKind("<<"):      return 4;
+			case Token::lookupKind("<<|"):     return 4;
+			case Token::lookupKind(">>"):      return 4;
 
-			case Token::lookupKind("<<"):  return 5;
-			case Token::lookupKind("<<|"): return 5;
-			case Token::lookupKind(">>"):  return 5;
+			case Token::lookupKind("+"):       return 5;
+			case Token::lookupKind("+%"):      return 5;
+			case Token::lookupKind("+|"):      return 5;
+			case Token::lookupKind("-"):       return 5;
+			case Token::lookupKind("-%"):      return 5;
+			case Token::lookupKind("-|"):      return 5;
 
-			case Token::lookupKind("+"):   return 6;
-			case Token::lookupKind("+%"):  return 6;
-			case Token::lookupKind("+|"):  return 6;
-			case Token::lookupKind("-"):   return 6;
-			case Token::lookupKind("-%"):  return 6;
-			case Token::lookupKind("-|"):  return 6;
+			case Token::lookupKind("*"):       return 6;
+			case Token::lookupKind("*%"):      return 6;
+			case Token::lookupKind("*|"):      return 6;
+			case Token::lookupKind("/"):       return 6;
+			case Token::lookupKind("%"):       return 6;
 
-			case Token::lookupKind("*"):   return 7;
-			case Token::lookupKind("*%"):  return 7;
-			case Token::lookupKind("*|"):  return 7;
-			case Token::lookupKind("/"):   return 7;
-			case Token::lookupKind("%"):   return 7;
-
-			case Token::Kind::KEYWORD_AS:  return 8;
+			case Token::Kind::KEYWORD_AS:      return 7;
+			case Token::Kind::KEYWORD_OR_ELSE: return 7;
 		}
 
 		return -1;

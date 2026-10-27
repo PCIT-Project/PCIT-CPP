@@ -716,11 +716,17 @@ namespace pcit::panther{
 			case Instruction::Kind::END_EXPR_BLOCK:
 				return this->instr_end_expr_block(this->context.symbol_proc_manager.getEndExprBlock(instr));
 
-			case Instruction::Kind::AS_CONTEXPR:
+			case Instruction::Kind::AS_COMPTIME:
 				return this->instr_expr_as<true>(this->context.symbol_proc_manager.getAsComptime(instr));
 
 			case Instruction::Kind::AS:
 				return this->instr_expr_as<false>(this->context.symbol_proc_manager.getAs(instr));
+
+			case Instruction::Kind::OR_ELSE_COMPTIME:
+				return this->instr_expr_or_else<true>(this->context.symbol_proc_manager.getOrElseComptime(instr));
+
+			case Instruction::Kind::OR_ELSE:
+				return this->instr_expr_or_else<false>(this->context.symbol_proc_manager.getOrElse(instr));
 
 			case Instruction::Kind::OPTIONAL_NULL_CHECK_COMPTIME:
 				return this->instr_optional_null_check<true>(
@@ -22262,6 +22268,91 @@ namespace pcit::panther{
 
 
 	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::instr_expr_or_else(const Instruction::OrElse<IS_COMPTIME>& instr) -> Result {
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+		TermInfo& rhs = this->get_term_info(instr.rhs);
+
+		if(lhs.type_id.is<TypeInfo::ID>() == false){
+			this->emit_error("Invalid LHS of operator `orElse`", instr.infix.lhs);
+			return Result::ERROR;
+		}
+		if(lhs.isUninitialized()){
+			this->emit_error(
+				"Invalid LHS of operator `orElse`",
+				instr.infix.lhs,
+				Diagnostic::Info("LHS of operator `orElse` must be initialized")
+			);
+			return Result::ERROR;	
+		}
+
+		if(rhs.isSingleNormalOrNullValue() == false){
+			this->emit_error("Invalid RHS of operator `orElse`", instr.infix.rhs);
+			return Result::ERROR;
+		}
+		if(rhs.isUninitialized()){
+			this->emit_error(
+				"Invalid RHS of operator `orElse`",
+				instr.infix.rhs,
+				Diagnostic::Info("RHS of operator `orElse` must be initialized")
+			);
+			return Result::ERROR;	
+		}
+
+		const TypeInfo& lhs_type = this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
+
+		if(lhs_type.isOptional() == false){
+			this->emit_error(
+				"Invalid type of LHS of operator `orElse`",
+				instr.infix.lhs,
+				Diagnostic::Info("LHS of operator `orElse` must be optional qualified")
+			);
+			return Result::ERROR;	
+		}
+
+
+		const TypeInfo::ID output_type_id = [&]() -> TypeInfo::ID {
+			if(lhs_type.qualifiers().back().isPtr){
+				TypeInfo::Qualifier last_qualifier = lhs_type.qualifiers().back();
+				last_qualifier.isOptional = false;
+
+				return this->context.getTypeManager().getOrCreateTypeInfo(
+					lhs_type.copyWithDifferentLastQualifier(last_qualifier)
+				);
+			}else{
+				return this->context.getTypeManager().getOrCreateTypeInfo(lhs_type.copyWithPoppedQualifier());
+			}
+		}();
+
+
+		TypeCheckInfo type_check_info = this->type_check<true, true, IS_COMPTIME>(
+			output_type_id,
+			rhs,
+			std::format("RHS of operator `orElse`"),
+			this->get_location(instr.infix.rhs)
+		);
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+
+		const sema::OrElse::ID created_or_else = this->context.sema_buffer.createOrElse(
+			lhs.getExpr(),
+			rhs.getExpr(),
+			lhs.type_id.as<TypeInfo::ID>(),
+			this->get_sema_location(Diagnostic::Location::get(instr.infix, this->source))
+		);
+		
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			IS_COMPTIME,
+			lhs.ableToBeComptime & rhs.ableToBeComptime,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			output_type_id,
+			sema::Expr(created_or_else)
+		);
+		return Result::SUCCESS;
+	}
+
+
+	template<bool IS_COMPTIME>
 	auto SemanticAnalyzer::operator_as_check_interface_map(
 		TermInfo& from_expr,
 		const TypeInfo::ID from_type_id,
@@ -30461,30 +30552,31 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::NONE: evo::debugFatalBreak("Invalid expr");
 
-			case sema::Expr::Kind::MODULE_IDENT:              case sema::Expr::Kind::NULL_VALUE:
-			case sema::Expr::Kind::UNINIT:                    case sema::Expr::Kind::ZEROINIT:
-			case sema::Expr::Kind::INT_VALUE:                 case sema::Expr::Kind::FLOAT_VALUE:
-			case sema::Expr::Kind::BOOL_VALUE:                case sema::Expr::Kind::STRING_VALUE:
-			case sema::Expr::Kind::AGGREGATE_VALUE:           case sema::Expr::Kind::CHAR_VALUE:
-			case sema::Expr::Kind::RAW_PTR_VALUE:             case sema::Expr::Kind::GLOBAL_PTR_OFFSET:
+			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::NULL_VALUE:
+			case sema::Expr::Kind::UNINIT:                     case sema::Expr::Kind::ZEROINIT:
+			case sema::Expr::Kind::INT_VALUE:                  case sema::Expr::Kind::FLOAT_VALUE:
+			case sema::Expr::Kind::BOOL_VALUE:                 case sema::Expr::Kind::STRING_VALUE:
+			case sema::Expr::Kind::AGGREGATE_VALUE:            case sema::Expr::Kind::CHAR_VALUE:
+			case sema::Expr::Kind::RAW_PTR_VALUE:              case sema::Expr::Kind::GLOBAL_PTR_OFFSET:
 			case sema::Expr::Kind::INTRINSIC_FUNC: case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                      case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                   case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ASM:                       case sema::Expr::Kind::FUNC_PTR:
-			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:    case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
-			case sema::Expr::Kind::OPTIONAL_EXTRACT:          case sema::Expr::Kind::UNWRAP:
-			case sema::Expr::Kind::UNION_ACCESSOR:            case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:                case sema::Expr::Kind::TRY_ELSE_EXPR:
-			case sema::Expr::Kind::TRY_CATCH_EXPR:            case sema::Expr::Kind::TRY_CATCH_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::MAKE_INTERFACE_PTR:        case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
-			case sema::Expr::Kind::INTERFACE_CALL:            case sema::Expr::Kind::INDEXER:
-			case sema::Expr::Kind::DEFAULT_NEW:               case sema::Expr::Kind::INIT_ARRAY_REF:
-			case sema::Expr::Kind::ARRAY_REF_INDEXER:         case sema::Expr::Kind::ARRAY_REF_SIZE:
-			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:      case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW: case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:             case sema::Expr::Kind::VARIADIC_PARAM:
-			case sema::Expr::Kind::GLOBAL_VAR:                case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::CONVERSION_TO_OPTIONAL:     case sema::Expr::Kind::OPTIONAL_NULL_CHECK:
+			case sema::Expr::Kind::OPTIONAL_EXTRACT:           case sema::Expr::Kind::UNWRAP:
+			case sema::Expr::Kind::OR_ELSE:                    case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:                case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:              case sema::Expr::Kind::TRY_CATCH_EXPR:
+			case sema::Expr::Kind::TRY_CATCH_INTERFACE_EXPR:   case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:             case sema::Expr::Kind::MAKE_INTERFACE_PTR:
+			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
+			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::DEFAULT_NEW:
+			case sema::Expr::Kind::INIT_ARRAY_REF:             case sema::Expr::Kind::ARRAY_REF_INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
+			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::GLOBAL_VAR:
+			case sema::Expr::Kind::FUNC: {
 				return evo::Result<>();
 			} break;
 		}

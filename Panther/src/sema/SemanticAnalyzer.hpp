@@ -303,6 +303,9 @@ namespace pcit::panther{
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto instr_expr_as(const Instruction::As<IS_COMPTIME>& instr) -> Result;
 
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto instr_expr_or_else(const Instruction::OrElse<IS_COMPTIME>& instr) -> Result;
+
 			// return nullopt to type has no interface maps 
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto operator_as_check_interface_map(

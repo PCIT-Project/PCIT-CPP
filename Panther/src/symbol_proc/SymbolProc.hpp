@@ -1077,6 +1077,14 @@ namespace pcit::panther{
 		};
 
 		template<bool IS_COMPTIME>
+		struct OrElse{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID rhs;
+			SymbolProcTermInfoID output;
+		};
+
+		template<bool IS_COMPTIME>
 		struct OptionalNullCheck{
 			const AST::Infix& infix;
 			SymbolProcTermInfoID lhs;
@@ -1397,8 +1405,10 @@ namespace pcit::panther{
 			ASM_EXPR,
 			BEGIN_EXPR_BLOCK,
 			END_EXPR_BLOCK,
-			AS_CONTEXPR,
+			AS_COMPTIME,
 			AS,
+			OR_ELSE_COMPTIME,
+			OR_ELSE,
 			OPTIONAL_NULL_CHECK_COMPTIME,
 			OPTIONAL_NULL_CHECK,
 			MATH_INFIX_COMPTIME_COMPARATIVE,

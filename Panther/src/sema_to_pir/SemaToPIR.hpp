@@ -250,6 +250,11 @@ namespace pcit::panther{
 			) -> std::optional<pir::Expr>;
 
 			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_or_else(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
 			[[nodiscard]] auto get_expr_impl_accessor(
 				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;

@@ -555,6 +555,14 @@ namespace pcit::panther::sema{
 
 
 			///////////////////////////////////
+			// or elses
+
+			[[nodiscard]] auto createOrElse(Expr lhs, Expr rhs, TypeInfo::ID lhsTypeID, Location line) -> OrElse::ID;
+
+			[[nodiscard]] auto getOrElse(OrElse::ID id) const -> const OrElse&;
+
+
+			///////////////////////////////////
 			// accessors
 
 			[[nodiscard]] auto createAccessor(Expr target, TypeInfo::ID targetTypeID, uint32_t memberABIIndex)

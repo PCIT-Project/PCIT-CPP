@@ -4427,6 +4427,32 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case Token::Kind::KEYWORD_OR_ELSE: {
+				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
+				if(lhs.isError()){ return evo::resultError; }
+
+				const evo::Result<SymbolProc::TermInfoID> rhs = this->analyze_expr<IS_COMPTIME>(infix.rhs);
+				if(rhs.isError()){ return evo::resultError; }
+
+				const SymbolProc::TermInfoID new_term_info_id = this->create_term_info();
+				if constexpr(IS_COMPTIME){
+					this->add_instruction(
+						this->context.symbol_proc_manager.createOrElseComptime(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+
+				}else{
+					this->add_instruction(
+						this->context.symbol_proc_manager.createOrElse(
+							infix, lhs.value(), rhs.value(), new_term_info_id
+						)
+					);
+				}
+
+				return new_term_info_id;
+			} break;
+
 			case Token::lookupKind("||"): case Token::lookupKind("&&"): {
 				const evo::Result<SymbolProc::TermInfoID> lhs = this->analyze_expr<IS_COMPTIME>(infix.lhs);
 				if(lhs.isError()){ return evo::resultError; }

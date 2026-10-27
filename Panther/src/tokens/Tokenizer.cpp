@@ -815,6 +815,7 @@ namespace pcit::panther{
 		{"try",         Token::Kind::KEYWORD_TRY},
 		{"catch",       Token::Kind::KEYWORD_CATCH},
 		{"asm",         Token::Kind::KEYWORD_ASM},
+		{"orElse",      Token::Kind::KEYWORD_OR_ELSE},
 
 		// discard
 		{"_", Token::lookupKind("_")},

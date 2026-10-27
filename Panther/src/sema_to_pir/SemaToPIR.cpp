@@ -4089,6 +4089,7 @@ namespace pcit::panther{
 
 			case sema::Expr::Kind::DEREF:       return this->get_expr_impl_deref<MODE>(expr, store_locations);
 			case sema::Expr::Kind::UNWRAP:      return this->get_expr_impl_unwrap<MODE>(expr, store_locations);
+			case sema::Expr::Kind::OR_ELSE:     return this->get_expr_impl_or_else<MODE>(expr, store_locations);
 			case sema::Expr::Kind::ACCESSOR:    return this->get_expr_impl_accessor<MODE>(expr, store_locations);
 			case sema::Expr::Kind::LOGICAL_AND: return this->get_expr_impl_logical_and<MODE>(expr, store_locations);
 			case sema::Expr::Kind::LOGICAL_OR:  return this->get_expr_impl_logical_or<MODE>(expr, store_locations);
@@ -5454,6 +5455,214 @@ namespace pcit::panther{
 			}
 		}
 	}
+
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_or_else(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::OrElse& or_else = this->context.getSemaBuffer().getOrElse(expr.orElseID());
+
+		const auto ssl = this->create_scoped_source_location(or_else.location);
+
+		if(this->type_is_pointer(or_else.lhsTypeID)){
+			const pir::Expr lhs_register_value = this->get_expr_register(or_else.lhs);
+
+			const pir::Expr converted_ptr = this->handler.createBitCast(
+				lhs_register_value,
+				this->module.createUSize(),
+				this->name(".UNWRAP.CHECKED.PTR_AS_USIZE")
+			);
+
+			const pir::Expr zero_value = this->handler.createNumber(
+				this->module.createUSize(), core::GenericInt(unsigned(this->module.getTarget().numBitsOfPtr()), 0)
+			);
+
+			const pir::Expr is_null = this->handler.createIEq(converted_ptr, zero_value);
+
+			const pir::BasicBlock::ID has_value_block = this->handler.createBasicBlock(this->name("OR_ELSE.HAS_VALUE"));
+			const pir::BasicBlock::ID is_null_block   = this->handler.createBasicBlock(this->name("OR_ELSE.NON_NULL"));
+			const pir::BasicBlock::ID end_block       = this->handler.createBasicBlock(this->name("OR_ELSE.END"));
+
+			this->handler.createBranch(is_null, is_null_block, has_value_block);
+
+			this->handler.setTargetBasicBlock(has_value_block);
+
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(is_null_block);
+
+				const pir::Expr else_value = this->get_expr_register(or_else.rhs);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(end_block);
+
+				return this->handler.createPhi(
+					evo::SmallVector<pir::Phi::Predecessor>{
+						pir::Phi::Predecessor(has_value_block, lhs_register_value),
+						pir::Phi::Predecessor(is_null_block, else_value)
+					},
+					this->name("OR_ELSE")
+				);
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr lhs_pointer_value = this->get_expr_pointer(or_else.lhs);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(is_null_block);
+
+				const pir::Expr else_value = this->get_expr_pointer(or_else.rhs);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(end_block);
+
+				return this->handler.createPhi(
+					evo::SmallVector<pir::Phi::Predecessor>{
+						pir::Phi::Predecessor(has_value_block, lhs_pointer_value),
+						pir::Phi::Predecessor(is_null_block, else_value)
+					},
+					this->name("OR_ELSE")
+				);
+
+			}else if constexpr(MODE == GetExprMode::STORE){
+				this->handler.createStore(store_locations[0], lhs_register_value);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(is_null_block);
+
+				this->get_expr_store(or_else.rhs, store_locations);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(end_block);
+
+				return std::nullopt;
+
+			}else{
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(is_null_block);
+
+				this->get_expr_discard(or_else.rhs);
+
+				this->handler.createJump(end_block);
+				this->handler.setTargetBasicBlock(end_block);
+
+				return std::nullopt;
+			}
+		}
+
+
+		///////////////////////////////////
+		// non pointer
+
+		const pir::Type target_pir_type = this->get_type<false, false>(or_else.lhsTypeID).type;
+
+		const pir::Expr flag_calc_ptr = this->handler.createCalcPtr(
+			this->get_expr_pointer(or_else.lhs),
+			target_pir_type,
+			evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+			this->name(".OR_ELSE.FLAG")
+		);
+
+		const pir::BasicBlock::ID has_value_block = this->handler.createBasicBlock(this->name("OR_ELSE.HAS_VALUE"));
+		const pir::BasicBlock::ID is_null_block   = this->handler.createBasicBlock(this->name("OR_ELSE.NON_NULL"));
+		const pir::BasicBlock::ID end_block       = this->handler.createBasicBlock(this->name("OR_ELSE.END"));
+
+		const pir::Expr has_value = this->handler.createLoad(
+			flag_calc_ptr, this->module.createBoolType(), this->name(".OR_ELSE.HAS_VALUE")
+		);
+		this->handler.createBranch(has_value, has_value_block, is_null_block);
+
+		this->handler.setTargetBasicBlock(has_value_block);
+
+
+		if constexpr(MODE == GetExprMode::REGISTER){
+			const pir::Expr held_value_ptr = this->handler.createCalcPtr(
+				this->get_expr_pointer(or_else.lhs),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+				this->name(".OR_ELSE.HELD_VALUE_PTR")
+			);
+
+			const pir::Expr held_value = this->handler.createLoad(
+				held_value_ptr,
+				this->module.getStructType(target_pir_type).members[0],
+				this->name(".OR_ELSE.HELD_VALUE")
+			);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(is_null_block);
+
+			const pir::Expr else_value = this->get_expr_register(or_else.rhs);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(end_block);
+
+			return this->handler.createPhi(
+				evo::SmallVector<pir::Phi::Predecessor>{
+					pir::Phi::Predecessor(has_value_block, held_value), pir::Phi::Predecessor(is_null_block, else_value)
+				},
+				this->name("OR_ELSE")
+			);
+			
+		}else if constexpr(MODE == GetExprMode::POINTER){
+			const pir::Expr held_value = this->handler.createCalcPtr(
+				this->get_expr_pointer(or_else.lhs),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+				this->name(".OR_ELSE.HELD_VALUE_PTR")
+			);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(is_null_block);
+
+			const pir::Expr else_value = this->get_expr_pointer(or_else.rhs);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(end_block);
+
+			return this->handler.createPhi(
+				evo::SmallVector<pir::Phi::Predecessor>{
+					pir::Phi::Predecessor(has_value_block, held_value), pir::Phi::Predecessor(is_null_block, else_value)
+				},
+				this->name("OR_ELSE")
+			);
+
+		}else if constexpr(MODE == GetExprMode::STORE){
+			const pir::Expr held_value_ptr = this->handler.createCalcPtr(
+				this->get_expr_pointer(or_else.lhs),
+				target_pir_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+				this->name(".OR_ELSE.HELD_VALUE_PTR")
+			);
+
+			this->handler.createMemcpy(
+				store_locations[0], held_value_ptr, this->module.getStructType(target_pir_type).members[0]
+			);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(is_null_block);
+
+			this->get_expr_store(or_else.rhs, store_locations);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(end_block);
+
+			return std::nullopt;
+			
+		}else{
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(is_null_block);
+
+			this->get_expr_discard(or_else.rhs);
+
+			this->handler.createJump(end_block);
+			this->handler.setTargetBasicBlock(end_block);
+
+			return std::nullopt;
+		}
+	}
+
 
 
 	template<SemaToPIR::GetExprMode MODE>
@@ -14160,26 +14369,27 @@ namespace pcit::panther{
 				return this->get_global_var_value(global_var.value.as<sema::Expr>());
 			} break;
 
-			case sema::Expr::Kind::MODULE_IDENT:               case sema::Expr::Kind::INTRINSIC_FUNC:
+			case sema::Expr::Kind::MODULE_IDENT:             case sema::Expr::Kind::INTRINSIC_FUNC:
 			case sema::Expr::Kind::TEMPLATED_INTRINSIC_FUNC_INSTANTIATION:
-			case sema::Expr::Kind::COPY:                       case sema::Expr::Kind::MOVE:
-			case sema::Expr::Kind::FORWARD:                    case sema::Expr::Kind::FUNC_CALL:
-			case sema::Expr::Kind::ASM:                        case sema::Expr::Kind::FUNC_PTR:
-			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:        case sema::Expr::Kind::OPTIONAL_EXTRACT:
-			case sema::Expr::Kind::DEREF:                      case sema::Expr::Kind::ACCESSOR:
-			case sema::Expr::Kind::UNION_ACCESSOR:             case sema::Expr::Kind::LOGICAL_AND:
-			case sema::Expr::Kind::LOGICAL_OR:                 case sema::Expr::Kind::TRY_ELSE_EXPR:
-			case sema::Expr::Kind::TRY_CATCH_EXPR:             case sema::Expr::Kind::TRY_CATCH_INTERFACE_EXPR:
-			case sema::Expr::Kind::BLOCK_EXPR:                 case sema::Expr::Kind::FAKE_TERM_INFO:
-			case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS: case sema::Expr::Kind::INTERFACE_CALL:
-			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::ARRAY_REF_INDEXER:
-			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_TAG_CMP:
-			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::PARAM:
-			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::RETURN_PARAM:
-			case sema::Expr::Kind::ERROR_RETURN_PARAM:         case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
-			case sema::Expr::Kind::EXCEPT_PARAM:               case sema::Expr::Kind::FOR_PARAM:
-			case sema::Expr::Kind::VAR:                        case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::COPY:                     case sema::Expr::Kind::MOVE:
+			case sema::Expr::Kind::FORWARD:                  case sema::Expr::Kind::FUNC_CALL:
+			case sema::Expr::Kind::ASM:                      case sema::Expr::Kind::FUNC_PTR:
+			case sema::Expr::Kind::OPTIONAL_NULL_CHECK:      case sema::Expr::Kind::OPTIONAL_EXTRACT:
+			case sema::Expr::Kind::DEREF:                    case sema::Expr::Kind::OR_ELSE:
+			case sema::Expr::Kind::ACCESSOR:                 case sema::Expr::Kind::UNION_ACCESSOR:
+			case sema::Expr::Kind::LOGICAL_AND:              case sema::Expr::Kind::LOGICAL_OR:
+			case sema::Expr::Kind::TRY_ELSE_EXPR:            case sema::Expr::Kind::TRY_CATCH_EXPR:
+			case sema::Expr::Kind::TRY_CATCH_INTERFACE_EXPR: case sema::Expr::Kind::BLOCK_EXPR:
+			case sema::Expr::Kind::FAKE_TERM_INFO:           case sema::Expr::Kind::INTERFACE_PTR_EXTRACT_THIS:
+			case sema::Expr::Kind::INTERFACE_CALL:           case sema::Expr::Kind::INDEXER:
+			case sema::Expr::Kind::ARRAY_REF_INDEXER:        case sema::Expr::Kind::ARRAY_REF_SIZE:
+			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:     case sema::Expr::Kind::ARRAY_REF_DATA:
+			case sema::Expr::Kind::UNION_TAG_CMP:            case sema::Expr::Kind::SAME_TYPE_CMP:
+			case sema::Expr::Kind::PARAM:                    case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::RETURN_PARAM:             case sema::Expr::Kind::ERROR_RETURN_PARAM:
+			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:        case sema::Expr::Kind::EXCEPT_PARAM:
+			case sema::Expr::Kind::FOR_PARAM:                case sema::Expr::Kind::VAR:
+			case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

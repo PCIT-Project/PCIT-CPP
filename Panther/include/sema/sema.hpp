@@ -194,6 +194,16 @@ namespace pcit::panther::sema{
 	};
 
 
+	struct OrElse{
+		using ID = OrElseID;
+
+		Expr lhs;
+		Expr rhs;
+		TypeInfo::ID lhsTypeID;
+		Location location;
+	};
+
+
 	struct Accessor{
 		using ID = AccessorID;
 

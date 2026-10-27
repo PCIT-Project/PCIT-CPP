@@ -139,6 +139,7 @@ namespace pcit::panther{
 				KEYWORD_TRY,
 				KEYWORD_CATCH,
 				KEYWORD_ASM,
+				KEYWORD_OR_ELSE,
 
 
 				///////////////////////////////////
@@ -562,6 +563,7 @@ namespace pcit::panther{
 					break; case Kind::KEYWORD_TRY:            return "try";
 					break; case Kind::KEYWORD_CATCH:          return "catch";
 					break; case Kind::KEYWORD_ASM:            return "asm";
+					break; case Kind::KEYWORD_OR_ELSE:        return "orElse";
 
 
 

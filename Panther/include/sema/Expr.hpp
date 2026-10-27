@@ -60,6 +60,7 @@ namespace pcit::panther::sema{
 			OPTIONAL_EXTRACT,
 			DEREF,
 			UNWRAP,
+			OR_ELSE,
 			ACCESSOR,
 			UNION_ACCESSOR,
 			LOGICAL_AND,
@@ -133,6 +134,7 @@ namespace pcit::panther::sema{
 		explicit Expr(OptionalExtractID id)    : _kind(Kind::OPTIONAL_EXTRACT),     value{.optional_extract = id}    {};
 		explicit Expr(DerefID id)              : _kind(Kind::DEREF),                value{.deref = id}               {};
 		explicit Expr(UnwrapID id)             : _kind(Kind::UNWRAP),               value{.unwrap = id}              {};
+		explicit Expr(OrElseID id)             : _kind(Kind::OR_ELSE),              value{.or_else = id}             {};
 		explicit Expr(AccessorID id)           : _kind(Kind::ACCESSOR),             value{.accessor = id}            {};
 		explicit Expr(UnionAccessorID id)      : _kind(Kind::UNION_ACCESSOR),       value{.union_accessor = id}      {};
 		explicit Expr(LogicalAndID id)         : _kind(Kind::LOGICAL_AND),          value{.logical_and = id}         {};
@@ -288,6 +290,10 @@ namespace pcit::panther::sema{
 		[[nodiscard]] auto unwrapID() const -> UnwrapID {
 			evo::debugAssert(this->kind() == Kind::UNWRAP, "not an unwrap");
 			return this->value.unwrap;
+		}
+		[[nodiscard]] auto orElseID() const -> OrElseID {
+			evo::debugAssert(this->kind() == Kind::OR_ELSE, "not an or else");
+			return this->value.or_else;
 		}
 		[[nodiscard]] auto accessorID() const -> AccessorID {
 			evo::debugAssert(this->kind() == Kind::ACCESSOR, "not an accessor");
@@ -466,6 +472,7 @@ namespace pcit::panther::sema{
 				OptionalExtractID optional_extract;
 				DerefID deref;
 				UnwrapID unwrap;
+				OrElseID or_else;
 				AccessorID accessor;
 				UnionAccessorID union_accessor;
 				LogicalAndID logical_and;
