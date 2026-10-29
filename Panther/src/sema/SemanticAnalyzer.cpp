@@ -36,6 +36,8 @@ namespace pcit::panther{
 		EVO_DEFER([&](){ this->timer->stop(); });
 
 		if(this->symbol_proc.passedOnByWhen()){ return; }
+		
+		evo::debugAssert(this->symbol_proc.status.load() != SymbolProc::Status::SKIPPED_NON_TEMPLATE_DEPENDENT);
 
 		{
 			const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);
@@ -210,8 +212,11 @@ namespace pcit::panther{
 			case Instruction::Kind::STRUCT_CREATED_SPECIAL_MEMBERS_PIR_IF_NEEDED:
 				return this->instr_struct_created_sepcial_members_pir_if_needed();
 
-			case Instruction::Kind::TEMPLATE_STRUCT:
-				return this->instr_template_struct(this->context.symbol_proc_manager.getTemplateStruct(instr));
+			case Instruction::Kind::TEMPLATE_STRUCT_DECL:
+				return this->instr_template_struct_decl(this->context.symbol_proc_manager.getTemplateStructDecl(instr));
+
+			case Instruction::Kind::TEMPLATE_STRUCT_DEF:
+				return this->instr_template_struct_def();
 
 			case Instruction::Kind::UNION_DECL:
 				return this->instr_union_decl(this->context.symbol_proc_manager.getUnionDecl(instr));
@@ -2743,10 +2748,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*func_to_wait_on.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -2813,7 +2819,7 @@ namespace pcit::panther{
 
 
 
-	auto SemanticAnalyzer::instr_template_struct(const Instruction::TemplateStruct& instr) -> Result {
+	auto SemanticAnalyzer::instr_template_struct_decl(const Instruction::TemplateStructDecl& instr) -> Result {
 		size_t minimum_num_template_args = 0;
 		auto params = evo::SmallVector<BaseType::StructTemplate::Param>();
 
@@ -2897,13 +2903,16 @@ namespace pcit::panther{
 		}
 
 
+		SymbolProc::StructInfo& struct_info = this->symbol_proc.extra_info.as<SymbolProc::StructInfo>();
+
 		const BaseType::ID created_struct_type_id = this->context.type_manager.createStructTemplate(
 			BaseType::StructTemplate(
 				this->source.getID(),
 				instr.struct_def.ident,
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				std::move(params),
-				minimum_num_template_args
+				minimum_num_template_args,
+				&struct_info.member_symbols
 			)
 		);
 		
@@ -2916,10 +2925,61 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		this->propagate_finished_decl_def();
+		this->push_scope_level(nullptr, created_struct_type_id.structTemplateID());
+
+
+		BaseType::StructTemplate& created_struct_template_ref = this->context.type_manager.getStructTemplate(
+			created_struct_type_id.structTemplateID()
+		);
+		created_struct_template_ref.scopeLevel = &this->get_current_scope_level();
+
+
+		for(SymbolProc::ID member_stmt_id : struct_info.stmts){
+			SymbolProc& member_stmt = this->context.symbol_proc_manager.getSymbolProc(member_stmt_id);
+
+
+			member_stmt.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
+				*this->symbol_proc.sema_scope_id
+			);
+
+			if(member_stmt.ast_node.kind() == AST::Kind::FUNC_DEF){
+				evo::debugAssert(member_stmt.isDeclDone() == false, "Decl already completed for struct member");
+
+				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.decl_waited_on_lock);
+				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
+				member_stmt.decl_waited_on_by.emplace_back(this->symbol_proc.getID());
+
+			}else{
+				evo::debugAssert(member_stmt.isDefDone() == false, "Def already completed for struct member");
+
+				const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock, member_stmt.def_waited_on_lock);
+				this->symbol_proc.waiting_for.emplace_back(member_stmt_id);
+				member_stmt.def_waited_on_by.emplace_back(this->symbol_proc.getID());
+			}
+		}
+
+
+		this->context.symbol_proc_manager.addTypeSymbolProc(
+			this->context.type_manager.getOrCreateTypeInfo(TypeInfo(created_struct_type_id)), this->symbol_proc.getID()
+		);
+
+		this->propagate_finished_decl();
 
 		return Result::SUCCESS;
 	};
+
+
+
+	auto SemanticAnalyzer::instr_template_struct_def() -> Result {
+		if(this->pop_scope_level<PopScopeLevelKind::SYMBOL_END>().isError()){ return Result::ERROR; }
+
+		this->propagate_finished_def();
+
+		return Result::SUCCESS;
+	}
+
+
+
 
 
 	auto SemanticAnalyzer::instr_union_decl(const Instruction::UnionDecl& instr) -> Result {
@@ -3054,10 +3114,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(member_stmt_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -3256,10 +3317,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(member_stmt_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               waiting_on_any = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return Result::ERROR;
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                waiting_on_any = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -3581,31 +3643,47 @@ namespace pcit::panther{
 					has_in_param = true;
 				}
 
-				current_type_scope->visit([&](const auto& type_scope) -> void {
-					using TypeScope = std::decay_t<decltype(type_scope)>;
+				const evo::Result<> add_this_param_res = current_type_scope->visit(
+					[&](const auto& type_scope) -> evo::Result<> {
+						using TypeScope = std::decay_t<decltype(type_scope)>;
 
-					if constexpr(
-						std::is_same<TypeScope, BaseType::Struct::ID>() 
-						|| std::is_same<TypeScope, BaseType::Union::ID>()
-						|| std::is_same<TypeScope, BaseType::Enum::ID>()
-						|| std::is_same<TypeScope, BaseType::Interface::ID>()
-					){
-						const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
-							TypeInfo(BaseType::ID(type_scope))
-						);
+						if constexpr(
+							std::is_same<TypeScope, BaseType::Struct::ID>() 
+							|| std::is_same<TypeScope, BaseType::Union::ID>()
+							|| std::is_same<TypeScope, BaseType::Enum::ID>()
+							|| std::is_same<TypeScope, BaseType::Interface::ID>()
+						){
+							const TypeInfo::ID this_type = this->context.type_manager.getOrCreateTypeInfo(
+								TypeInfo(BaseType::ID(type_scope))
+							);
 
-						params.emplace_back(this_type, type_param_kind);
+							params.emplace_back(this_type, type_param_kind);
+							return evo::Result<>();
 
-					}else if constexpr(std::is_same<TypeScope, EncapsulatingSymbolID::InterfaceImplInfo>()){
-						params.emplace_back(type_scope.targetTypeID, type_param_kind);
+						}else if constexpr(std::is_same<TypeScope, BaseType::StructTemplate::ID>()){
+							evo::debugAssert(
+								func_attrs.value().is_non_template_dependent, "Must be #nonTemplateDependent"
+							);
 
-					}else if constexpr(std::is_same<TypeScope, sema::Func::ID>()){
-						evo::debugFatalBreak("Invalid type object scope");
+							this->emit_error(
+								"Functions with attribute `#nonTemplateDependent` cannot be methods", param.name
+							);
+							return evo::resultError;
 
-					}else{
-						static_assert(false, "Unknown object scope");
+						}else if constexpr(std::is_same<TypeScope, EncapsulatingSymbolID::InterfaceImplInfo>()){
+							params.emplace_back(type_scope.targetTypeID, type_param_kind);
+							return evo::Result<>();
+
+						}else if constexpr(std::is_same<TypeScope, sema::Func::ID>()){
+							evo::debugFatalBreak("Invalid type object scope");
+
+						}else{
+							static_assert(false, "Unknown object scope");
+						}
 					}
-				});
+				);
+
+				if(add_this_param_res.isError()){ return Result::ERROR; }
 
 				sema_params.emplace_back(ast_buffer.getThis(param.name), std::nullopt);
 				min_num_args += 1;
@@ -3927,8 +4005,16 @@ namespace pcit::panther{
 
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 
@@ -4049,8 +4135,16 @@ namespace pcit::panther{
 				}
 
 				if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-					this->emit_error("Operator overload cannot be a free function", instr.func_def);
-					return Result::ERROR;
+					if(func_attrs.value().is_non_template_dependent){
+						this->emit_error(
+							"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+						);
+						return Result::ERROR;
+						
+					}else{
+						this->emit_error("Operator overload cannot be a free function", instr.func_def);
+						return Result::ERROR;
+					}
 				}
 
 				const BaseType::Function& created_func_type =
@@ -4173,8 +4267,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -4260,8 +4362,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -4430,8 +4540,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -4616,8 +4734,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -4912,8 +5038,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -4947,8 +5081,16 @@ namespace pcit::panther{
 					}
 
 					if(this->scope.getCurrentEncapsulatingSymbol().is<BaseType::Struct::ID>() == false){
-						this->emit_error("Operator overload cannot be a free function", instr.func_def);
-						return Result::ERROR;
+						if(func_attrs.value().is_non_template_dependent){
+							this->emit_error(
+								"Operator overload cannot have attribute `#nonTemplateDependent`", instr.func_def
+							);
+							return Result::ERROR;
+							
+						}else{
+							this->emit_error("Operator overload cannot be a free function", instr.func_def);
+							return Result::ERROR;
+						}
 					}
 
 					const BaseType::Function& created_func_type =
@@ -5668,6 +5810,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -5695,6 +5838,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -5762,6 +5906,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 			for(
@@ -5786,6 +5931,7 @@ namespace pcit::panther{
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -6523,6 +6669,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
+
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
 			} break;
@@ -6606,6 +6754,7 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			evo::unreachable();
@@ -8454,6 +8603,8 @@ namespace pcit::panther{
 						case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
 						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 			}
@@ -12243,10 +12394,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*current_struct_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			evo::unreachable();
@@ -12271,10 +12423,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*current_union_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			evo::unreachable();
@@ -12299,10 +12452,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*current_enum_symbol_proc);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			evo::unreachable();
@@ -12341,10 +12495,11 @@ namespace pcit::panther{
 				this->context.add_task_to_work_manager(instr.symbol_proc_id);
 				[[fallthrough]];
 			}
-			case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+			case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 		}
 
 		evo::unreachable();
@@ -12380,10 +12535,11 @@ namespace pcit::panther{
 				this->context.add_task_to_work_manager(instr.symbol_proc_id);
 				[[fallthrough]];
 			}
-			case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-			case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+			case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+			case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+			case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+			case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 		}
 
 		evo::unreachable();
@@ -16409,10 +16565,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*target_func.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			target_type_id = this->context.getTypeManager().getOrCreateTypeInfo(
@@ -17341,10 +17498,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*resultant_type_symbol_proc_id);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -20921,10 +21079,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(instantiation_symbol_proc_id.value());
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR; // just in case
+				case SymbolProc::WaitOnResult::WAITING:                break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR; // just in case
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			this->return_struct_instantiation(
@@ -20965,10 +21124,11 @@ namespace pcit::panther{
 					);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should never be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR; // just in case
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT_BEFORE_NEXT_INSTR;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Should never be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR; // just in case
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 
 			evo::unreachable();
@@ -21023,10 +21183,11 @@ namespace pcit::panther{
 						this->context.add_task_to_work_manager(target_symbol_proc_id);
 						[[fallthrough]];
 					}
-					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+					case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -23883,6 +24044,13 @@ namespace pcit::panther{
 
 		}else if(lhs.type_id.is<BuiltinModule::ID>()){
 			return this->builtin_module_accessor<IS_COMPTIME>(instr, rhs_ident_str, lhs);
+
+		}else if(lhs.type_id.is<sema::TemplatedStruct::ID>()){
+			const sema::TemplatedStruct& sema_struct_template = this->context.getSemaBuffer().getTemplatedStruct(
+				lhs.type_id.as<sema::TemplatedStruct::ID>()
+			);
+
+			return this->template_struct_accessor<IS_COMPTIME>(instr, rhs_ident_str, sema_struct_template.templateID);
 		}
 
 		if(lhs.type_id.is<TypeInfo::ID>() == false){
@@ -25189,6 +25357,17 @@ namespace pcit::panther{
 				Diagnostic::Info("\"This\" cannot be used within an interface")
 			);
 			return Result::ERROR;
+
+		}else if(current_type_scope->is<BaseType::StructTemplate::ID>()){
+			this->emit_error(
+				"Type \"This\" not in valid type scope",
+				instr.type_this,
+				Diagnostic::Info(
+					"\"This\" cannot be used within a struct interface within a symbol that has attribute "
+						"`#nonTemplateDependent`"
+				)
+			);
+			return Result::ERROR;
 		}
 
 
@@ -25227,8 +25406,9 @@ namespace pcit::panther{
 					}
 					case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
 					case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should be impossible");
+					case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 		}
@@ -25469,6 +25649,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
+
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
 			} break;
@@ -25594,19 +25776,6 @@ namespace pcit::panther{
 		}
 
 
-		const std::optional<SymbolProc::ID> type_symbol_proc_id =
-			this->context.symbol_proc_manager.getTypeSymbolProc(decayed_lhs_type_id);
-
-		SymbolProc* type_symbol_proc = [&]() -> SymbolProc* {
-			if(type_symbol_proc_id.has_value()){
-				return &this->context.symbol_proc_manager.getSymbolProc(*type_symbol_proc_id);
-			}else{
-				return nullptr;
-			}
-		}();
-
-		const bool type_symbol_proc_def_done = type_symbol_proc != nullptr ? type_symbol_proc->isDefDone() : true;
-
 
 		SymbolProcNamespace const* namespaced_members = nullptr;
 		sema::ScopeLevel const* scope_level = nullptr;
@@ -25700,12 +25869,29 @@ namespace pcit::panther{
 		}
 
 
+
+
 		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
 			namespaced_members, rhs_ident_str
 		);
 
 		switch(wait_on_symbol_proc_result){
 			case WaitOnSymbolProcResult::NOT_FOUND: {
+				const std::optional<SymbolProc::ID> type_symbol_proc_id =
+					this->context.symbol_proc_manager.getTypeSymbolProc(decayed_lhs_type_id);
+
+				SymbolProc* type_symbol_proc = [&]() -> SymbolProc* {
+					if(type_symbol_proc_id.has_value()){
+						return &this->context.symbol_proc_manager.getSymbolProc(*type_symbol_proc_id);
+					}else{
+						return nullptr;
+					}
+				}();
+
+				const bool type_symbol_proc_def_done =
+					type_symbol_proc != nullptr ? type_symbol_proc->isDefDone() : true;
+
+
 				if(type_symbol_proc_def_done == false){
 					const SymbolProc::WaitOnResult wait_on_result =
 						type_symbol_proc->waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
@@ -25719,13 +25905,31 @@ namespace pcit::panther{
 							this->context.add_task_to_work_manager(*type_symbol_proc_id);
 							[[fallthrough]];
 						}
-						case SymbolProc::WaitOnResult::WAITING:                    return Result::NEED_TO_WAIT;
-						case SymbolProc::WaitOnResult::WAS_ERRORED:                return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+						case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
 						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
-							evo::debugFatalBreak("Should be impossible");
-						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:      return Result::ERROR;
+							evo::debugFatalBreak("Shouldn't be possible");
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
+
+
+				///////////////////////////////////
+				// check nonTemplateDependents
+
+				const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
+					decayed_lhs_type.baseTypeID().structID()
+				);
+
+				if(lhs_struct.templateID.has_value()){
+					return this->template_struct_accessor<IS_COMPTIME>(instr, rhs_ident_str, *lhs_struct.templateID);
+				}
+
+
+				///////////////////////////////////
+				// didn't find
 
 				this->emit_error(std::format("Type has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
 				return Result::ERROR;
@@ -25743,6 +25947,8 @@ namespace pcit::panther{
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 				return Result::ERROR;
 			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
@@ -26086,6 +26292,128 @@ namespace pcit::panther{
 
 
 
+	template<bool IS_COMPTIME>
+	auto SemanticAnalyzer::template_struct_accessor(
+		const Instruction::Accessor<IS_COMPTIME>& instr,
+		std::string_view rhs_ident_str,
+		BaseType::StructTemplate::ID lhs_struct_template_id
+	) -> Result {
+		const BaseType::StructTemplate& struct_template = this->context.getTypeManager().getStructTemplate(
+			lhs_struct_template_id
+		);
+
+
+		const WaitOnSymbolProcResult wait_on_symbol_proc_result = this->wait_on_symbol_proc<IS_COMPTIME>(
+			struct_template.namespacedMembers, rhs_ident_str
+		);
+
+
+		switch(wait_on_symbol_proc_result){
+			case WaitOnSymbolProcResult::NOT_FOUND: {
+				const TypeInfo::ID struct_template_type_id = this->context.type_manager.getOrCreateTypeInfo(
+					TypeInfo(BaseType::ID(lhs_struct_template_id))
+				);
+
+				const std::optional<SymbolProc::ID> type_symbol_proc_id =
+					this->context.symbol_proc_manager.getTypeSymbolProc(struct_template_type_id);
+
+				SymbolProc* type_symbol_proc = [&]() -> SymbolProc* {
+					if(type_symbol_proc_id.has_value()){
+						return &this->context.symbol_proc_manager.getSymbolProc(*type_symbol_proc_id);
+					}else{
+						return nullptr;
+					}
+				}();
+
+				const bool type_symbol_proc_def_done =
+					type_symbol_proc != nullptr ? type_symbol_proc->isDefDone() : true;
+
+
+				if(type_symbol_proc_def_done == false){
+					const SymbolProc::WaitOnResult wait_on_result =
+						type_symbol_proc->waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
+						
+					switch(wait_on_result){
+						// TODO(PERF): don't redo work
+						case SymbolProc::WaitOnResult::NOT_NEEDED: return Result::NEED_TO_WAIT;
+
+						case SymbolProc::WaitOnResult::WAITING_UNSUSPEND: {
+							this->context.symbol_proc_manager.symbol_proc_unsuspended();
+							this->context.add_task_to_work_manager(*type_symbol_proc_id);
+							[[fallthrough]];
+						}
+						case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+						case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
+							evo::debugFatalBreak("Shouldn't be possible");
+						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
+					}
+				}
+
+				this->emit_error(std::format("Type has no member named \"{}\"", rhs_ident_str), instr.infix.rhs);
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
+				this->wait_on_symbol_proc_emit_error(
+					wait_on_symbol_proc_result,
+					instr.infix.rhs,
+					std::format("Type has no member named \"{}\"", rhs_ident_str)
+				);
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return Result::ERROR;
+			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
+
+			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
+				return Result::NEED_TO_WAIT;
+			} break;
+
+			case WaitOnSymbolProcResult::SEMAS_READY: {
+				// do nothing...
+			} break;
+		}
+
+
+		const evo::Expected<TermInfo, AnalyzeExprIdentInScopeLevelError> expr_ident = 
+			this->analyze_expr_ident_in_scope_level<IS_COMPTIME, ScopeAccessRequirement::NOT_PRIV>(
+				instr.rhs_ident,
+				rhs_ident_str,
+				*struct_template.scopeLevel,
+				true,
+				false,
+				&this->context.getSourceManager()[struct_template.sourceID]
+			);
+
+		if(expr_ident.has_value() == false){
+			switch(expr_ident.error()){
+				case AnalyzeExprIdentInScopeLevelError::DOESNT_EXIST: {
+					evo::debugFatalBreak("Def is done, but can't find sema of symbol");
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::NEEDS_TO_WAIT_ON_DEF: {
+					evo::debugFatalBreak(
+						"Sema doesn't have completed info for def despite SymbolProc saying it should"
+					);
+				} break;
+
+				case AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED: return Result::ERROR;
+			}
+		}
+
+
+		this->return_term_info(instr.output, std::move(expr_ident.value()));
+		return Result::SUCCESS;
+	}
+
+
+
 
 	template<bool IS_COMPTIME, SemanticAnalyzer::InterfaceMapKind INTERFACE_MAP_KIND>
 	auto SemanticAnalyzer::interface_accessor(
@@ -26162,10 +26490,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*target_interface.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Should be impossible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -26249,10 +26578,13 @@ namespace pcit::panther{
 							return Result::ERROR;
 
 						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:
-							evo::debugFatalBreak("Should be impossible");
+							evo::debugFatalBreak("Shouldn't be possible");
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return Result::ERROR;
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 			}
@@ -26470,12 +26802,13 @@ namespace pcit::panther{
 				struct_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:             break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:      evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -26661,6 +26994,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
+
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
 			} break;
@@ -26797,12 +27132,13 @@ namespace pcit::panther{
 				union_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:             break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:      evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -26970,6 +27306,8 @@ namespace pcit::panther{
 				return Result::ERROR;
 			} break;
 
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
+
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
 			} break;
@@ -27103,12 +27441,13 @@ namespace pcit::panther{
 				enum_type_symbol_proc.waitOnDefIfNeeded(this->symbol_proc.getID(), this->context);
 
 			switch(wait_on_result){
-				case SymbolProc::WaitOnResult::NOT_NEEDED:            break;
-				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:     evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::WAITING:               return Result::NEED_TO_WAIT;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return Result::ERROR;
+				case SymbolProc::WaitOnResult::NOT_NEEDED:             break;
+				case SymbolProc::WaitOnResult::WAITING_UNSUSPEND:      evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::WAITING:                return Result::NEED_TO_WAIT;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return Result::ERROR;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -27170,6 +27509,8 @@ namespace pcit::panther{
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 				return Result::ERROR;
 			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 
 			case WaitOnSymbolProcResult::NEED_TO_WAIT: {
 				return Result::NEED_TO_WAIT;
@@ -28646,10 +28987,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*func.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAITING:                return evo::Unexpected(Result::NEED_TO_WAIT);
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -28712,6 +29054,15 @@ namespace pcit::panther{
 			} break;
 
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: {
+				this->wait_on_symbol_proc_emit_error(
+					wait_on_symbol_proc_result,
+					ident,
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str)
+				);
 				return evo::Unexpected(Result::ERROR);
 			} break;
 
@@ -28862,6 +29213,18 @@ namespace pcit::panther{
 			} break;
 
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
+				return evo::Unexpected(Result::ERROR);
+			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: {
+				this->emit_error(
+					std::format("Identifier \"{}\" was not defined in this scope", ident_str),
+					ident,
+					Diagnostic::Info(
+						"The identifier was declared in a templated struct and the current symbol has "
+							"attribute `#nonTemplateDependent`"
+					)
+				);
 				return evo::Unexpected(Result::ERROR);
 			} break;
 
@@ -29114,6 +29477,9 @@ namespace pcit::panther{
 											evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED)
 										);
 									} break;
+
+									case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+										evo::debugFatalBreak("Shouldn't be possible");
 								}
 							}
 						}
@@ -29574,6 +29940,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -29640,6 +30009,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -29677,6 +30049,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -29742,6 +30117,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -29807,6 +30185,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -29872,6 +30253,9 @@ namespace pcit::panther{
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 							return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}
 
@@ -30709,6 +31093,10 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: {
 					return WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED;
 				} break;
+
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: {
+					return WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL;
+				} break;
 			}
 		}
 
@@ -30737,6 +31125,17 @@ namespace pcit::panther{
 
 			case WaitOnSymbolProcResult::CIRCULAR_DEP_DETECTED: case WaitOnSymbolProcResult::EXISTS_BUT_ERRORED: {
 				// do nothing...
+			} break;
+
+			case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL: {
+				this->emit_error(
+					std::move(msg),
+					ident,
+					Diagnostic::Info(
+						"The identifier was declared in a templated struct and the current symbol has "
+							"attribute `#nonTemplateDependent`"
+					)
+				);
 			} break;
 
 			case WaitOnSymbolProcResult::ERROR_PASSED_BY_WHEN_COND: {
@@ -31122,6 +31521,8 @@ namespace pcit::panther{
 						case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
 						case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+							evo::debugFatalBreak("Shouldn't be possible");
 					}
 
 
@@ -32857,6 +33258,9 @@ namespace pcit::panther{
 
 							case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 								return evo::Unexpected(Result::ERROR);
+
+							case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+								evo::debugFatalBreak("Shouldn't be possible");
 						}
 					}
 
@@ -33880,6 +34284,9 @@ namespace pcit::panther{
 
 					case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
 						return evo::Unexpected(Result::ERROR);
+
+					case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+						evo::debugFatalBreak("Shouldn't be possible");
 				}
 			}
 
@@ -35310,10 +35717,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*interface_type.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               return evo::Unexpected(Result::NEED_TO_WAIT);
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return evo::Unexpected(Result::ERROR);
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Not possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAITING:                return evo::Unexpected(Result::NEED_TO_WAIT);
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Not possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  return evo::Unexpected(Result::ERROR);
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -35649,6 +36057,9 @@ namespace pcit::panther{
 					case WaitOnSymbolProcResult::SEMAS_READY: {
 						// do nothing...
 					} break;
+
+					case WaitOnSymbolProcResult::IS_TEMPLATE_SUB_SYMBOL:
+						evo::debugFatalBreak("Shouldn't be possible");
 				}
 
 				{
@@ -37530,10 +37941,11 @@ namespace pcit::panther{
 					this->context.add_task_to_work_manager(*method.symbolProcID);
 					[[fallthrough]];
 				}
-				case SymbolProc::WaitOnResult::WAITING:               any_waiting = true; break;
-				case SymbolProc::WaitOnResult::WAS_ERRORED:           return Result::ERROR;
-				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: evo::debugFatalBreak("Shouldn't be possible");
-				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::WAITING:                any_waiting = true; break;
+				case SymbolProc::WaitOnResult::WAS_ERRORED:            return Result::ERROR;
+				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN:  evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:  evo::debugFatalBreak("Shouldn't be possible");
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL: evo::debugFatalBreak("Shouldn't be possible");
 			}
 		}
 
@@ -37637,6 +38049,9 @@ namespace pcit::panther{
 				);
 				return evo::Unexpected(Result::ERROR);
 
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
+
 			}else{
 				this->emit_error(
 					std::format("Unknown global variable attribute #{}", attribute_str), attribute.attribute
@@ -37690,12 +38105,17 @@ namespace pcit::panther{
 					const bool priv_cond = this->context.sema_buffer
 						.getBoolValue(cond_term_info.getExpr().boolValueID()).value;
 
-					if(attr_priv.set(attribute.attribute, priv_cond).isError()){ return evo::Unexpected(Result::ERROR); }
+					if(attr_priv.set(attribute.attribute, priv_cond).isError()){
+						return evo::Unexpected(Result::ERROR);
+					}
 
 				}else{
 					this->emit_error("Attribute #private does not accept more than 1 argument", attribute.args[1]);
 					return evo::Unexpected(Result::ERROR);
 				}
+
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
 
 			}else{
 				this->emit_error(std::format("Unknown variable attribute #{}", attribute_str), attribute.attribute);
@@ -37833,6 +38253,9 @@ namespace pcit::panther{
 				}
 
 				if(attr_distinct.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
 
 			}else{
 				this->emit_error(std::format("Unknown alias attribute #{}", attribute_str), attribute.attribute);
@@ -38056,6 +38479,9 @@ namespace pcit::panther{
 
 				if(attr_alignment.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
+
 			}else{
 				this->emit_error(std::format("Unknown struct attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -38136,6 +38562,9 @@ namespace pcit::panther{
 
 				if(attr_manual_lifetime.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
+
 			}else{
 				this->emit_error(std::format("Unknown union attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -38198,6 +38627,9 @@ namespace pcit::panther{
 					return evo::Unexpected(Result::ERROR);
 				}
 
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
+
 			}else{
 				this->emit_error(std::format("Unknown enum attribute #{}", attribute_str), attribute.attribute);
 				return evo::Unexpected(Result::ERROR);
@@ -38216,21 +38648,22 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::analyze_func_attrs(
 		const AST::FuncDef& func_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info
 	) -> evo::Expected<FuncAttrs, Result> {
-		auto attr_priv        = ConditionalAttribute(*this, "private");
-		auto attr_rt          = ConditionalAttribute(*this, "rt");
-		auto attr_ct          = ConditionalAttribute(*this, "ct");
-		auto attr_rt_diff     = ConditionalAttribute(*this, "rtDiff");
-		auto attr_unsafe      = ConditionalAttribute(*this, "unsafe");
-		auto attr_export      = Attribute(*this, "export");
-		auto attr_no_return   = Attribute(*this, "noReturn");
-		auto attr_entry       = Attribute(*this, "entry");
-		auto attr_commutative = Attribute(*this, "commutative");
-		auto attr_swapped     = Attribute(*this, "swapped");
-		auto attr_implicit    = Attribute(*this, "implicit");
-		auto attr_naked       = Attribute(*this, "naked");
+		auto attr_priv                   = ConditionalAttribute(*this, "private");
+		auto attr_rt                     = ConditionalAttribute(*this, "rt");
+		auto attr_ct                     = ConditionalAttribute(*this, "ct");
+		auto attr_rt_diff                = ConditionalAttribute(*this, "rtDiff");
+		auto attr_unsafe                 = ConditionalAttribute(*this, "unsafe");
+		auto attr_export                 = Attribute(*this, "export");
+		auto attr_no_return              = Attribute(*this, "noReturn");
+		auto attr_entry                  = Attribute(*this, "entry");
+		auto attr_commutative            = Attribute(*this, "commutative");
+		auto attr_swapped                = Attribute(*this, "swapped");
+		auto attr_implicit               = Attribute(*this, "implicit");
+		auto attr_naked                  = Attribute(*this, "naked");
+		auto attr_non_template_dependent = Attribute(*this, "nonTemplateDependent");
 
-		auto attr_call_conv   = Attribute(*this, "callConv");
-		auto call_conv        = std::optional<uint32_t>();
+		auto attr_call_conv              = Attribute(*this, "callConv");
+		auto call_conv                   = std::optional<uint32_t>();
 
 
 		const AST::AttributeBlock& attribute_block = 
@@ -38646,6 +39079,19 @@ namespace pcit::panther{
 				if(attr_naked.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 				attr_rt.implicitly_set(attribute.attribute, true);
 
+			}else if(attribute_str == "nonTemplateDependent"){
+				evo::debugAssert(
+					this->scope.inEncapsulatingSymbol()
+						&& this->scope.getCurrentEncapsulatingSymbol().is<BaseType::StructTemplate::ID>(),
+					"Should have checked this in SymbolProcBuilder"
+				);
+
+				evo::debugAssert(attribute_params_info[i].empty(), "Should have checked this in SymbolProcBuilder");
+
+				if(attr_non_template_dependent.set(attribute.attribute).isError()){
+					return evo::Unexpected(Result::ERROR);
+				}
+
 			}else if(attribute_str == "callConv"){
 				if(attribute_params_info[i].size() != 1){
 					if(attribute_params_info[i].size() == 0){
@@ -38689,19 +39135,20 @@ namespace pcit::panther{
 		}
 
 		return FuncAttrs{
-			.is_private     = attr_priv.is_set(),
-			.is_comptime    = attr_ct.is_set(),
-			.is_runtime     = attr_rt.is_set(),
-			.is_rt_diff     = attr_rt_diff.is_set(),
-			.is_unsafe      = attr_unsafe.is_set(),
-			.is_export      = attr_export.is_set(),
-			.is_no_return   = attr_no_return.is_set(),
-			.is_entry       = attr_entry.is_set(),
-			.is_commutative = attr_commutative.is_set(),
-			.is_swapped     = attr_swapped.is_set(),
-			.is_implicit    = attr_implicit.is_set(),
-			.is_naked       = attr_naked.is_set(),
-			.call_conv      = call_conv,
+			.is_private                = attr_priv.is_set(),
+			.is_comptime               = attr_ct.is_set(),
+			.is_runtime                = attr_rt.is_set(),
+			.is_rt_diff                = attr_rt_diff.is_set(),
+			.is_unsafe                 = attr_unsafe.is_set(),
+			.is_export                 = attr_export.is_set(),
+			.is_no_return              = attr_no_return.is_set(),
+			.is_entry                  = attr_entry.is_set(),
+			.is_commutative            = attr_commutative.is_set(),
+			.is_swapped                = attr_swapped.is_set(),
+			.is_implicit               = attr_implicit.is_set(),
+			.is_naked                  = attr_naked.is_set(),
+			.is_non_template_dependent = attr_non_template_dependent.is_set(),
+			.call_conv                 = call_conv,
 		};
 	}
 
@@ -38940,6 +39387,9 @@ namespace pcit::panther{
 				}
 
 				if(attr_non_polymorphic.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
+			}else if(attribute_str == "nonTemplateDependent"){
+				// handled in SymbolProcBuilder
 
 			}else{
 				this->emit_error(std::format("Unknown interface attribute #{}", attribute_str), attribute.attribute);
@@ -40209,6 +40659,9 @@ namespace pcit::panther{
 							evo::debugFatalBreak("Shouldn't be possible");
 
 						case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED:
+							evo::debugFatalBreak("Shouldn't be possible");
+
+						case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
 							evo::debugFatalBreak("Shouldn't be possible");
 					}
 				}

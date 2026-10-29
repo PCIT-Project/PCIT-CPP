@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.418.0"></a>
+## v0.0.418.0
+
+### Panther
+- Added attribute `#nonTemplateDependent`
+- Fixed semantic analysis of expression `This`
+
+
+<!---------------------------------->
 <a name="v0.0.417.0"></a>
 ## v0.0.417.0
 

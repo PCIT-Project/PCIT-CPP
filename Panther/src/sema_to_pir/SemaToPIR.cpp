@@ -16598,7 +16598,7 @@ namespace pcit::panther{
 			return parent->visit([&](const auto& parent_id) -> std::string {
 				using ParentIDType = std::decay_t<decltype(parent_id)>;
 
-				if constexpr(std::is_same<ParentIDType, BaseType::StructID>()){
+				if constexpr(std::is_same<ParentIDType, BaseType::Struct::ID>()){
 					if constexpr(PIR_STMT_NAME_SAFE){
 						const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(parent_id);
 						return std::format(
@@ -16607,13 +16607,32 @@ namespace pcit::panther{
 							std::string(struct_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						std::string type_name =
-							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name = this->context.getTypeManager().printType(
+							BaseType::ID(parent_id), this->context
+						);
+						type_name += '.';
+						return type_name;
+					}
+
+				}else if constexpr(std::is_same<ParentIDType, BaseType::StructTemplate::ID>()){
+					if constexpr(PIR_STMT_NAME_SAFE){
+						const BaseType::StructTemplate& struct_template_type =
+							this->context.getTypeManager().getStructTemplate(parent_id);
+
+						return std::format(
+							"{}{}.",
+							this->get_parent_name<true>(struct_template_type.parent, struct_template_type.sourceID),
+							std::string(struct_template_type.getName(this->context.getSourceManager()))
+						);
+					}else{
+						std::string type_name = this->context.getTypeManager().printType(
+							BaseType::ID(parent_id), this->context
+						);
 						type_name += '.';
 						return type_name;
 					}
 					
-				}else if constexpr(std::is_same<ParentIDType, BaseType::UnionID>()){
+				}else if constexpr(std::is_same<ParentIDType, BaseType::Union::ID>()){
 					if constexpr(PIR_STMT_NAME_SAFE){
 						const BaseType::Union& union_type = this->context.getTypeManager().getUnion(parent_id);
 						
@@ -16629,7 +16648,7 @@ namespace pcit::panther{
 						return type_name;
 					}
 
-				}else if constexpr(std::is_same<ParentIDType, BaseType::EnumID>()){
+				}else if constexpr(std::is_same<ParentIDType, BaseType::Enum::ID>()){
 					if constexpr(PIR_STMT_NAME_SAFE){
 						const BaseType::Enum& enum_type = this->context.getTypeManager().getEnum(parent_id);
 						
@@ -16639,13 +16658,14 @@ namespace pcit::panther{
 							std::string(enum_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						std::string type_name =
-							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name = this->context.getTypeManager().printType(
+							BaseType::ID(parent_id), this->context
+						);
 						type_name += '.';
 						return type_name;
 					}
 
-				}else if constexpr(std::is_same<ParentIDType, BaseType::InterfaceID>()){
+				}else if constexpr(std::is_same<ParentIDType, BaseType::Interface::ID>()){
 					if constexpr(PIR_STMT_NAME_SAFE){
 						const BaseType::Interface& interface_type =
 							this->context.getTypeManager().getInterface(parent_id);
@@ -16656,13 +16676,14 @@ namespace pcit::panther{
 							std::string(interface_type.getName(this->context.getSourceManager()))
 						);
 					}else{
-						std::string type_name =
-							this->context.getTypeManager().printType(BaseType::ID(parent_id), this->context);
+						std::string type_name = this->context.getTypeManager().printType(
+							BaseType::ID(parent_id), this->context
+						);
 						type_name += '.';
 						return type_name;
 					}
 
-				}else if constexpr(std::is_same<ParentIDType, sema::FuncID>()){
+				}else if constexpr(std::is_same<ParentIDType, sema::Func::ID>()){
 					const sema::Func& sema_func = this->context.getSemaBuffer().getFunc(parent_id);
 					
 					return std::format(

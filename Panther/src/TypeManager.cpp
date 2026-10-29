@@ -155,6 +155,15 @@ namespace pcit::panther{
 
 
 
+	auto BaseType::StructTemplate::getName(const SourceManager& source_manager) const -> std::string_view {
+		const Source& source = source_manager[this->sourceID];
+		return source.getTokenBuffer()[this->identTokenID].getString();
+	}
+	auto BaseType::StructTemplate::getPrintName(const SourceManager& source_manager) const -> std::string_view {
+		const Source& source = source_manager[this->sourceID];
+		return source.getTokenBuffer()[this->identTokenID].getPrintName();
+	}
+
 	auto BaseType::StructTemplate::createOrLookupInstantiation(evo::SmallVector<Arg>&& args) -> InstantiationInfo {
 		evo::debugAssert(args.empty() == false, "Cannot have empty args");
 
@@ -1791,17 +1800,30 @@ namespace pcit::panther{
 				using ParentIDType = std::decay_t<decltype(parent_id)>;
 
 				if constexpr(
-					std::is_same<ParentIDType, BaseType::StructID>()
-					|| std::is_same<ParentIDType, BaseType::UnionID>()
-					|| std::is_same<ParentIDType, BaseType::EnumID>()
-					|| std::is_same<ParentIDType, BaseType::InterfaceID>()
+					std::is_same<ParentIDType, BaseType::Struct::ID>()
+					|| std::is_same<ParentIDType, BaseType::Union::ID>()
+					|| std::is_same<ParentIDType, BaseType::Enum::ID>()
+					|| std::is_same<ParentIDType, BaseType::Interface::ID>()
 				){
 					output = this->printType(BaseType::ID(parent_id), context);
-					output += ".";
+					output += '.';
+
+				}else if constexpr(std::is_same<ParentIDType, BaseType::StructTemplate::ID>()){
+					const BaseType::StructTemplate& struct_template = this->getStructTemplate(parent_id);
+
+					if(struct_template.parent.has_value()){
+						output = this->get_parent_name(struct_template.parent, struct_template.sourceID, context);
+						output += '.';
+					}
+
+					const Source& struct_template_source = context.getSourceManager()[struct_template.sourceID];
+
+					output += struct_template_source.getTokenBuffer()[struct_template.identTokenID].getString();
+					output += '.';
 
 				}else if constexpr(std::is_same<ParentIDType, sema::FuncID>()){
 					output = this->get_func_name(parent_id, context);
-					output += ".";
+					output += '.';
 
 				}else if constexpr(std::is_same<ParentIDType, EncapsulatingSymbolID::InterfaceImplInfo>()){
 					output = this->printType(BaseType::ID(parent_id.interfaceID), context);
@@ -2135,7 +2157,8 @@ namespace pcit::panther{
 			new_type.identTokenID,
 			new_type.parent,
 			std::move(new_type.params),
-			new_type.minNumTemplateArgs
+			new_type.minNumTemplateArgs,
+			new_type.namespacedMembers
 		);
 
 		this->struct_templates_lock.unlock();

@@ -841,6 +841,13 @@ namespace pcit::panther{
 			std::optional<EncapsulatingSymbolID> parent;
 			evo::SmallVector<Param> params;
 			size_t minNumTemplateArgs; // TODO(PERF): make sure this optimization actually improves perf
+			SymbolProcNamespace* namespacedMembers;
+			sema::ScopeLevel* scopeLevel = nullptr;
+
+
+			[[nodiscard]] auto getName(const class panther::SourceManager& source_manager) const -> std::string_view;
+			[[nodiscard]] auto getPrintName(const class panther::SourceManager& source_manager) const
+				-> std::string_view;
 
 			struct InstantiationInfo{
 				Instantiation& instantiation;
@@ -871,13 +878,15 @@ namespace pcit::panther{
 				Token::ID ident_token_id,
 				std::optional<EncapsulatingSymbolID> _parent,
 				evo::SmallVector<Param>&& _params,
-				size_t min_num_template_args
+				size_t min_num_template_args,
+				SymbolProcNamespace* namespaced_members
 			) : 
 				sourceID(source_id), 
 				identTokenID(ident_token_id),
 				parent(_parent),
-				params(std::move(_params)), 
-				minNumTemplateArgs(min_num_template_args) 
+				params(std::move(_params)),
+				minNumTemplateArgs(min_num_template_args),
+				namespacedMembers(namespaced_members)
 			{}
 
 			private:

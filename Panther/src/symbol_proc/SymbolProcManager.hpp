@@ -240,18 +240,27 @@ namespace pcit::panther{
 
 
 			//////////////////
-			// TemplateStruct
+			// TemplateStructDecl
 
-			[[nodiscard]] auto createTemplateStruct(auto&&... args) -> Instruction {
+			[[nodiscard]] auto createTemplateStructDecl(auto&&... args) -> Instruction {
 				return Instruction(
-					Instruction::Kind::TEMPLATE_STRUCT,
-					this->template_structs.emplace_back(std::forward<decltype(args)>(args)...)
+					Instruction::Kind::TEMPLATE_STRUCT_DECL,
+					this->template_struct_decls.emplace_back(std::forward<decltype(args)>(args)...)
 				);
 			}
 
-			[[nodiscard]] auto getTemplateStruct(Instruction instr) const -> const Instruction::TemplateStruct& {
-				evo::debugAssert(instr.kind() == Instruction::Kind::TEMPLATE_STRUCT, "Not a TemplateStruct");
-				return this->template_structs[instr._index];
+			[[nodiscard]] auto getTemplateStructDecl(Instruction instr) const -> const Instruction::TemplateStructDecl& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::TEMPLATE_STRUCT_DECL, "Not a TemplateStructDecl");
+				return this->template_struct_decls[instr._index];
+			}
+
+
+
+			//////////////////
+			// TemplateStructDef
+
+			[[nodiscard]] auto createTemplateStructDef() -> Instruction {
+				return Instruction(Instruction::Kind::TEMPLATE_STRUCT_DEF, 0);
 			}
 
 
@@ -3506,7 +3515,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::Alias, uint32_t> aliases{};
 			core::SyncLinearStepAlloc<Instruction::StructDecl<true>, uint32_t> struct_decl_instantiations{};
 			core::SyncLinearStepAlloc<Instruction::StructDecl<false>, uint32_t> struct_decls{};
-			core::SyncLinearStepAlloc<Instruction::TemplateStruct, uint32_t> template_structs{};
+			core::SyncLinearStepAlloc<Instruction::TemplateStructDecl, uint32_t> template_struct_decls{};
 			core::SyncLinearStepAlloc<Instruction::UnionDecl, uint32_t> union_decls{};
 			core::SyncLinearStepAlloc<Instruction::UnionAddFields, uint32_t> union_add_fieldss{};
 			core::SyncLinearStepAlloc<Instruction::EnumDecl, uint32_t> enum_decls{};

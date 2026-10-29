@@ -811,6 +811,7 @@ namespace pcit::panther{
 
 		evo::Variant<
 			BaseType::StructID,
+			BaseType::StructTemplateID,
 			BaseType::UnionID,
 			BaseType::EnumID,
 			BaseType::InterfaceID,

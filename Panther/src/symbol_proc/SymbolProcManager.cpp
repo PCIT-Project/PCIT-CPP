@@ -111,6 +111,8 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::WAS_ERRORED:           return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return false;
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return false;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+					evo::debugFatalBreak("Should never be template sub symbol");
 			}
 		}
 
@@ -138,6 +140,8 @@ namespace pcit::panther{
 				case SymbolProc::WaitOnResult::WAS_ERRORED:           return false;
 				case SymbolProc::WaitOnResult::WAS_PASSED_ON_BY_WHEN: return false;
 				case SymbolProc::WaitOnResult::CIRCULAR_DEP_DETECTED: return false;
+				case SymbolProc::WaitOnResult::IS_TEMPLATE_SUB_SYMBOL:
+					evo::debugFatalBreak("Should never be template sub symbol");
 			}
 		}
 
@@ -378,6 +382,10 @@ namespace pcit::panther{
 
 					case SymbolProc::Status::PASSED_ON_BY_WHEN: {
 						print_field(printer, "Status", "PASSED_ON_BY_WHEN");
+					} break;
+
+					case SymbolProc::Status::SKIPPED_NON_TEMPLATE_DEPENDENT: {
+						print_field(printer, "Status", "SKIPPED_NON_TEMPLATE_DEPENDENT");
 					} break;
 
 					case SymbolProc::Status::ERRORED: {

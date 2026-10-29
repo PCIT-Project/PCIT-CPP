@@ -231,7 +231,7 @@ namespace pcit::panther{
 		};
 
 
-		struct TemplateStruct{
+		struct TemplateStructDecl{
 			const AST::StructDef& struct_def;
 			evo::SmallVector<TemplateParamInfo> template_param_infos;
 		};
@@ -1257,7 +1257,8 @@ namespace pcit::panther{
 			STRUCT_DECL,
 			STRUCT_DEF,
 			STRUCT_CREATED_SPECIAL_MEMBERS_PIR_IF_NEEDED,
-			TEMPLATE_STRUCT,
+			TEMPLATE_STRUCT_DECL,
+			TEMPLATE_STRUCT_DEF,
 			UNION_DECL,
 			UNION_ADD_FIELDS,
 			UNION_DEF,
@@ -1489,6 +1490,7 @@ namespace pcit::panther{
 				IN_QUEUE,
 				WORKING,
 				PASSED_ON_BY_WHEN,
+				SKIPPED_NON_TEMPLATE_DEPENDENT,
 				ERRORED,
 				DONE,
 			};
@@ -1530,6 +1532,10 @@ namespace pcit::panther{
 			auto setIsTemplateSubSymbol() -> void { this->inst_index = std::numeric_limits<size_t>::max(); }
 			[[nodiscard]] auto isTemplateSubSymbol() const -> bool {
 				return this->inst_index == std::numeric_limits<size_t>::max();
+			}
+
+			[[nodiscard]] auto isSkippedNonTemplateDependent() const -> bool {
+				return this->status.load() == Status::SKIPPED_NON_TEMPLATE_DEPENDENT;
 			}
 
 
@@ -1582,6 +1588,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto isReadyToBeAddedToWorkQueue() const -> bool {
 				return this->isWaiting() == false
 					&& this->isTemplateSubSymbol() == false
+					&& this->isSkippedNonTemplateDependent() == false
 					&& this->is_local_symbol == false;
 			}
 
@@ -1718,6 +1725,7 @@ namespace pcit::panther{
 				WAS_ERRORED,
 				WAS_PASSED_ON_BY_WHEN,
 				CIRCULAR_DEP_DETECTED,
+				IS_TEMPLATE_SUB_SYMBOL,
 			};
 
 			auto waitOnDeclIfNeeded(ID id, class Context& context) -> WaitOnResult;
@@ -1834,7 +1842,6 @@ namespace pcit::panther{
 				BaseType::Alias::ID alias_id;
 			};
 
-			// only needed for non-template structs or template struct instantiations
 			struct StructInfo{
 				BaseType::StructTemplate::Instantiation* instantiation = nullptr;
 				evo::SmallVector<SymbolProcID> stmts{};

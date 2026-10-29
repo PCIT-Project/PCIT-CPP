@@ -84,7 +84,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_struct_decl(const Instruction::StructDecl<IS_INSTANTIATION>& instr) -> Result;
 			[[nodiscard]] auto instr_struct_def() -> Result;
 			[[nodiscard]] auto instr_struct_created_sepcial_members_pir_if_needed() -> Result;
-			[[nodiscard]] auto instr_template_struct(const Instruction::TemplateStruct& instr) -> Result;
+			[[nodiscard]] auto instr_template_struct_decl(const Instruction::TemplateStructDecl& instr) -> Result;
+			[[nodiscard]] auto instr_template_struct_def() -> Result;
 			[[nodiscard]] auto instr_union_decl(const Instruction::UnionDecl& instr) -> Result;
 			[[nodiscard]] auto instr_union_add_fields(const Instruction::UnionAddFields& instr) -> Result;
 			[[nodiscard]] auto instr_union_def() -> Result;
@@ -388,6 +389,14 @@ namespace pcit::panther{
 			) -> Result;
 
 
+			template<bool IS_COMPTIME>
+			[[nodiscard]] auto template_struct_accessor(
+				const Instruction::Accessor<IS_COMPTIME>& instr,
+				std::string_view rhs_ident_str,
+				BaseType::StructTemplate::ID lhs_struct_template_id
+			) -> Result;
+
+
 			enum class InterfaceMapKind{
 				POLY,
 				MAP,
@@ -632,6 +641,7 @@ namespace pcit::panther{
 				CIRCULAR_DEP_DETECTED,
 				EXISTS_BUT_ERRORED,
 				ERROR_PASSED_BY_WHEN_COND,
+				IS_TEMPLATE_SUB_SYMBOL,
 				NEED_TO_WAIT,
 				SEMAS_READY,
 			};
@@ -1063,6 +1073,7 @@ namespace pcit::panther{
 				bool is_swapped;
 				bool is_implicit;
 				bool is_naked;
+				bool is_non_template_dependent;
 				std::optional<uint32_t> call_conv; // pir::CallingConvention
 			};
 			[[nodiscard]] auto analyze_func_attrs(

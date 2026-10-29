@@ -32,6 +32,8 @@ namespace pcit::panther{
 		if(this->decl_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+		if(this->isTemplateSubSymbol()){ return WaitOnResult::IS_TEMPLATE_SUB_SYMBOL; }
+
 
 		if(id == this->getID()){
 			context.emitError(
@@ -54,6 +56,7 @@ namespace pcit::panther{
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
 
+
 		evo::debugAssert(waiting_symbol.status == Status::WORKING, "Invalid status to wait for another symbol");
 
 		this->decl_waited_on_by.emplace_back(id);
@@ -66,8 +69,11 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDeclIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
+		if(this->pir_decl_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+		if(this->isTemplateSubSymbol()){ return WaitOnResult::IS_TEMPLATE_SUB_SYMBOL; }
+
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
@@ -92,6 +98,8 @@ namespace pcit::panther{
 		if(this->def_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::WAS_PASSED_ON_BY_WHEN; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+		if(this->isTemplateSubSymbol()){ return WaitOnResult::IS_TEMPLATE_SUB_SYMBOL; }
+
 
 		if(id == this->getID()){
 			context.emitError(
@@ -105,6 +113,7 @@ namespace pcit::panther{
 		if(this->detect_circular_dependency(id, context, DependencyKind::DEF).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;
 		}
+
 
 		SymbolProc& waiting_symbol = context.symbol_proc_manager.getSymbolProc(id);
 
@@ -127,8 +136,11 @@ namespace pcit::panther{
 	auto SymbolProc::waitOnPIRDefIfNeeded(ID id, Context& context) -> WaitOnResult {
 		const auto wait_on_lock = std::scoped_lock(wait_on_if_needed_lock);
 
+		if(this->pir_def_done){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::PASSED_ON_BY_WHEN){ return WaitOnResult::NOT_NEEDED; }
 		if(this->status == Status::ERRORED){ return WaitOnResult::WAS_ERRORED; }
+		if(this->isTemplateSubSymbol()){ return WaitOnResult::IS_TEMPLATE_SUB_SYMBOL; }
+
 
 		if(this->detect_circular_dependency(id, context, DependencyKind::PIR_DEF).isError()){
 			return WaitOnResult::CIRCULAR_DEP_DETECTED;

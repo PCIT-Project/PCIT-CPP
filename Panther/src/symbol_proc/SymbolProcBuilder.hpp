@@ -26,7 +26,14 @@ namespace pcit::panther{
 			}
 			~SymbolProcBuilder() = default;
 
-			[[nodiscard]] auto build(const AST::Node& stmt) -> evo::Result<SymbolProc::ID>;
+			enum class NonTemplateDependentMode{
+				ONLY,
+				EVERYTHING_ELSE,
+			};
+			[[nodiscard]] auto build(
+				const AST::Node& stmt,
+				NonTemplateDependentMode non_template_dependent_mode = NonTemplateDependentMode::EVERYTHING_ELSE
+			) -> evo::Result<std::optional<SymbolProc::ID>>; // nullopt if skipped due to `non_template_dependent_mode`
 
 			// for struct
 			[[nodiscard]] auto buildTemplateInstance(
@@ -61,15 +68,31 @@ namespace pcit::panther{
 		private:
 			[[nodiscard]] auto get_symbol_ident(const AST::Node& stmt) -> evo::Result<std::string_view>;
 
-			[[nodiscard]] auto build_var_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_func_def(const AST::Node& stmt) -> evo::Result<>;
+			[[nodiscard]] auto build_var_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_func_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
 			[[nodiscard]] auto build_deleted_special_method(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_func_alias_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_alias_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_struct_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_union_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_enum_def(const AST::Node& stmt) -> evo::Result<>;
-			[[nodiscard]] auto build_interface_def(const AST::Node& stmt) -> evo::Result<>;
+			[[nodiscard]] auto build_func_alias_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_alias_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_struct_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_union_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_enum_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
+			[[nodiscard]] auto build_interface_def(
+				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<>;
 			[[nodiscard]] auto build_interface_impl(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_when_switch(const AST::Node& stmt) -> evo::Result<>;
@@ -205,6 +228,11 @@ namespace pcit::panther{
 			[[nodiscard]] auto analyze_priority_and_builtin_attribute(const AST::AttributeBlock& attribute_block)
 				-> evo::Result<>;
 
+			using ShouldSkipSymbol = bool;
+			[[nodiscard]] auto analyze_attribute_non_template_depeneded(
+				const AST::AttributeBlock& attribute_block, NonTemplateDependentMode non_template_dependent_mode
+			) -> evo::Result<ShouldSkipSymbol>;
+
 			[[nodiscard]] auto analyze_template_param_pack(const AST::TemplatePack& template_pack)
 				-> evo::Result<evo::SmallVector<SymbolProc::Instruction::TemplateParamInfo>>;
 
@@ -274,6 +302,7 @@ namespace pcit::panther{
 				uint32_t num_type_ids = 0;
 				uint32_t num_struct_instantiations = 0;
 				bool is_template = false;
+				bool is_non_template_dependent = false;
 
 				auto operator=(const SymbolProcInfo& rhs) -> SymbolProcInfo& {
 					static_assert(std::is_trivially_destructible<SymbolProcInfo>(), "requires destructor here");

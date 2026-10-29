@@ -21,7 +21,8 @@ namespace pcit::panther{
 	using Instruction = SymbolProc::Instruction;
 	
 
-	auto SymbolProcBuilder::build(const AST::Node& stmt) -> evo::Result<SymbolProc::ID> {
+	auto SymbolProcBuilder::build(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<std::optional<SymbolProc::ID>> {
 		const evo::Result<std::string_view> symbol_ident = this->get_symbol_ident(stmt);
 		if(symbol_ident.isError()){ return evo::resultError; }
 
@@ -42,31 +43,31 @@ namespace pcit::panther{
 		
 		switch(stmt.kind()){
 			break; case AST::Kind::VAR_DEF:
-				if(this->build_var_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_var_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::FUNC_DEF:
-				if(this->build_func_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_func_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::DELETED_SPECIAL_METHOD:
 				if(this->build_deleted_special_method(stmt).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::FUNC_ALIAS_DEF:
-				if(this->build_func_alias_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_func_alias_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::ALIAS_DEF:
-				if(this->build_alias_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_alias_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::STRUCT_DEF:
-				if(this->build_struct_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_struct_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::UNION_DEF:
-				if(this->build_union_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_union_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::ENUM_DEF:
-				if(this->build_enum_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_enum_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::INTERFACE_DEF:
-				if(this->build_interface_def(stmt).isError()){ return evo::resultError; }
+				if(this->build_interface_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
 			break; case AST::Kind::INTERFACE_IMPL:
 				if(this->build_interface_impl(stmt).isError()){ return evo::resultError; }
@@ -83,11 +84,14 @@ namespace pcit::panther{
 			break; default: evo::debugFatalBreak("Unknown global statement");
 		}
 
-		symbol_proc.term_infos.resize(this->get_current_symbol().num_term_infos);
-		symbol_proc.type_ids.resize(this->get_current_symbol().num_type_ids);
-		symbol_proc.struct_instantiations.resize(this->get_current_symbol().num_struct_instantiations);
 
-		if(this->get_current_symbol().is_template == false){
+		const SymbolProcInfo& current_symbol = this->get_current_symbol();
+
+		symbol_proc.term_infos.resize(current_symbol.num_term_infos);
+		symbol_proc.type_ids.resize(current_symbol.num_type_ids);
+		symbol_proc.struct_instantiations.resize(current_symbol.num_struct_instantiations);
+
+		if(current_symbol.is_template == false && current_symbol.is_non_template_dependent == false){
 			for(auto iter = this->symbol_proc_infos.rbegin(); iter != this->symbol_proc_infos.rend(); ++iter){
 				if(iter->is_template){
 					symbol_proc.setIsTemplateSubSymbol();
@@ -100,7 +104,7 @@ namespace pcit::panther{
 
 		this->symbol_proc_infos.pop_back();
 
-		return symbol_proc_id;
+		return std::optional<SymbolProc::ID>(symbol_proc_id);
 	}
 
 
@@ -608,8 +612,18 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::build_var_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_var_def(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<> {
 		const AST::VarDef& var_def = this->source.getASTBuffer().getVarDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
+
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(var_def.attributeBlock)
@@ -716,17 +730,28 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_func_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_func_def(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::FuncDef& func_def = ast_buffer.getFuncDef(stmt);
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+
 
 		if(this->analyze_priority_and_builtin_attribute(
 			ast_buffer.getAttributeBlock(func_def.attributeBlock)
 		).isError()){
 			return evo::resultError;
 		}
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(func_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
+
 
 		current_symbol->symbol_proc.extra_info.emplace<SymbolProc::FuncInfo>();
 
@@ -1132,10 +1157,22 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_func_alias_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_func_alias_def(
+		const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+	) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_ALIAS_DEF, "Not an alias func decl");
 
 		const AST::FuncAliasDef& func_alias_def = this->source.getASTBuffer().getFuncAliasDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				this->source.getASTBuffer().getAttributeBlock(func_alias_def.attributeBlock),
+				non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
+
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
 			this->source.getASTBuffer().getAttributeBlock(func_alias_def.attributeBlock)
@@ -1173,9 +1210,19 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_alias_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_alias_def(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::AliasDef& alias_def = ast_buffer.getAliasDef(stmt);
+
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(alias_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
 
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info = this->analyze_attributes(
@@ -1216,9 +1263,19 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_struct_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_struct_def(
+		const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+	) -> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::StructDef& struct_def = ast_buffer.getStructDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(struct_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
@@ -1261,9 +1318,24 @@ namespace pcit::panther{
 			current_symbol = &this->get_current_symbol();
 
 		}else{
+			SymbolProc::StructInfo& struct_info =
+				current_symbol->symbol_proc.extra_info.emplace<SymbolProc::StructInfo>();
+
 			this->add_instruction(
-				this->context.symbol_proc_manager.createTemplateStruct(struct_def, std::move(template_param_infos))
+				this->context.symbol_proc_manager.createTemplateStructDecl(struct_def, std::move(template_param_infos))
 			);
+			this->add_instruction(this->context.symbol_proc_manager.createTemplateStructDef());
+
+			this->symbol_scopes.emplace_back(&struct_info.stmts);
+			this->symbol_namespaces.emplace_back(&struct_info.member_symbols);
+			for(const AST::Node& struct_stmt : ast_buffer.getBlock(struct_def.block).statements){
+				if(this->build(struct_stmt, NonTemplateDependentMode::ONLY).isError()){ return evo::resultError; }
+			}
+			this->symbol_namespaces.pop_back();
+			this->symbol_scopes.pop_back();
+
+			// need to set again as address may have changed
+			current_symbol = &this->get_current_symbol();
 		}
 
 
@@ -1286,9 +1358,18 @@ namespace pcit::panther{
 	}
 	
 
-	auto SymbolProcBuilder::build_union_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_union_def(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::UnionDef& union_def = ast_buffer.getUnionDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(union_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
@@ -1346,9 +1427,18 @@ namespace pcit::panther{
 	}
 
 
-	auto SymbolProcBuilder::build_enum_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_enum_def(const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode)
+	-> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::EnumDef& enum_def = ast_buffer.getEnumDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(enum_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
 
 		SymbolProcInfo* current_symbol = &this->get_current_symbol();
 
@@ -1426,9 +1516,19 @@ namespace pcit::panther{
 
 
 
-	auto SymbolProcBuilder::build_interface_def(const AST::Node& stmt) -> evo::Result<> {
+	auto SymbolProcBuilder::build_interface_def(
+		const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
+	) -> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::InterfaceDef& interface_def = ast_buffer.getInterfaceDef(stmt);
+
+		{
+			const evo::Result<ShouldSkipSymbol> attrib_ntd_res = this->analyze_attribute_non_template_depeneded(
+				ast_buffer.getAttributeBlock(interface_def.attributeBlock), non_template_dependent_mode
+			);
+			if(attrib_ntd_res.isError()){ return evo::resultError; }
+			if(attrib_ntd_res.value()){ return evo::Result<>(); }
+		}
 
 		evo::Result<evo::SmallVector<Instruction::AttributeParams>> attribute_params_info =
 			this->analyze_attributes(ast_buffer.getAttributeBlock(interface_def.attributeBlock));
@@ -1455,14 +1555,14 @@ namespace pcit::panther{
 		if(interface_def.impls.empty() == false){
 			this->symbol_namespaces.emplace_back(nullptr);
 			for(const AST::Node& impl : interface_def.impls){
-				const evo::Result<SymbolProc::ID> impl_symbol_proc_id = this->build(impl);
+				const evo::Result<std::optional<SymbolProc::ID>> impl_symbol_proc_id = this->build(impl);
 				if(impl_symbol_proc_id.isError()){ return evo::resultError; }
 
-				this->context.symbol_proc_manager.getSymbolProc(impl_symbol_proc_id.value()).is_local_symbol = true;
+				this->context.symbol_proc_manager.getSymbolProc(*impl_symbol_proc_id.value()).is_local_symbol = true;
 				this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 				this->add_instruction(
-					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(impl_symbol_proc_id.value())
+					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*impl_symbol_proc_id.value())
 				);
 			}
 			this->symbol_namespaces.pop_back();
@@ -1555,14 +1655,15 @@ namespace pcit::panther{
 
 		for(const AST::InterfaceImpl::Method& method : interface_impl.methods){
 			if(in_def || method.value.is<AST::Node>()){
-				const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(method.value.as<AST::Node>());
+				const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id =
+					this->build(method.value.as<AST::Node>());
 				if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-				this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+				this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 				this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 				this->add_instruction(
-					this->context.symbol_proc_manager.createInterfaceInDefImplMethod(func_symbol_proc_id.value())
+					this->context.symbol_proc_manager.createInterfaceInDefImplMethod(*func_symbol_proc_id.value())
 				);
 				
 			}else{
@@ -2371,14 +2472,14 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_func(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::FUNC_DEF, "Not a func decl");
 
-		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2426,14 +2527,14 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_struct(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::STRUCT_DEF, "Not a struct decl");
 
-		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2442,14 +2543,14 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_union(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::UNION_DEF, "Not a union decl");
 
-		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2457,14 +2558,14 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_enum(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::ENUM_DEF, "Not a enum decl");
 
-		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2473,14 +2574,14 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_interface(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DEF, "Not an interface decl");
 
-		const evo::Result<SymbolProc::ID> func_symbol_proc_id = this->build(stmt);
+		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(func_symbol_proc_id.value()).is_local_symbol = true;
+		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
 		this->context.symbol_proc_manager.num_procs_not_done -= 1;
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -3489,6 +3590,7 @@ namespace pcit::panther{
 					}
 				} break;
 
+				case AST::Kind::TYPE_THIS:           return this->analyze_expr_type_this<true>(expr);
 				case AST::Kind::IDENT:               return this->analyze_expr_ident<true>(expr);
 				case AST::Kind::INTRINSIC:           return this->analyze_expr_intrinsic(expr);
 				case AST::Kind::LITERAL:             return this->analyze_expr_literal(ast_buffer.getLiteral(expr));
@@ -5394,11 +5496,62 @@ namespace pcit::panther{
 				const SymbolProcInfo& current_symbol_proc = this->get_current_symbol();
 				current_symbol_proc.symbol_proc.is_always_priority = true;
 				current_symbol_proc.symbol_proc.builtin_symbol_proc_kind = lookup_symbol_kind.value();
+
 			}
 		}
 
 		return evo::Result<>();
 	}
+
+
+
+	auto SymbolProcBuilder::analyze_attribute_non_template_depeneded(
+		const AST::AttributeBlock& attribute_block, NonTemplateDependentMode non_template_dependent_mode
+	) -> evo::Result<ShouldSkipSymbol> {
+		for(const AST::AttributeBlock::Attribute& attribute : attribute_block.attributes){
+			const std::string_view attribute_str = this->source.getTokenBuffer()[attribute.attribute].getString();
+			if(attribute_str != "nonTemplateDependent"){ continue; }
+
+			if(attribute.args.size() != 0){
+				this->emit_error("Attribute #nonTemplateDependent accepts 0 arguments", attribute.args[1]);
+				return evo::resultError;
+			}
+
+			this->get_current_symbol().is_non_template_dependent = true;
+
+			switch(non_template_dependent_mode){
+				case NonTemplateDependentMode::ONLY: {
+					return false;
+				} break;
+
+				case NonTemplateDependentMode::EVERYTHING_ELSE: {
+					if(this->is_child_symbol() == false){
+						this->emit_error("Invalid scope for attribute `#nonTemplateDependent`", attribute.attribute);
+						return evo::resultError;
+					}
+
+					const SymbolProc& parent_symbol_proc = this->get_parent_symbol().symbol_proc;
+					if(
+						parent_symbol_proc.extra_info.is<SymbolProc::StructInfo>() == false
+						|| parent_symbol_proc.extra_info.as<SymbolProc::StructInfo>().instantiation == nullptr
+					){
+						this->emit_error("Invalid scope for attribute `#nonTemplateDependent`", attribute.attribute);
+						return evo::resultError;
+					}
+
+					this->get_current_symbol().symbol_proc.status = SymbolProc::Status::SKIPPED_NON_TEMPLATE_DEPENDENT;
+					this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
+					return true;
+				} break;
+			}
+		}
+
+		return false;
+	}
+
+
+
 
 
 
