@@ -1523,7 +1523,12 @@ namespace pcit::panther{
 				this->inst_index += 1;
 			}
 
-			auto setInstructionIndex(InstructionIndex new_index) -> void { this->inst_index = size_t(new_index.get()); }
+			auto setInstructionIndex(InstructionIndex new_index) -> void {
+				evo::debugAssert(
+					this->isTemplateSubSymbol() == false, "Cannot change the instruction index of template sub-symbol"
+				);
+				this->inst_index = size_t(new_index.get());
+			}
 
 			[[nodiscard]] auto isAtEnd() const -> bool {
 				return this->inst_index >= this->instructions.size();

@@ -112,7 +112,7 @@ namespace pcit::panther{
 				std::filesystem::path&& _path, std::string&& data_str, Package::ID pgk_id
 			) : id(ID(0)), path(std::move(_path)), data(std::move(data_str)), packagage_id(pgk_id) {
 				evo::debugAssert(this->path.empty() == false, "Cannot have empty path");
-				evo::debugAssert(this->data.empty() == false, "Cannot have empty data");
+				// evo::debugAssert(this->data.empty() == false, "Cannot have empty data");
 			}
 
 	

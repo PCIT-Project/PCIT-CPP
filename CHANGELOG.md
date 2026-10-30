@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.418.2"></a>
+## v0.0.418.2
+
+### Panther
+- Fixed semantic analysis of templated children of templates
+- Fixed semantic analysis of inline defined interface impl methods where the interface impl is that of a struct template
+
+
+<!---------------------------------->
 <a name="v0.0.418.1"></a>
 ## v0.0.418.1
 

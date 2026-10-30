@@ -37,7 +37,11 @@ namespace pcit::panther{
 
 		if(this->symbol_proc.passedOnByWhen()){ return; }
 		
-		evo::debugAssert(this->symbol_proc.status.load() != SymbolProc::Status::SKIPPED_NON_TEMPLATE_DEPENDENT);
+		evo::debugAssert(
+			this->symbol_proc.status.load() != SymbolProc::Status::SKIPPED_NON_TEMPLATE_DEPENDENT,
+			"Cannot analyze symbol that was skipped for non template dependent"
+		);
+		evo::debugAssert(this->symbol_proc.isTemplateSubSymbol() == false, "Cannot analyze template sub symbol");
 
 		{
 			const auto lock = std::scoped_lock(this->symbol_proc.waiting_for_lock);

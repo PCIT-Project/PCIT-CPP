@@ -91,8 +91,10 @@ namespace pcit::panther{
 		symbol_proc.type_ids.resize(current_symbol.num_type_ids);
 		symbol_proc.struct_instantiations.resize(current_symbol.num_struct_instantiations);
 
-		if(current_symbol.is_template == false && current_symbol.is_non_template_dependent == false){
-			for(auto iter = this->symbol_proc_infos.rbegin(); iter != this->symbol_proc_infos.rend(); ++iter){
+		if(current_symbol.is_non_template_dependent == false){
+			for(
+				auto iter = std::next(this->symbol_proc_infos.rbegin()); iter != this->symbol_proc_infos.rend(); ++iter
+			){
 				if(iter->is_template){
 					symbol_proc.setIsTemplateSubSymbol();
 					this->context.symbol_proc_manager.num_procs_not_done -= 1;
@@ -1659,8 +1661,16 @@ namespace pcit::panther{
 					this->build(method.value.as<AST::Node>());
 				if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-				this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-				this->context.symbol_proc_manager.num_procs_not_done -= 1;
+				SymbolProc& func_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value());
+
+
+				func_symbol_proc.is_local_symbol = true;
+
+				if(func_symbol_proc.isTemplateSubSymbol() == false){
+					this->context.symbol_proc_manager.num_procs_not_done -= 1;
+				}
+
 
 				this->add_instruction(
 					this->context.symbol_proc_manager.createInterfaceInDefImplMethod(*func_symbol_proc_id.value())
