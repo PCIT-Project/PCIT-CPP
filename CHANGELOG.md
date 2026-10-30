@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.419.1"></a>
+## v0.0.419.1
+
+### Panther
+- Fixed moving variables that have attribute `#movable` when moved via assignment move
+
+
+<!---------------------------------->
 <a name="v0.0.419.0"></a>
 ## v0.0.419.0
 

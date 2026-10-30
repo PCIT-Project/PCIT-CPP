@@ -11313,25 +11313,30 @@ namespace pcit::panther{
 
 
 		if(target.value_category != TermInfo::ValueCategory::CONCRETE_MUT){
-			if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
-				this->emit_error(
-					"Argument of operator [move] cannot be an in-parameter",
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
-					Diagnostic::Info("Use operator [forward] instead")
-				);
-			}else if(target.is_concrete() == false){
-				this->emit_error(
-					"Argument of operator [move] must be concrete",
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
-				);
-			}else{
-				this->emit_error(
-					"Argument of operator [move] must be mutable",
-					this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
-				);
-			}
+			if(
+				target.getExpr().kind() != sema::Expr::Kind::VAR
+				|| this->context.getSemaBuffer().getVar(target.getExpr().varID()).isMovable == false
+			){
+				if(target.value_category == TermInfo::ValueCategory::FORWARDABLE){
+					this->emit_error(
+						"Argument of operator [move] cannot be an in-parameter",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs,
+						Diagnostic::Info("Use operator [forward] instead")
+					);
+				}else if(target.is_concrete() == false){
+					this->emit_error(
+						"Argument of operator [move] must be concrete",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
+					);
+				}else{
+					this->emit_error(
+						"Argument of operator [move] must be mutable",
+						this->source.getASTBuffer().getPrefix(instr.infix.rhs).rhs
+					);
+				}
 
-			return Result::ERROR;
+				return Result::ERROR;
+			}
 		}
 
 
