@@ -7450,7 +7450,7 @@ namespace pcit::panther{
 				const Data::InterfaceInfo& data_interface_info = this->data.get_interface(
 					attempt_interface_call.interfaceID
 				);
-				error_return_type = *data_interface_info.error_return_types[attempt_interface_call.vtableFuncIndex];
+				error_return_type = data_interface_info.error_return_types[attempt_interface_call.vtableFuncIndex];
 
 
 				for(size_t i = 0; const sema::Expr& arg : attempt_interface_call.args){
@@ -7510,7 +7510,7 @@ namespace pcit::panther{
 			
 		}else{
 			single_return_address = this->handler.createAlloca(
-				this->get_type<false, false>(target_type->returnTypes[0]).type
+				this->get_type<false, false>(target_type->returnTypes[0]).type, this->name("TRY_ELSE.OUTPUT")
 			);
 			args.emplace_back(*single_return_address);
 		}
@@ -15396,7 +15396,7 @@ namespace pcit::panther{
 			}
 		}
 
-		if(func_type.hasNamedReturns || func_type.hasErrorReturnValue()){
+		if(func_type.hasNamedReturns || func_type.hasErrorReturn()){
 			for(size_t i = 0; i < func_type.returnTypes.size(); i+=1){
 				param_types.emplace_back(this->module.createPtrType());
 			}

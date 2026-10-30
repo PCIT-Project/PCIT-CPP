@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.418.1"></a>
+## v0.0.418.1
+
+### Panther
+- Fixed `try`/`else` interface call expression that has an error return of `Void`
+
+
+<!---------------------------------->
 <a name="v0.0.418.0"></a>
 ## v0.0.418.0
 
