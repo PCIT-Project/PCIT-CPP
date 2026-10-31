@@ -1049,6 +1049,15 @@ namespace pcit::panther{
 			if(is_global){
 				this->emit_error("Variables with global lifetime must be declared with a value", instr.var_def);
 				return Result::ERROR;
+
+			}else{
+				if(this->context.getTypeManager().isTypeDeducer(var_type_id)){
+					this->emit_error(
+						"Member variables without a default value cannot have a type that is a deducer",
+						*instr.var_def.type
+					);
+					return Result::ERROR;
+				}
 			}
 		}
 

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.419.2"></a>
+## v0.0.419.2
+
+### Panther
+- Fixed missing check for declaring a member variable with a deducer type with no default value
+
+
+<!---------------------------------->
 <a name="v0.0.419.1"></a>
 ## v0.0.419.1
 
