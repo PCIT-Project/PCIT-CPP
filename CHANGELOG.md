@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.420.0"></a>
+## v0.0.420.0
+
+### Panther
+- Added support for operator `copy` with a `mut` `this`
+
+
+<!---------------------------------->
 <a name="v0.0.419.2"></a>
 ## v0.0.419.2
 

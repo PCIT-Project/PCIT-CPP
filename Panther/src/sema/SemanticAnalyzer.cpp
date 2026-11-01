@@ -4417,9 +4417,13 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ){
+							if(
+								created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ
+								&& created_func_type.params[0].kind != BaseType::Function::Param::Kind::MUT
+							){
 								this->emit_error(
-									"Operator [copy] initialization overload [this] parameter must be kind [read]",
+									"Operator [copy] initialization overload [this] parameter must be "
+										"kind [read] or [mut]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -4486,9 +4490,12 @@ namespace pcit::panther{
 								return Result::ERROR;
 							}
 
-							if(created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ){
+							if(
+								created_func_type.params[0].kind != BaseType::Function::Param::Kind::READ
+								&& created_func_type.params[0].kind != BaseType::Function::Param::Kind::MUT
+							){
 								this->emit_error(
-									"Operator [copy] assignment overload [this] parameter must be kind [read]",
+									"Operator [copy] assignment overload [this] parameter must be kind [read] or [mut]",
 									instr.func_def
 								);
 								return Result::ERROR;
@@ -16635,6 +16642,14 @@ namespace pcit::panther{
 							return Result::ERROR;
 						}
 					}
+
+					if(
+						target.is_mutable() == false
+						&& copy_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+					){
+						this->emit_error("Operator [copy] of this type requires a mutable value", instr.prefix);
+						return Result::ERROR;
+					}
 					
 				}else{
 					if(instr.mode.isError()){
@@ -28248,6 +28263,14 @@ namespace pcit::panther{
 								);
 								return evo::resultError;
 							}
+
+							if(
+								TermInfo::isValueCategoryMutable(value_category) == false
+								&& sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							){
+								this->emit_error("Operator [copy] of this type requires a mutable value", location);
+								return evo::resultError;
+							}
 						}
 
 						dependent_funcs.emplace(copy_overload.funcID());
@@ -28304,6 +28327,16 @@ namespace pcit::panther{
 								);
 								return evo::resultError;
 							}
+
+							if(
+								TermInfo::isValueCategoryMutable(value_category) == false
+								&& sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							){
+								this->emit_error(
+									"Operator assignment [copy] of this type requires a mutable value", location
+								);
+								return evo::resultError;
+							}
 						}
 
 						dependent_funcs.emplace(*copy_assign_overload);
@@ -28355,6 +28388,14 @@ namespace pcit::panther{
 										)
 									}
 								);
+								return evo::resultError;
+							}
+
+							if(
+								TermInfo::isValueCategoryMutable(value_category) == false
+								&& sema_func_type.params[0].kind == BaseType::Function::Param::Kind::MUT
+							){
+								this->emit_error("Operator [copy] of this type requires a mutable value", location);
 								return evo::resultError;
 							}
 						}
