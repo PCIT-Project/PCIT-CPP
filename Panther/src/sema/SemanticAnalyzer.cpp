@@ -26878,7 +26878,15 @@ namespace pcit::panther{
 			}
 
 			const TermInfo::ValueCategory value_category = [&](){
-				if(lhs.is_ephemeral() && is_pointer == false){ return lhs.value_category; }
+				if(is_pointer){
+					if(decayed_lhs_type.qualifiers().back().isMut){
+						return TermInfo::ValueCategory::CONCRETE_MUT;
+					}else{
+						return TermInfo::ValueCategory::CONCRETE_CONST;
+					}
+				}
+
+				if(lhs.is_ephemeral()){ return lhs.value_category; }
 
 				if(lhs.value_category == TermInfo::ValueCategory::CONCRETE_CONST){
 					return TermInfo::ValueCategory::CONCRETE_CONST;
