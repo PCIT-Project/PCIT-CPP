@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.420.1"></a>
+## v0.0.420.1
+
+### Panther
+- Fixed lowering of defers and automatic operator `delete`s on return within a function that errors and returns a value
+	- They were being added twice
+
+
+<!---------------------------------->
 <a name="v0.0.420.0"></a>
 ## v0.0.420.0
 

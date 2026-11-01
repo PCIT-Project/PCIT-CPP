@@ -2711,10 +2711,11 @@ namespace pcit::panther{
 							this->handler.createStore(
 								this->current_func_type_info->return_params.front().expr, ret_value
 							);
-						}
 
-						for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
-							this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
+						}else{
+							for(const ScopeLevel& scope_level : this->scope_levels | std::views::reverse){
+								this->output_defers_for_scope_level<DeferTarget::RETURN>(scope_level);
+							}
 						}
 
 						this->handler.createRet(this->handler.createBoolean(false));
