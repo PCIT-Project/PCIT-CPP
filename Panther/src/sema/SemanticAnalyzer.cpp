@@ -11449,7 +11449,7 @@ namespace pcit::panther{
 			is_initialization
 		);
 
-		if(type_check_info.ok == false){ return Result::ERROR; }
+		if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
 		if(type_check_info.non_auto_implicit_conversion_target.is<std::monostate>() == false){
 			return this->handle_non_auto_implicit_conversion(
@@ -34201,7 +34201,7 @@ namespace pcit::panther{
 		evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
 		evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
 		std::optional<AST::Node> func_call_target, // not needed if `new`
-		evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+		evo::ArrayProxy<AST::FuncCall::Arg> ast_args, // empty if is implicit conversion `new`
 		Diagnostic::Location location
 	) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> {
 		auto args = evo::SmallVector<const TermInfo*>();
@@ -34231,9 +34231,18 @@ namespace pcit::panther{
 		evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
 		evo::ArrayProxy<const TermInfo*> args,
 		std::optional<AST::Node> func_call_target, // not needed if `new`
-		evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+		evo::ArrayProxy<AST::FuncCall::Arg> ast_args, // empty if is implicit conversion `new`
 		Diagnostic::Location location
 	) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> {
+		#if defined(PCIT_CONFIG_DEBUG)
+			if(ast_args.size() != args.size()){
+				evo::debugAssert(ast_args.empty(), "Mismatch number of arguments");
+				evo::debugAssert(func_call_target.has_value() == false, "AST arguments are required");
+			}
+		#endif
+
+
+
 		auto instantiation_error_infos = evo::SmallVector<Diagnostic::Info>();
 
 		if(instantiation_infos.empty()){
@@ -34576,30 +34585,48 @@ namespace pcit::panther{
 					}else if constexpr(
 						std::is_same<ReasonT, Instantiation::ErroredReasonParamDeductionFailed>()
 					){
-						instantiation_error_infos.emplace_back(
-							std::format(
-								"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
-							),
-							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(ast_args[reason.arg_index].value)
-								),
-								Diagnostic::Info(
-									std::format("Argument type: {}", this->print_term_type(*args[reason.arg_index]))
-								)
-							}
-						);
+						if(ast_args.empty()){
+							evo::debugAssert(reason.arg_index == 0, "Invalid arg index");
 
+							instantiation_error_infos.emplace_back(
+								std::format("Failed to match: failed to deduce type to implicitly convert from"),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										std::format(
+											"Type of expression: {}", this->print_term_type(*args[reason.arg_index])
+										)
+									)
+								}
+							);
+							
+						}else{
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: failed to deduce type of parameter (index: {}) ", reason.arg_index
+								),
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(ast_args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format("Argument type: {}", this->print_term_type(*args[reason.arg_index]))
+									)
+								}
+							);
+						}
 
 					}else if constexpr(
 						std::is_same<ReasonT, Instantiation::ErroredReasonArgTypeMismatch>()
 					){
-						auto sub_infos = evo::SmallVector<Diagnostic::Info>{
-							Diagnostic::Info(
+						auto sub_infos = evo::SmallVector<Diagnostic::Info>{};
+
+						if(ast_args.empty() == false){
+							sub_infos.emplace_back(
 								"This argument:", this->get_location(ast_args[reason.arg_index].value)
-							)
-						};
+							);
+						}
 
 						this->diagnostic_print_type_info(reason.got_type_id, sub_infos, "Argument type:  ");
 						this->diagnostic_print_type_info(reason.expected_type_id, sub_infos, "Parameter type: ");
@@ -34616,33 +34643,61 @@ namespace pcit::panther{
 
 					}else if constexpr(
 						std::is_same<ReasonT, Instantiation::ErroredReasonTypeDoesntImplInterface>()
-					){
-						instantiation_error_infos.emplace_back(
-							std::format(
-								"Failed to match: type of argument (index: {}) doesn't implement the interface",
-								reason.arg_index
-							),
-							get_func_location(),
-							evo::SmallVector<Diagnostic::Info>{
-								Diagnostic::Info(
-									"This argument:", this->get_location(ast_args[reason.arg_index].value)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Argument type:  {}",
-										this->context.getTypeManager().printType(reason.got_type_id, this->context)
-									)
-								),
-								Diagnostic::Info(
-									std::format(
-										"Interface type: {}",
-										this->context.getTypeManager().printType(
-											reason.interface_type_id, this->context
+					){	
+						if(ast_args.empty()){
+							evo::debugAssert(reason.arg_index == 0, "Invalid arg index");
+
+							instantiation_error_infos.emplace_back(
+								"Failed to match: type of argument doesn't implement the interface",
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										std::format(
+											"Argument type:  {}",
+											this->context.getTypeManager().printType(reason.got_type_id, this->context)
 										)
-									)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Interface type: {}",
+											this->context.getTypeManager().printType(
+												reason.interface_type_id, this->context
+											)
+										)
+									),
+								}
+							);
+
+
+						}else{
+							instantiation_error_infos.emplace_back(
+								std::format(
+									"Failed to match: type of argument (index: {}) doesn't implement the interface",
+									reason.arg_index
 								),
-							}
-						);
+								get_func_location(),
+								evo::SmallVector<Diagnostic::Info>{
+									Diagnostic::Info(
+										"This argument:", this->get_location(ast_args[reason.arg_index].value)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Argument type:  {}",
+											this->context.getTypeManager().printType(reason.got_type_id, this->context)
+										)
+									),
+									Diagnostic::Info(
+										std::format(
+											"Interface type: {}",
+											this->context.getTypeManager().printType(
+												reason.interface_type_id, this->context
+											)
+										)
+									),
+								}
+							);
+						}
+						
 					}else if constexpr(
 						std::is_same<ReasonT, Instantiation::ErroredReasonErroredAfterDecl>()
 					){

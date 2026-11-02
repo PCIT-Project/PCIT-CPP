@@ -792,7 +792,7 @@ namespace pcit::panther{
 				evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
 				evo::ArrayProxy<SymbolProc::TermInfoID> arg_ids,
 				std::optional<AST::Node> func_call_target, // not needed if `new`
-				evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+				evo::ArrayProxy<AST::FuncCall::Arg> ast_args, // empty if is implicit conversion `new`
 				Diagnostic::Location location
 			) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result>;
 
@@ -803,7 +803,7 @@ namespace pcit::panther{
 				evo::ArrayProxy<std::optional<TemplateOverloadMatchFail>> template_overload_match_infos,
 				evo::ArrayProxy<const TermInfo*> args,
 				std::optional<AST::Node> func_call_target, // not needed if `new`
-				evo::ArrayProxy<AST::FuncCall::Arg> ast_args,
+				evo::ArrayProxy<AST::FuncCall::Arg> ast_args, // empty if is implicit conversion `new`
 				Diagnostic::Location location
 			) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result>;
 

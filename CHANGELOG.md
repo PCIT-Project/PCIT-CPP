@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.424.1"></a>
+## v0.0.424.1
+
+### Panther
+- Fixed race condition in semantic analysis of assignment `move`
+- Fixed emitting error diagnostic for implicit conversion to a struct failing to select a template overload of operator `new`
+
+
+<!---------------------------------->
 <a name="v0.0.424.0"></a>
 ## v0.0.424.0
 
