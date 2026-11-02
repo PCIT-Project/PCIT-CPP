@@ -7788,7 +7788,7 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueState::MOVED_FROM: {
-				if(this->get_package().warn.deleteMovedFromExpr){
+				if(this->get_current_scope_level().warn_context.deleteMovedFromExpr){
 					this->emit_warning("Argument of [delete] statement was moved-from", instr.delete_stmt.value);
 				}
 			} break;
@@ -7796,7 +7796,7 @@ namespace pcit::panther{
 
 
 		if(
-			this->get_package().warn.deleteTriviallyDeletableType
+			this->get_current_scope_level().warn_context.deleteTriviallyDeletableType
 			&& this->context.getTypeManager().isTriviallyDeletable(target.type_id.as<TypeInfo::ID>())
 		){
 			this->emit_warning("Argument of [delete] statement is a trivially deletable type", instr.delete_stmt.value);
@@ -7897,7 +7897,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.comptimeIfCond && cond.ableToBeComptime){
+		if(this->get_current_scope_level().warn_context.comptimeIfCond && cond.ableToBeComptime){
 			this->emit_warning(
 				"Condition in [if] conditional is comptime",
 				instr.conditional.cond,
@@ -9186,7 +9186,7 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		if(this->get_package().warn.comptimeSwitchCond && cond.ableToBeComptime){
+		if(this->get_current_scope_level().warn_context.comptimeSwitchCond && cond.ableToBeComptime){
 			this->emit_warning(
 				"Condition in [switch] conditional is comptime",
 				instr.switch_stmt.cond,
@@ -9960,7 +9960,7 @@ namespace pcit::panther{
 					sema_args.emplace_back(fake_term_info.expr);
 
 				}else{
-					if(this->get_package().warn.methodCallOnNonMethod){
+					if(this->get_current_scope_level().warn_context.methodCallOnNonMethod){
 						this->emit_warning(
 							"Making a method call to a function that is not a method",
 							instr.func_call,
@@ -11937,7 +11937,7 @@ namespace pcit::panther{
 					sema_args.emplace_back(fake_term_info.expr);
 
 				}else{
-					if(this->get_package().warn.methodCallOnNonMethod){
+					if(this->get_current_scope_level().warn_context.methodCallOnNonMethod){
 						this->emit_warning(
 							"Making a method call to a function that is not a method",
 							ast_func_call,
@@ -12241,7 +12241,7 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_begin_unsafe(const Instruction::BeginUnsafe& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.unsafe_stmt).isError()){ return Result::ERROR; }
 
-		if(this->get_package().warn.alreadyUnsafe && this->currently_in_unsafe()){
+		if(this->get_current_scope_level().warn_context.alreadyUnsafe && this->currently_in_unsafe()){
 			this->emit_warning("Unsafe block in a scope that is already unsafe", instr.unsafe_stmt);
 		}
 
@@ -12595,7 +12595,7 @@ namespace pcit::panther{
 					sema_args.emplace_back(fake_term_info.expr);
 
 				}else{
-					if(this->get_package().warn.methodCallOnNonMethod){
+					if(this->get_current_scope_level().warn_context.methodCallOnNonMethod){
 						this->emit_warning(
 							"Making a method call to a function that is not a method",
 							instr.func_call,
@@ -14225,6 +14225,106 @@ namespace pcit::panther{
 						return Result::ERROR;
 					} break;
 				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ENABLE_WARNING: {
+				const uint32_t warning_number = static_cast<uint32_t>(
+					template_args[0].as<core::GenericValue>().getInt(32)
+				);
+
+				switch(static_cast<Warning>(warning_number)){
+					case Warning::METHOD_CALL_ON_NON_METHOD: {
+						this->get_current_scope_level().warn_context.methodCallOnNonMethod = true;
+					} break;
+
+					case Warning::MEMBER_TYPE_BY_VALUE_ACCESSOR: {
+						this->get_current_scope_level().warn_context.memberTypeByValueAccessor = true;
+					} break;
+
+					case Warning::DELETE_MOVED_FROM_EXPR: {
+						this->get_current_scope_level().warn_context.deleteMovedFromExpr = true;
+					} break;
+
+					case Warning::DELETE_TRIVIALLY_DELETABLE_TYPE: {
+						this->get_current_scope_level().warn_context.deleteTriviallyDeletableType = true;
+					} break;
+
+					case Warning::COMPTIME_IF_COND: {
+						this->get_current_scope_level().warn_context.comptimeIfCond = true;
+					} break;
+
+					case Warning::COMPTIME_SWITCH_COND: {
+						this->get_current_scope_level().warn_context.comptimeSwitchCond = true;
+					} break;
+
+					case Warning::ALREADY_UNSAFE: {
+						this->get_current_scope_level().warn_context.alreadyUnsafe = true;
+					} break;
+
+					case Warning::EXPERIMENTAL_F80: {
+						this->get_current_scope_level().warn_context.experimentalF80 = true;
+					} break;
+
+					default: {
+						this->emit_error(
+							"Unknown warning",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+						);
+						return Result::ERROR;
+					} break;
+				}
+
+				return Result::SUCCESS;
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::DISABLE_WARNING: {
+				const uint32_t warning_number = static_cast<uint32_t>(
+					template_args[0].as<core::GenericValue>().getInt(32)
+				);
+
+				switch(static_cast<Warning>(warning_number)){
+					case Warning::METHOD_CALL_ON_NON_METHOD: {
+						this->get_current_scope_level().warn_context.methodCallOnNonMethod = false;
+					} break;
+
+					case Warning::MEMBER_TYPE_BY_VALUE_ACCESSOR: {
+						this->get_current_scope_level().warn_context.memberTypeByValueAccessor = false;
+					} break;
+
+					case Warning::DELETE_MOVED_FROM_EXPR: {
+						this->get_current_scope_level().warn_context.deleteMovedFromExpr = false;
+					} break;
+
+					case Warning::DELETE_TRIVIALLY_DELETABLE_TYPE: {
+						this->get_current_scope_level().warn_context.deleteTriviallyDeletableType = false;
+					} break;
+
+					case Warning::COMPTIME_IF_COND: {
+						this->get_current_scope_level().warn_context.comptimeIfCond = false;
+					} break;
+
+					case Warning::COMPTIME_SWITCH_COND: {
+						this->get_current_scope_level().warn_context.comptimeSwitchCond = false;
+					} break;
+
+					case Warning::ALREADY_UNSAFE: {
+						this->get_current_scope_level().warn_context.alreadyUnsafe = false;
+					} break;
+
+					case Warning::EXPERIMENTAL_F80: {
+						this->get_current_scope_level().warn_context.experimentalF80 = false;
+					} break;
+
+					default: {
+						this->emit_error(
+							"Unknown warning",
+							this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+						);
+						return Result::ERROR;
+					} break;
+				}
+
+				return Result::SUCCESS;
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID:
@@ -16517,6 +16617,16 @@ namespace pcit::panther{
 				}else{
 					create_runtime_call();
 				}
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::ENABLE_WARNING: {
+				this->emit_error("Function returns `Void` which is not a value", instr.func_call.target);
+				return Result::ERROR;
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::DISABLE_WARNING: {
+				this->emit_error("Function returns `Void` which is not a value", instr.func_call.target);
+				return Result::ERROR;
 			} break;
 		}
 
@@ -21029,7 +21139,13 @@ namespace pcit::panther{
 			sema::ScopeManager::Scope& instantiation_sema_scope =
 				this->context.sema_buffer.getScopeManager().getScope(instantiation_sema_scope_id);
 
-			instantiation_sema_scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel());
+			const sema::ScopeLevel& instantiation_scope_level = this->context.sema_buffer.getScopeManager().getLevel(
+				instantiation_sema_scope.getCurrentLevel()
+			);
+
+			instantiation_sema_scope.pushLevel(
+				this->context.sema_buffer.getScopeManager().createLevel(instantiation_scope_level.warn_context)
+			);
 
 			const AST::StructDef& struct_template_decl = 
 				instantiation_source.getASTBuffer().getStructDef(sema_templated_struct.symbolProc.ast_node);
@@ -24243,7 +24359,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->get_package().warn.experimentalF80){
+				if(this->get_current_scope_level().warn_context.experimentalF80){
 					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
 				}
 
@@ -24337,7 +24453,7 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->get_package().warn.experimentalF80){
+				if(this->get_current_scope_level().warn_context.experimentalF80){
 					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
 				}
 
@@ -27125,7 +27241,7 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TYPE: {
-				if(this->get_package().warn.memberTypeByValueAccessor){
+				if(this->get_current_scope_level().warn_context.memberTypeByValueAccessor){
 					this->emit_warning(
 						"Accessing a member type by value accessor",
 						instr.infix.rhs,
@@ -27428,7 +27544,7 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TYPE: {
-				if(this->get_package().warn.memberTypeByValueAccessor){
+				if(this->get_current_scope_level().warn_context.memberTypeByValueAccessor){
 					this->emit_warning(
 						"Accessing a member type by value accessor",
 						instr.infix.rhs,
@@ -27632,7 +27748,7 @@ namespace pcit::panther{
 			} break;
 
 			case TermInfo::ValueCategory::TYPE: {
-				if(this->get_package().warn.memberTypeByValueAccessor){
+				if(this->get_current_scope_level().warn_context.memberTypeByValueAccessor){
 					this->emit_warning(
 						"Accessing a member type by value accessor",
 						instr.infix.rhs,
@@ -27998,7 +28114,11 @@ namespace pcit::panther{
 		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block));
+		this->scope.pushLevel(
+			this->context.sema_buffer.getScopeManager().createLevel(
+				this->get_current_scope_level().warn_context, stmt_block
+			)
+		);
 	}
 
 	auto SemanticAnalyzer::push_scope_level(
@@ -28007,13 +28127,20 @@ namespace pcit::panther{
 		if(this->scope.inEncapsulatingSymbol()){
 			this->get_current_scope_level().addSubScope();
 		}
-		this->scope.pushLevel(this->context.sema_buffer.getScopeManager().createLevel(stmt_block, label, label_node));
+		this->scope.pushLevel(
+			this->context.sema_buffer.getScopeManager().createLevel(
+				this->get_current_scope_level().warn_context, stmt_block, label, label_node
+			)
+		);
 	}
 
 	auto SemanticAnalyzer::push_scope_level(sema::StmtBlock* stmt_block, const auto& encapsulating_symbol_id) -> void {
 		this->get_current_scope_level().addSubScope();
 		this->scope.pushLevel(
-			this->context.sema_buffer.getScopeManager().createLevel(stmt_block), encapsulating_symbol_id
+			this->context.sema_buffer.getScopeManager().createLevel(
+				this->get_current_scope_level().warn_context, stmt_block
+			),
+			encapsulating_symbol_id
 		);
 	}
 
@@ -33983,7 +34110,10 @@ namespace pcit::panther{
 			// add instantiation args to scope
 
 			sema::ScopeManager::Scope& instantiation_sema_scope = scope_manager.getScope(instantiation_sema_scope_id);
-			instantiation_sema_scope.pushLevel(scope_manager.createLevel());
+			const sema::ScopeLevel& instantiation_scope_level = this->context.sema_buffer.getScopeManager().getLevel(
+				instantiation_sema_scope.getCurrentLevel()
+			);
+			instantiation_sema_scope.pushLevel(scope_manager.createLevel(instantiation_scope_level.warn_context));
 
 			auto template_param_names = evo::SmallVector<Token::ID>();
 

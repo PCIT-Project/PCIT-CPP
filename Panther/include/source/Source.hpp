@@ -22,6 +22,7 @@
 #include "../../src/symbol_proc/SymbolProc.hpp"
 #include "../../src/sema/ScopeManager.hpp"
 #include "../../../PIR/include/meta.hpp"
+#include "../warnings.hpp"
 
 
 namespace pcit::panther{
@@ -37,18 +38,7 @@ namespace pcit::panther{
 					using core::UniqueID<uint32_t, ID>::UniqueID;
 				};
 
-				struct Warns{
-					bool methodCallOnNonMethod        = true;
-					bool memberTypeByValueAccessor    = true;
-					bool deleteMovedFromExpr          = true;
-					bool deleteTriviallyDeletableType = true;
-					bool comptimeIfCond               = true;
-					bool comptimeSwitchCond           = true;
-					bool alreadyUnsafe                = true;
-					bool experimentalF80              = true;
-
-					static auto all() -> Warns { return Warns(); };
-				};
+				using Warns = WarningContext;
 
 				using Option = evo::Variant<
 					bool,

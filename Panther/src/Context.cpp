@@ -18,6 +18,7 @@ namespace fs = std::filesystem;
 #include "./sema/SemanticAnalyzer.hpp"
 #include "../src/sema_to_pir/SemaToPIR.hpp"
 #include "../../PIR/include/getDefaultDebugger.hpp"
+#include "./sema/ScopeLevel.hpp"
 
 #include <PIR.hpp>
 
@@ -493,10 +494,11 @@ namespace pcit::panther{
 
 		for(const Source::ID& source_id : this->source_manager.getSourceIDRange()){
 			Source& source = this->source_manager[source_id];
+			const Source::Package& source_package = this->source_manager.getPackage(source.getPackageID());
 
 			source.sema_scope_id = this->sema_buffer.getScopeManager().createScope();
 			this->sema_buffer.getScopeManager().getScope(*source.sema_scope_id)
-				.pushLevel(this->sema_buffer.getScopeManager().createLevel());
+				.pushLevel(this->sema_buffer.getScopeManager().createLevel(source_package.warn));
 
 			source.is_ready_for_sema = true;
 
@@ -2257,9 +2259,11 @@ namespace pcit::panther{
 
 
 		Source& source = this->source_manager[dep_analysis_res.value()];
+		const Source::Package& source_package = this->source_manager.getPackage(source.getPackageID());
+
 		source.sema_scope_id = this->sema_buffer.getScopeManager().createScope();
 		this->sema_buffer.getScopeManager().getScope(*source.sema_scope_id)
-			.pushLevel(this->sema_buffer.getScopeManager().createLevel());
+			.pushLevel(this->sema_buffer.getScopeManager().createLevel(source_package.warn));
 
 		if(this->_config.includeDebugInfo){
 			source.pir_file_id = this->pir_module.createMetaFile(
@@ -3451,6 +3455,57 @@ namespace pcit::panther{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("C"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(BaseType::Function::ABI::C))
+					),
+				},
+				.underlyingTypeID  =
+					this->type_manager.getOrCreatePrimitiveBaseType(Token::Kind::TYPE_UI_N, 32).primitiveID(),
+				.namespacedMembers = nullptr,
+				.scopeLevel        = nullptr,
+				.isPrivate         = false,
+				.defCompleted      = true,
+			}
+		));
+
+
+
+
+		pthr_module.createSymbol("Warning", this->type_manager.createEnum(
+			BaseType::Enum{
+				.sourceID          = BuiltinModule::ID::PTHR,
+				.name              = pthr_module.createString("Warning"),
+				.parent            = std::nullopt,
+				.enumerators       = evo::SmallVector<BaseType::Enum::Enumerator>{
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("METHOD_CALL_ON_NON_METHOD"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::METHOD_CALL_ON_NON_METHOD))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("MEMBER_TYPE_BY_VALUE_ACCESSOR"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::MEMBER_TYPE_BY_VALUE_ACCESSOR))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("DELETE_MOVED_FROM_EXPR"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::DELETE_MOVED_FROM_EXPR))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("DELETE_TRIVIALLY_DELETABLE_TYPE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::DELETE_TRIVIALLY_DELETABLE_TYPE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("COMPTIME_IF_COND"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::COMPTIME_IF_COND))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("COMPTIME_SWITCH_COND"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::COMPTIME_SWITCH_COND))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("ALREADY_UNSAFE"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::ALREADY_UNSAFE))
+					),
+					BaseType::Enum::Enumerator(
+						pthr_module.createString("EXPERIMENTAL_F80"),
+						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::EXPERIMENTAL_F80))
 					),
 				},
 				.underlyingTypeID  =
@@ -5049,6 +5104,7 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
 		};
 
+
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_PRINT))] = IntrinsicFuncInfo{
 			.typeID = create_func_type(
 				evo::SmallVector<BaseType::Function::Param>{
@@ -5077,22 +5133,6 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
 		};
 
-		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID))] =
-			IntrinsicFuncInfo{
-				.typeID = create_func_type(
-					evo::SmallVector<BaseType::Function::Param>{
-						BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ),
-						BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ),
-					},
-					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeTypeID()},
-					evo::SmallVector<TypeInfo::VoidableID>{},
-					true,
-					true
-				),
-				.allowedInComptime = true, .allowedInRuntime = false,
-				.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
-			};
-
 
 		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_ALLOC))] =
 			IntrinsicFuncInfo{
@@ -5117,6 +5157,22 @@ namespace pcit::panther{
 						BaseType::Function::Param(TypeManager::getTypeRawPtr(), BaseType::Function::Param::Kind::READ),
 					},
 					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = true, .allowedInRuntime = false,
+				.allowedInCompile  = true, .allowedInScript = true,  .allowedInBuild = true,
+			};
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::CT_GET_INTEGER_TYPE_ID))] =
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{
+						BaseType::Function::Param(TypeManager::getTypeUI32(), BaseType::Function::Param::Kind::READ),
+						BaseType::Function::Param(TypeManager::getTypeBool(), BaseType::Function::Param::Kind::READ),
+					},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeTypeID()},
 					evo::SmallVector<TypeInfo::VoidableID>{},
 					true,
 					true
@@ -6027,6 +6083,29 @@ namespace pcit::panther{
 			.allowedInComptime = true, .allowedInRuntime = false,
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
+
+
+		{
+			const TypeInfo::ID panther_warning_type_id = this->type_manager.getOrCreateTypeInfo(
+				TypeInfo(builtin_module_pthr.getSymbol("Warning")->as<BaseType::ID>())
+			);
+
+			get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ENABLE_WARNING) = TemplateIntrinsicFuncInfo{
+				.templateParams = evo::SmallVector<TemplateParam>{panther_warning_type_id},
+				.params         = evo::SmallVector<Param>{},
+				.returns        = evo::SmallVector<Return>{TypeInfo::VoidableID::Void()},
+				.allowedInComptime = true, .allowedInRuntime = true,
+				.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+			};
+
+			get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::DISABLE_WARNING) = TemplateIntrinsicFuncInfo{
+				.templateParams = evo::SmallVector<TemplateParam>{panther_warning_type_id},
+				.params         = evo::SmallVector<Param>{},
+				.returns        = evo::SmallVector<Return>{TypeInfo::VoidableID::Void()},
+				.allowedInComptime = true, .allowedInRuntime = true,
+				.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+			};
+		}
 	}
 
 

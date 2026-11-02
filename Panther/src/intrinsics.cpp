@@ -41,27 +41,29 @@ namespace pcit::panther{
 		if(was_initialized){ return; }
 
 		intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
-			{"abort",                        Kind::ABORT},
-			{"breakpoint",                   Kind::BREAKPOINT},
-			{"panic",                        Kind::PANIC},
-			{"_entry",                       Kind::ENTRY},
+			{"abort",                       Kind::ABORT},
+			{"breakpoint",                  Kind::BREAKPOINT},
+			{"panic",                       Kind::PANIC},
+			{"_entry",                      Kind::ENTRY},
 
-			{"isComptime",                   Kind::IS_COMPTIME},
-			{"_ctPrint",                     Kind::CT_PRINT},
-			{"_ctPrintln",                   Kind::CT_PRINTLN},
-			{"_ctAlloc",                     Kind::CT_ALLOC},
-			{"_ctDealloc",                   Kind::CT_DEALLOC},
+			{"isComptime",                  Kind::IS_COMPTIME},
+
+			// ct os
+			{"_ctPrint",                    Kind::CT_PRINT},
+			{"_ctPrintln",                  Kind::CT_PRINTLN},
+			{"_ctAlloc",                    Kind::CT_ALLOC},
+			{"_ctDealloc",                  Kind::CT_DEALLOC},
 
 			// type traits
-			{"_ctGetIntegerTypeID",          Kind::CT_GET_INTEGER_TYPE_ID},
+			{"_ctGetIntegerTypeID",         Kind::CT_GET_INTEGER_TYPE_ID},
 
 			// build system
-			{"_createPantherBuild",          Kind::CREATE_PANTHER_BUILD},
+			{"_createPantherBuild",         Kind::CREATE_PANTHER_BUILD},
 
 			// misc
 			{"compilerExecutableDirectory", Kind::COMPILER_EXECUTABLE_DIRECTORY},
 			{"compileWorkingDirectory",     Kind::COMPILE_WORKING_DIRECTORY},
-			{"setModuleName",                Kind::SET_MODULE_NAME},
+			{"setModuleName",               Kind::SET_MODULE_NAME},
 		};
 
 		intrinsic_kinds_end = intrinsic_kinds.end();
@@ -190,6 +192,8 @@ namespace pcit::panther{
 			{"_wasmMemorySize",                  Kind::WASM_MEMORY_SIZE},
 
 			{"makeComptimeBuffer",               Kind::MAKE_COMPTIME_BUFFER},
+			{"enableWarning",                    Kind::ENABLE_WARNING},
+			{"disableWarning",                   Kind::DISABLE_WARNING},
 		};
 
 		template_intrinsic_kinds_end = template_intrinsic_kinds.end();

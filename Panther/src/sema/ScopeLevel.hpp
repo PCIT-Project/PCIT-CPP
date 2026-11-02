@@ -15,6 +15,7 @@
 #include "../../include/type_ids.hpp"
 #include "../../include/sema/Stmt.hpp"
 #include "../../include/sema/Expr.hpp"
+#include "../../include/warnings.hpp"
 
 namespace pcit::panther{
 	class Context;
@@ -83,6 +84,8 @@ namespace pcit::panther::sema{
 			struct ID : public core::UniqueID<uint32_t, struct ID> {
 				using core::UniqueID<uint32_t, ID>::UniqueID;
 			};
+
+
 
 			struct ModuleInfo{
 				SourceID sourceID;
@@ -241,14 +244,22 @@ namespace pcit::panther::sema{
 			};
 
 		public:
-			ScopeLevel(sema::StmtBlock* stmt_block = nullptr)
-				: _stmt_block(stmt_block), _label(std::nullopt), _label_node(NoLabelNode()) {}
+			ScopeLevel(WarningContext _warn_context, sema::StmtBlock* stmt_block = nullptr) : 
+				warn_context(_warn_context),
+				_stmt_block(stmt_block),
+				_label(std::nullopt),
+				_label_node(NoLabelNode())
+			{}
 
-			ScopeLevel(sema::StmtBlock& stmt_block)
-				: _stmt_block(&stmt_block), _label(std::nullopt), _label_node(NoLabelNode()) {}
+			ScopeLevel(WarningContext _warn_context, sema::StmtBlock& stmt_block) : 
+				warn_context(_warn_context),
+				_stmt_block(&stmt_block),
+				_label(std::nullopt),
+				_label_node(NoLabelNode())
+			{}
 
-			ScopeLevel(sema::StmtBlock& stmt_block, Token::ID label, LabelNode label_node)
-				: _stmt_block(&stmt_block), _label(label), _label_node(label_node) {}
+			ScopeLevel(WarningContext _warn_context, sema::StmtBlock& stmt_block, Token::ID label, LabelNode label_node)
+				: warn_context(_warn_context), _stmt_block(&stmt_block), _label(label), _label_node(label_node) {}
 
 
 			~ScopeLevel() = default;
@@ -405,6 +416,8 @@ namespace pcit::panther::sema{
 				-> evo::IterRange<std::unordered_map<ValueStateID, ValueStateInfo>::iterator>;
 
 
+		public:
+			WarningContext warn_context;
 
 		private:
 			[[nodiscard]] auto add_ident_default_impl(std::string_view ident, auto id) -> AddIdentResult;

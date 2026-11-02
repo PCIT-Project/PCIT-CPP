@@ -26,10 +26,13 @@ namespace pcit::panther{
 			ENTRY,
 
 			IS_COMPTIME,
+
+			// ct os
 			CT_PRINT,
 			CT_PRINTLN,
 			CT_ALLOC,
 			CT_DEALLOC,
+
 
 			// type traits
 			CT_GET_INTEGER_TYPE_ID,
@@ -155,8 +158,10 @@ namespace pcit::panther{
 
 			// misc
 			MAKE_COMPTIME_BUFFER,
+			ENABLE_WARNING,
+			DISABLE_WARNING,
 
-			_LAST_ = MAKE_COMPTIME_BUFFER,
+			_LAST_ = DISABLE_WARNING,
 		};
 		
 
