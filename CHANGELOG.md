@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.424.0"></a>
+## v0.0.424.0
+
+### Panther
+- Changed attribute `#unsafe` to no longer make the entire function scope unsafe
+
+### Misc
+- Updated to [Panther-std v0.0.72.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.72.0)
+
+
+<!---------------------------------->
 <a name="v0.0.423.0"></a>
 ## v0.0.423.0
 

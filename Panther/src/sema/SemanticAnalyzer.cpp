@@ -5541,15 +5541,7 @@ namespace pcit::panther{
 		sema::Func& current_func = this->context.sema_buffer.getFunc(current_func_id);
 
 		BaseType::Function& func_type = this->context.type_manager.getFunction(current_func.typeID);
-
-
-		//////////////////
-		// setup scope
-
-		if(func_type.attributes.isUnsafe){
-			this->get_current_scope_level().setIsUnsafe();
-		}
-
+		
 
 		//////////////////
 		// adding params to scope
