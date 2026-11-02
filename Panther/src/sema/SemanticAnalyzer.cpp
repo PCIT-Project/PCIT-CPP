@@ -31067,8 +31067,30 @@ namespace pcit::panther{
 						// safe, do nothing
 					} break;
 
+					case sema::Expr::Kind::TRY_ELSE_EXPR: {
+						if(this->currently_in_unsafe()){ break; }
+
+						const TypeInfo::ID lhs_type_id = lhs.type_id.as<TypeInfo::ID>();
+						if(this->context.getTypeManager().getTypeInfo(lhs_type_id).isUninitPointer() == false){
+							break;
+						}
+
+						const sema::TryElseExpr& try_else_expr = this->context.getSemaBuffer().getTryElseExpr(
+							lhs.getExpr().tryElseExprID()
+						);
+
+						if(try_else_expr.attempt.kind() != sema::Expr::Kind::FUNC_CALL){
+							this->emit_error("Unsafe assignment while not in an unsafe scope", ast_infix);
+							return evo::resultError;
+						}
+					} break;
+
 					default: {
-						if(this->currently_in_unsafe() == false){
+						if(
+							this->currently_in_unsafe() == false
+							&& this->context.getTypeManager().getTypeInfo(lhs.type_id.as<TypeInfo::ID>())
+								.isUninitPointer()
+						){
 							this->emit_error("Unsafe assignment while not in an unsafe scope", ast_infix);
 							return evo::resultError;
 						}

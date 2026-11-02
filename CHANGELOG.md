@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.422.1"></a>
+## v0.0.422.1
+
+### Panther
+- Fixed checking of unsafe assignment for some LHSs
+
+
+<!---------------------------------->
 <a name="v0.0.422.0"></a>
 ## v0.0.422.0
 
