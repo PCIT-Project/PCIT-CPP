@@ -38779,8 +38779,8 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "ct"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_error("Attribute #ct cannot be set on extern functions", attribute.attribute);
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error("Attribute #ct cannot be set on extern or deleted functions", attribute.attribute);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -38838,8 +38838,9 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "rt"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_warning("Attribute #rt is implicitly set on extern functions", attribute.attribute);
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error("Attribute #rt cannot be set on extern or deleted functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
 				}
 
 				if(attribute_params_info[i].empty()){
@@ -38897,8 +38898,10 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "rtDiff"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_error("Attribute #rtDiff is not a valid extern function attribute", attribute.attribute);
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error(
+						"Attribute #rtDiff cannot be set on extern or deleted functions", attribute.attribute
+					);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -38957,6 +38960,12 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "unsafe"){
+				if(func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error("Attribute #unsafe cannot be set on deleted functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+
 				if(attribute_params_info[i].empty()){
 					if(attr_unsafe.set(attribute.attribute, true).isError()){ return evo::Unexpected(Result::ERROR); } 
 
@@ -38989,8 +38998,10 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "export"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
-					this->emit_error("Attribute #export is not a valid extern function attribute", attribute.attribute);
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error(
+						"Attribute #export cannot be set on extern or deleted functions", attribute.attribute
+					);
 					return evo::Unexpected(Result::ERROR);
 				}
 
@@ -39007,6 +39018,12 @@ namespace pcit::panther{
 				if(attr_export.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "noReturn"){
+				if(func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error("Attribute #noReturn cannot be set on deleted functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #noReturn does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
@@ -39020,6 +39037,13 @@ namespace pcit::panther{
 				if(attr_no_return.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "entry"){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error(
+						"Attribute #entry cannot be set on extern or deleted functions", attribute.attribute
+					);
+					return evo::Unexpected(Result::ERROR);
+				}
+
 				if(attribute_params_info[i].empty() == false){
 					this->emit_error("Attribute #entry does not accept any arguments", attribute.args.front());
 					return evo::Unexpected(Result::ERROR);
@@ -39110,9 +39134,9 @@ namespace pcit::panther{
 				if(attr_implicit.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
 			}else if(attribute_str == "naked"){
-				if(func_def.kind == AST::FuncDef::Kind::EXTERN){
+				if(func_def.kind == AST::FuncDef::Kind::EXTERN || func_def.kind == AST::FuncDef::Kind::DELETE){
 					this->emit_error(
-						"Attribute #naked is not a valid extern function attribute", attribute.attribute
+						"Attribute #naked cannot be set on extern or deleted functions", attribute.attribute
 					);
 					return evo::Unexpected(Result::ERROR);
 				}
@@ -39160,6 +39184,12 @@ namespace pcit::panther{
 				}
 
 			}else if(attribute_str == "callConv"){
+				if(func_def.kind == AST::FuncDef::Kind::DELETE){
+					this->emit_error("Attribute #callConv cannot be set on deleted functions", attribute.attribute);
+					return evo::Unexpected(Result::ERROR);
+				}
+
+
 				if(attribute_params_info[i].size() != 1){
 					if(attribute_params_info[i].size() == 0){
 						this->emit_error("Attribute #callConv requires a calling convention", attribute.args.front());

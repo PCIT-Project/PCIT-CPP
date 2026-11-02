@@ -287,6 +287,10 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto returns() const -> evo::ArrayProxy<SymbolProcTypeID> {
+				if(this->func_def.returns.size() == 0){
+					return evo::ArrayProxy<SymbolProcTypeID>();
+				}
+
 				return evo::ArrayProxy<SymbolProcTypeID>(
 					(SymbolProcTypeID*)&this->types[this->func_def.params.size()],
 					this->func_def.returns.size()

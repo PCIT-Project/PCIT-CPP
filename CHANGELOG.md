@@ -1,11 +1,23 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.422.0"></a>
+## v0.0.422.0
+
+### Panther
+- Added checking for unneeded/unused attributes of deleted overloads
+- Removed returns from deleted overloads
+
+### Misc
+- Updated to [Panther-std v0.0.70.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.70.0)
+
+
+<!---------------------------------->
 <a name="v0.0.421.1"></a>
 ## v0.0.421.1
 
 ### Panther
-- Fixed mutablility check of accessors of a pointer to a struct
+- Fixed mutability check of accessors of a pointer to a struct
 
 ### Misc
 - Updated to [Panther-std v0.0.69.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.69.0)
