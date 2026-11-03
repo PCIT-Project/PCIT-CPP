@@ -34235,7 +34235,7 @@ namespace pcit::panther{
 		Diagnostic::Location location
 	) -> evo::Expected<evo::SmallVector<Diagnostic::Info>, Result> {
 		#if defined(PCIT_CONFIG_DEBUG)
-			if(ast_args.size() != args.size()){
+			if(ast_args.size() != args.size() && ast_args.size() + 1 != args.size()){
 				evo::debugAssert(ast_args.empty(), "Mismatch number of arguments");
 				evo::debugAssert(func_call_target.has_value() == false, "AST arguments are required");
 			}
