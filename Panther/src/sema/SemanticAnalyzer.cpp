@@ -10822,6 +10822,8 @@ namespace pcit::panther{
 					}
 				}
 
+				const evo::SmallVector<SymbolProc::TermInfoID> expanded_args =
+					this->expand_func_call_args(instr.args);
 
 				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
 					args.emplace_back(this->get_term_info(arg_id), ast_new.args[i].value, ast_new.args[i].label);
@@ -10908,10 +10910,26 @@ namespace pcit::panther{
 					this->func_scope_current_value_stage().requiresRuntime()
 					&& selected_func_type.attributes.isRuntime == false
 				){
-					this->emit_error(
-						"Cannot call a non-runtime operator [new] within a runtime function", instr.infix.rhs
-					);
-					return Result::ERROR;
+					const bool may_auto_comptime_call = [&]() -> bool {
+						if(this->context.getTypeManager().isTriviallyDeletable(
+							decayed_target_type_info.baseTypeID()
+						) == false){
+							return false;
+						}
+
+						for(const SymbolProc::TermInfoID arg_info_id : expanded_args){
+							if(this->get_term_info(arg_info_id).isComptime == false){ return false; }
+						}
+
+						return true;
+					}();
+
+					if(may_auto_comptime_call == false){	
+						this->emit_error(
+							"Cannot call a non-runtime operator [new] within a runtime function", instr.infix.rhs
+						);
+						return Result::ERROR;
+					}
 				}
 
 
@@ -12694,7 +12712,8 @@ namespace pcit::panther{
 							&& intrinsic_func_info.allowedInRuntime == false
 						){
 							this->emit_error(
-								"Cannot call a non-runtime function within a runtime function", instr.func_call.target
+								"Cannot call a non-runtime intrinsic function within a runtime function",
+								instr.func_call.target
 							);
 							return Result::ERROR;
 						}
@@ -18452,7 +18471,10 @@ namespace pcit::panther{
 
 
 
-				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : instr.args){
+				const evo::SmallVector<SymbolProc::TermInfoID> expanded_args =
+					this->expand_func_call_args(instr.args);
+
+				for(size_t i = 0; const SymbolProc::TermInfoID& arg_id : expanded_args){
 					args.emplace_back(
 						this->get_term_info(arg_id), instr.ast_new.args[i].value, instr.ast_new.args[i].label
 					);
@@ -18582,14 +18604,30 @@ namespace pcit::panther{
 						&& this->func_scope_current_value_stage().requiresRuntime()
 						&& selected_func_type.attributes.isRuntime == false
 					){
-						this->emit_error(
-							"Cannot call a non-runtime operator [new] within a runtime function",
-							instr.ast_new,
-							Diagnostic::Info(
-								"Called operator [new] was defined here:", this->get_location(selected_func_id)
-							)
-						);
-						return Result::ERROR;
+						const bool may_auto_comptime_call = [&]() -> bool {
+							if(this->context.getTypeManager().isTriviallyDeletable(
+								decayed_target_type_info.baseTypeID()
+							) == false){
+								return false;
+							}
+
+							for(const SymbolProc::TermInfoID arg_info_id : expanded_args){
+								if(this->get_term_info(arg_info_id).isComptime == false){ return false; }
+							}
+
+							return true;
+						}();
+
+						if(may_auto_comptime_call == false){
+							this->emit_error(
+								"Cannot call a non-runtime operator [new] within a runtime function",
+								instr.ast_new,
+								Diagnostic::Info(
+									"Called operator [new] was defined here:", this->get_location(selected_func_id)
+								)
+							);
+							return Result::ERROR;
+						}
 					}
 				}
 
@@ -21863,7 +21901,7 @@ namespace pcit::panther{
 
 			this->return_term_info(instr.output,
 				TermInfo::ValueCategory::EPHEMERAL,
-				IS_COMPTIME,
+				IS_COMPTIME || expr.ableToBeComptime,
 				expr.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				target_type.asTypeID(),
@@ -35352,12 +35390,12 @@ namespace pcit::panther{
 			}
 
 			{
-				const std::optional<sema::Expr> sema_global_string_id =
+				const std::optional<sema::Expr> sema_comptime_buffer_id =
 					this->context.sema_to_pir_data.lookupComptimeBuffer(pir_global_var_lookup->id);
 
-				if(sema_global_string_id.has_value()){
+				if(sema_comptime_buffer_id.has_value()){
 					const sema::Expr base_ptr = sema::Expr(
-						this->context.sema_buffer.createAddrOf(*sema_global_string_id)
+						this->context.sema_buffer.createAddrOf(*sema_comptime_buffer_id)
 					);
 
 					if(pir_global_var_lookup->offset == 0){

@@ -1,6 +1,24 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.425.2"></a>
+## v0.0.425.2
+
+### Panther
+- Fixed race condition in semantic analysis of symbols defined within methods of a template
+
+
+<!---------------------------------->
+<a name="v0.0.425.1"></a>
+## v0.0.425.1
+
+### Panther
+- Fixed comptime operator `as` to array reference
+- Fixed passing a string to a comptime function that returns a pointer to that string
+- Fixed auto comptime calling of explicit operator `new`
+
+
+<!---------------------------------->
 <a name="v0.0.425.0"></a>
 ## v0.0.425.0
 

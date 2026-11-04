@@ -152,30 +152,54 @@ namespace pcit::panther::sema{
 				const void* ptr = [&]() -> const void* {
 					switch(init_array_ref_expr.expr.kind()){
 						case sema::Expr::Kind::STRING_VALUE: {
-							return context.getSemaBuffer().getStringValue(
-								init_array_ref_expr.expr.stringValueID()
-							).value.data();
+							auto sema_to_pir = SemaToPIR(context, context.pir_module, context.sema_to_pir_data);
+							const pir::GlobalVar::ID global_string =
+								sema_to_pir.createGlobalString(init_array_ref_expr.expr);
+
+							const core::GenericValue& generic_value =
+								context.execution_engine.getOrLowerGlobalVarValue(global_string);
+
+							return generic_value.dataRange().data();
 						} break;
 
 						case sema::Expr::Kind::ADDR_OF: {
 							const sema::Expr addr_of =
 								context.getSemaBuffer().getAddrOf(init_array_ref_expr.expr.addrOfID());
 
-							std::optional<pir::GlobalVar::ID> global_buffer =
-								context.sema_to_pir_data.lookupComptimeBuffer(addr_of);
+							if(addr_of.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+								std::optional<pir::GlobalVar::ID> global_buffer =
+									context.sema_to_pir_data.lookupComptimeBuffer(addr_of);
 
-							if(global_buffer.has_value() == false){
-								const TypeInfo::ID aggregate_type_id = context.getTypeManager().getOrCreateTypeInfo(
-									TypeInfo(
-										context.getSemaBuffer().getAggregateValue(addr_of.aggregateValueID()).typeID
-									)
+								if(global_buffer.has_value() == false){
+									const TypeInfo::ID aggregate_type_id = context.getTypeManager().getOrCreateTypeInfo(
+										TypeInfo(
+											context.getSemaBuffer().getAggregateValue(addr_of.aggregateValueID()).typeID
+										)
+									);
+
+									auto sema_to_pir = SemaToPIR(context, context.pir_module, context.sema_to_pir_data);
+									global_buffer = sema_to_pir.createGlobalBuffer(addr_of, aggregate_type_id);
+								}
+
+								const core::GenericValue& generic_value =
+									context.execution_engine.getOrLowerGlobalVarValue(*global_buffer);
+
+								return generic_value.dataRange().data();
+
+							}else{
+								evo::debugAssert(
+									addr_of.kind() == sema::Expr::Kind::STRING_VALUE,
+									"Unknown data target for comptime array ref"
 								);
 
 								auto sema_to_pir = SemaToPIR(context, context.pir_module, context.sema_to_pir_data);
-								global_buffer = sema_to_pir.createGlobalBuffer(addr_of, aggregate_type_id);
-							}
+								const pir::GlobalVar::ID global_string = sema_to_pir.createGlobalString(addr_of);
 
-							return context.execution_engine.getOrLowerGlobalVarValue(*global_buffer).dataRange().data();
+								const core::GenericValue& generic_value =
+									context.execution_engine.getOrLowerGlobalVarValue(global_string);
+
+								return generic_value.dataRange().data();
+							}
 						} break;
 
 						default: evo::debugFatalBreak("Invalid init array ref target");

@@ -473,8 +473,9 @@ namespace pcit::panther{
 
 			deducer_method_cloned_symbol_proc.is_local_symbol = true;
 			
-
+			// TODO(FUTURE): is a check for is template sub-symbol (and then the -= 1 not happening) needed?
 			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+
 
 			this->add_instruction(
 				this->context.symbol_proc_manager.createInterfaceInDefImplMethod(deducer_method_cloned_symbol_proc_id)
@@ -1560,8 +1561,13 @@ namespace pcit::panther{
 				const evo::Result<std::optional<SymbolProc::ID>> impl_symbol_proc_id = this->build(impl);
 				if(impl_symbol_proc_id.isError()){ return evo::resultError; }
 
-				this->context.symbol_proc_manager.getSymbolProc(*impl_symbol_proc_id.value()).is_local_symbol = true;
-				this->context.symbol_proc_manager.num_procs_not_done -= 1;
+				SymbolProc& impl_symbol_proc =
+					this->context.symbol_proc_manager.getSymbolProc(*impl_symbol_proc_id.value());
+
+				impl_symbol_proc.is_local_symbol = true;
+				if(impl_symbol_proc.isTemplateSubSymbol() == false){
+					this->context.symbol_proc_manager.num_procs_not_done -= 1;
+				}
 
 				this->add_instruction(
 					this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*impl_symbol_proc_id.value())
@@ -2485,8 +2491,12 @@ namespace pcit::panther{
 		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-		this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		SymbolProc& func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value());
+
+		func_symbol_proc.is_local_symbol = true;
+		if(func_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
@@ -2540,8 +2550,12 @@ namespace pcit::panther{
 		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
 		if(func_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-		this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		SymbolProc& func_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value());
+
+		func_symbol_proc.is_local_symbol = true;
+		if(func_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
 
 		this->add_instruction(
 			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
@@ -2553,14 +2567,18 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_union(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::UNION_DEF, "Not a union decl");
 
-		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
-		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+		const evo::Result<std::optional<SymbolProc::ID>> union_symbol_proc_id = this->build(stmt);
+		if(union_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-		this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		SymbolProc& union_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*union_symbol_proc_id.value());
+
+		union_symbol_proc.is_local_symbol = true;
+		if(union_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*union_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2568,14 +2586,18 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_enum(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::ENUM_DEF, "Not a enum decl");
 
-		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
-		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+		const evo::Result<std::optional<SymbolProc::ID>> enum_symbol_proc_id = this->build(stmt);
+		if(enum_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-		this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		SymbolProc& enum_symbol_proc = this->context.symbol_proc_manager.getSymbolProc(*enum_symbol_proc_id.value());
+
+		enum_symbol_proc.is_local_symbol = true;
+		if(enum_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*enum_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}
@@ -2584,14 +2606,19 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_local_interface(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DEF, "Not an interface decl");
 
-		const evo::Result<std::optional<SymbolProc::ID>> func_symbol_proc_id = this->build(stmt);
-		if(func_symbol_proc_id.isError()){ return evo::resultError; }
+		const evo::Result<std::optional<SymbolProc::ID>> interface_symbol_proc_id = this->build(stmt);
+		if(interface_symbol_proc_id.isError()){ return evo::resultError; }
 
-		this->context.symbol_proc_manager.getSymbolProc(*func_symbol_proc_id.value()).is_local_symbol = true;
-		this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		SymbolProc& interface_symbol_proc =
+			this->context.symbol_proc_manager.getSymbolProc(*interface_symbol_proc_id.value());
+
+		interface_symbol_proc.is_local_symbol = true;
+		if(interface_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
 
 		this->add_instruction(
-			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*func_symbol_proc_id.value())
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*interface_symbol_proc_id.value())
 		);
 		return evo::Result<>();
 	}

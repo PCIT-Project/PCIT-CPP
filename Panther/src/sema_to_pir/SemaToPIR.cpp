@@ -1511,6 +1511,15 @@ namespace pcit::panther{
 
 
 
+	auto SemaToPIR::createGlobalString(sema::Expr expr) -> pir::GlobalVar::ID {
+		const std::optional<pir::Expr> pir_global_var_value = this->get_expr_impl_string_value<GetExprMode::REGISTER>(
+			expr, evo::ArrayProxy<pir::Expr>()
+		);
+		return this->handler.getGlobalValue(*pir_global_var_value);
+	}
+
+
+
 	auto SemaToPIR::createGlobalBuffer(sema::Expr expr, TypeInfo::ID type_id) -> pir::GlobalVar::ID {
 		const PIRType pir_type = [&]() -> PIRType {
 			if(this->data.getConfig().includeDebugInfo){

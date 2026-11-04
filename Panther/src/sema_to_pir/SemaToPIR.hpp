@@ -123,6 +123,7 @@ namespace pcit::panther{
 			}
 
 
+			[[nodiscard]] auto createGlobalString(sema::Expr expr) -> pir::GlobalVar::ID;
 			[[nodiscard]] auto createGlobalBuffer(sema::Expr expr, TypeInfo::ID type_id) -> pir::GlobalVar::ID;
 
 
