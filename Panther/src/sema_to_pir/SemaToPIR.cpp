@@ -12201,7 +12201,7 @@ namespace pcit::panther{
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
 
 				const pir::Expr register_value = [&]() -> pir::Expr {
-					if(this->context.getConfig().checkedIntegralMath){
+					if(may_wrap == false && this->context.getConfig().checkedIntegralMath){
 						auto op_res = std::optional<pir::Expr>();
 						auto op_wrapped = std::optional<pir::Expr>();
 
@@ -12365,7 +12365,7 @@ namespace pcit::panther{
 
 
 				const pir::Expr register_value = [&]() -> pir::Expr {
-					if(this->context.getConfig().checkedIntegralMath){
+					if(may_wrap == false && this->context.getConfig().checkedIntegralMath){
 						auto op_res = std::optional<pir::Expr>();
 						auto op_wrapped = std::optional<pir::Expr>();
 
@@ -12527,7 +12527,7 @@ namespace pcit::panther{
 				const pir::Expr rhs = this->get_expr_register(func_call.args[1]);
 
 				const pir::Expr register_value = [&]() -> pir::Expr {
-					if(this->context.getConfig().checkedIntegralMath){
+					if(may_wrap == false && this->context.getConfig().checkedIntegralMath){
 						auto op_res = std::optional<pir::Expr>();
 						auto op_wrapped = std::optional<pir::Expr>();
 

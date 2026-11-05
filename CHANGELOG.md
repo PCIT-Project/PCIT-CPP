@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.425.3"></a>
+## v0.0.425.3
+
+### Panther
+- Fixed incorrectly lowering wrapping checks modular arithmatic operators
+
+
+<!---------------------------------->
 <a name="v0.0.425.2"></a>
 ## v0.0.425.2
 
