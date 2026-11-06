@@ -8435,9 +8435,6 @@ namespace pcit::panther{
 
 						if(iterable_array_type.dimensions.size() == 1){
 							if(iterable_array_type.terminator.has_value()){
-								return iterable.type_id.as<TypeInfo::ID>();
-
-							}else{
 								return this->context.getTypeManager().getOrCreateTypeInfo(
 									TypeInfo(
 										this->context.getTypeManager().getOrCreateArray(
@@ -8449,6 +8446,9 @@ namespace pcit::panther{
 										)
 									)
 								);
+
+							}else{
+								return iterable.type_id.as<TypeInfo::ID>();
 							}
 
 						}else{
@@ -8488,9 +8488,6 @@ namespace pcit::panther{
 
 						if(iterable_array_ref_type.dimensions.size() == 1){
 							if(iterable_array_ref_type.terminator.has_value()){
-								return iterable.type_id.as<TypeInfo::ID>();
-
-							}else{
 								return this->context.getTypeManager().getOrCreateTypeInfo(
 									TypeInfo(
 										this->context.getTypeManager().getOrCreateArrayRef(
@@ -8503,6 +8500,9 @@ namespace pcit::panther{
 										)
 									)
 								);
+
+							}else{
+								return iterable.type_id.as<TypeInfo::ID>();
 							}
 
 						}else{
@@ -8555,12 +8555,22 @@ namespace pcit::panther{
 			if(selected_interface == nullptr){
 				auto infos = evo::SmallVector<Diagnostic::Info>();
 				for(const InterfaceToCheck& interface_to_check : interfaces_to_check){
-					infos.emplace_back(
-						std::format(
-							"Possible interface: @pthr.{}",
-							interface_to_check.interface.getName(this->context.getSourceManager())
-						)
-					);
+					if(this->context.stdLibWasAdded()){
+						infos.emplace_back(
+							std::format(
+								"Possible interface: std.{}",
+								interface_to_check.interface.getName(this->context.getSourceManager()).substr(1)
+							)
+						);
+						
+					}else{
+						infos.emplace_back(
+							std::format(
+								"Possible interface: @pthr.{}",
+								interface_to_check.interface.getName(this->context.getSourceManager())
+							)
+						);
+					}
 				}
 
 				this->emit_error(

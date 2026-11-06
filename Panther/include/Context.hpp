@@ -539,6 +539,7 @@ namespace pcit::panther{
 			) -> AddSourceResult;
 
 			[[nodiscard]] auto addStdLib(Source::Package::ID package_id) -> void;
+			[[nodiscard]] auto stdLibWasAdded() const -> bool;
 
 			[[nodiscard]] auto addCHeaderFile(
 				const std::filesystem::path& path,

@@ -1479,6 +1479,11 @@ namespace pcit::panther{
 	}
 
 
+	auto Context::stdLibWasAdded() const -> bool {
+		return this->added_std_lib;
+	}
+
+
 
 	auto Context::addCHeaderFile(
 		const fs::path& path,

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.426.1"></a>
+## v0.0.426.1
+
+### Panther
+- Fixed iteration of arrays / array references with terminators
+
+
+<!---------------------------------->
 <a name="v0.0.426.0"></a>
 ## v0.0.426.0
 
