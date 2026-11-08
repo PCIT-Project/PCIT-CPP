@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.428.0"></a>
+## v0.0.428.0
+
+### Panther
+- Added operator `++` (array concatination)
+
+### Misc
+- Updated to [Panther-std v0.0.76.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.76.0)
+
+
+<!---------------------------------->
 <a name="v0.0.427.0"></a>
 ## v0.0.427.0
 

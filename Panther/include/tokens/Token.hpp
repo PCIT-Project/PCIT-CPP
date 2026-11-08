@@ -183,6 +183,7 @@ namespace pcit::panther{
 				MUL_SAT,       // *|
 				FORWARD_SLASH, // /
 				MOD,           // %
+				ARRAY_CONCAT,  // ++
 
 				// comparative
 				EQUAL,              // ==
@@ -386,6 +387,7 @@ namespace pcit::panther{
 				if(op_str == "-|"){ return Kind::SUB_SAT; }
 				if(op_str == "*%"){ return Kind::MUL_WRAP; }
 				if(op_str == "*|"){ return Kind::MUL_SAT; }
+				if(op_str == "++"){ return Kind::ARRAY_CONCAT; }
 
 				if(op_str == "=="){ return Kind::EQUAL; }
 				if(op_str == "!="){ return Kind::NOT_EQUAL; }
@@ -607,6 +609,7 @@ namespace pcit::panther{
 					break; case Kind::MUL_SAT:                return "*|";
 					break; case Kind::FORWARD_SLASH:          return "/";
 					break; case Kind::MOD:                    return "%";
+					break; case Kind::ARRAY_CONCAT:           return "++";
 
 					// logical
 					break; case Kind::EQUAL:                  return "==";

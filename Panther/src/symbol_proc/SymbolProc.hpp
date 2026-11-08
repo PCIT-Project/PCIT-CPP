@@ -1113,6 +1113,15 @@ namespace pcit::panther{
 		};
 
 
+
+		struct ArrayConcat{
+			const AST::Infix& infix;
+			SymbolProcTermInfoID lhs;
+			SymbolProcTermInfoID rhs;
+			SymbolProcTermInfoID output;
+		};
+
+
 		template<bool IS_COMPTIME>
 		struct Accessor{
 			const AST::Infix& infix;
@@ -1428,6 +1437,7 @@ namespace pcit::panther{
 			MATH_INFIX_LOGICAL,
 			MATH_INFIX_BITWISE_LOGICAL,
 			MATH_INFIX_SHIFT,
+			ARRAY_CONCAT,
 			COMPTIME_ACCESSOR,
 			ACCESSOR,
 

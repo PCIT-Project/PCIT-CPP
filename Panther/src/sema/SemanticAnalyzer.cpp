@@ -807,6 +807,9 @@ namespace pcit::panther{
 					this->context.symbol_proc_manager.getMathInfixShift(instr)
 				);
 
+			case Instruction::Kind::ARRAY_CONCAT:
+				return this->instr_array_concat(this->context.symbol_proc_manager.getArrayConcat(instr));
+
 			case Instruction::Kind::COMPTIME_ACCESSOR:
 				return this->instr_accessor<true>(this->context.symbol_proc_manager.getComptimeAccessor(instr));
 
@@ -24214,6 +24217,224 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 		}
+	}
+
+
+	auto SemanticAnalyzer::instr_array_concat(const Instruction::ArrayConcat& instr) -> Result {
+		const TermInfo& lhs = this->get_term_info(instr.lhs);
+		const TermInfo& rhs = this->get_term_info(instr.rhs);
+
+		if(
+			lhs.type_id.is<TypeInfo::ID>() == false
+			|| (lhs.getExpr().kind() != sema::Expr::Kind::AGGREGATE_VALUE
+				&& lhs.getExpr().kind() != sema::Expr::Kind::STRING_VALUE)
+		){
+			this->emit_error(
+				"Invalid LHS of array concatenation",
+				instr.infix.lhs,
+				Diagnostic::Info(std::format("Type of LHS: {}", this->print_term_type(lhs)))
+			);
+			return Result::ERROR;
+		}
+
+		if(
+			rhs.type_id.is<TypeInfo::ID>() == false
+			|| (lhs.getExpr().kind() != sema::Expr::Kind::AGGREGATE_VALUE
+				&& lhs.getExpr().kind() != sema::Expr::Kind::STRING_VALUE)
+		){
+			this->emit_error(
+				"Invalid RHS of array concatenation",
+				instr.infix.rhs,
+				Diagnostic::Info(std::format("Type of LHS: {}", this->print_term_type(rhs)))
+			);
+			return Result::ERROR;
+		}
+
+
+		TypeManager& type_manager = this->context.getTypeManager();
+
+
+		const TypeInfo& lhs_type_info = type_manager.getTypeInfo(lhs.type_id.as<TypeInfo::ID>());
+		const TypeInfo& rhs_type_info = type_manager.getTypeInfo(rhs.type_id.as<TypeInfo::ID>());
+
+
+		if(lhs_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY){
+			this->emit_error(
+				"Invalid LHS of array concatenation",
+				instr.infix.lhs,
+				Diagnostic::Info(std::format("Type of LHS: {}", this->print_term_type(lhs)))
+			);
+			return Result::ERROR;
+		}
+
+		if(rhs_type_info.baseTypeID().kind() != BaseType::Kind::ARRAY){
+			this->emit_error(
+				"Invalid RHS of array concatenation",
+				instr.infix.rhs,
+				Diagnostic::Info(std::format("Type of RHS: {}", this->print_term_type(lhs)))
+			);
+			return Result::ERROR;
+		}
+
+
+		const BaseType::Array& lhs_array_type = type_manager.getArray(lhs_type_info.baseTypeID().arrayID());
+		const BaseType::Array& rhs_array_type = type_manager.getArray(rhs_type_info.baseTypeID().arrayID());
+
+		if(lhs_array_type.elementTypeID != rhs_array_type.elementTypeID){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(lhs_array_type.elementTypeID, infos, "LHS element type: ");
+			this->diagnostic_print_type_info(rhs_array_type.elementTypeID, infos, "RHS element type: ");
+
+			this->emit_error(
+				"Array element types of array concatenation must match", instr.infix, std::move(infos)
+			);
+			return Result::ERROR;
+		}
+
+		if(lhs_array_type.dimensions.size() != rhs_array_type.dimensions.size()){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS array type: ");
+			this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS array type: ");
+
+			this->emit_error(
+				"Array types of array concatenation must have the same number of dimensions",
+				instr.infix,
+				std::move(infos)
+			);
+			return Result::ERROR;
+		}
+
+		for(size_t i = 1; i < lhs_array_type.dimensions.size(); i+=1){
+			if(lhs_array_type.dimensions[i] != rhs_array_type.dimensions[i]){
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+				infos.emplace_back(std::format("Dimension index {} is incorrect", i));
+				this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS array type: ");
+				this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS array type: ");
+
+				this->emit_error(
+					"Array types of array concatenation must match dimensions (excluding the first dimension)",
+					instr.infix,
+					std::move(infos)
+				);
+				return Result::ERROR;
+			}
+		}
+
+
+		if(lhs_array_type.terminator != rhs_array_type.terminator){
+			auto infos = evo::SmallVector<Diagnostic::Info>();
+			this->diagnostic_print_type_info(lhs.type_id.as<TypeInfo::ID>(), infos, "LHS array type: ");
+			this->diagnostic_print_type_info(rhs.type_id.as<TypeInfo::ID>(), infos, "RHS array type: ");
+
+			this->emit_error(
+				"Array types of array concatenation must have the same terminator", instr.infix, std::move(infos)
+			);
+			return Result::ERROR;
+		}
+
+
+
+	
+
+		BaseType::Array new_array_base_type = lhs_array_type;
+		new_array_base_type.dimensions[0] += rhs_array_type.dimensions[0];
+
+		const BaseType::ID new_array_base_type_id =
+			this->context.type_manager.getOrCreateArray(std::move(new_array_base_type));
+
+		const TypeInfo::ID output_type_id = this->context.type_manager.getOrCreateTypeInfo(
+			TypeInfo(
+				new_array_base_type_id,
+				evo::SmallVector<TypeInfo::Qualifier>(
+					lhs_type_info.qualifiers().begin(), lhs_type_info.qualifiers().end()
+				)
+			)
+		);
+
+
+
+		auto output_expr = std::optional<sema::Expr>();
+
+
+		if(lhs.getExpr().kind() == sema::Expr::Kind::STRING_VALUE){
+			const sema::StringValue& lhs_string_value = this->context.getSemaBuffer().getStringValue(
+				lhs.getExpr().stringValueID()
+			);
+
+			if(rhs.getExpr().kind() == sema::Expr::Kind::STRING_VALUE){
+				const sema::StringValue& rhs_string_value = this->context.getSemaBuffer().getStringValue(
+					rhs.getExpr().stringValueID()
+				);
+
+				output_expr = sema::Expr(
+					this->context.sema_buffer.createStringValue(
+						lhs_string_value.value + rhs_string_value.value, false
+					)
+				);
+
+			}else{
+				const sema::AggregateValue& rhs_aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+					rhs.getExpr().aggregateValueID()
+				);
+
+
+				std::string new_string_value = lhs_string_value.value;
+				for(sema::Expr value : rhs_aggregate_value.values){
+					new_string_value += this->context.getSemaBuffer().getCharValue(value.charValueID()).value;
+				}
+
+				output_expr = sema::Expr(
+					this->context.sema_buffer.createStringValue(std::move(new_string_value), false)
+				);
+			}
+			
+		}else{
+			const sema::AggregateValue& lhs_aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+				lhs.getExpr().aggregateValueID()
+			);
+
+			if(rhs.getExpr().kind() == sema::Expr::Kind::STRING_VALUE){
+				const sema::StringValue& rhs_string_value = this->context.getSemaBuffer().getStringValue(
+					rhs.getExpr().stringValueID()
+				);
+
+				std::string new_string_value = rhs_string_value.value;
+				for(sema::Expr value : lhs_aggregate_value.values){
+					new_string_value += this->context.getSemaBuffer().getCharValue(value.charValueID()).value;
+				}
+
+				output_expr = sema::Expr(
+					this->context.sema_buffer.createStringValue(std::move(new_string_value), false)
+				);
+
+			}else{
+				const sema::AggregateValue& rhs_aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+					rhs.getExpr().aggregateValueID()
+				);
+
+
+				evo::SmallVector<sema::Expr> values = lhs_aggregate_value.values;
+				for(sema::Expr value : rhs_aggregate_value.values){
+					values.emplace_back(value);
+				}
+
+				output_expr = sema::Expr(
+					this->context.sema_buffer.createAggregateValue(std::move(values), new_array_base_type_id, true)
+				);	
+			}
+		}
+
+
+
+		this->return_term_info(instr.output,
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			output_type_id,
+			*output_expr
+		);
+		return Result::SUCCESS;
 	}
 
 

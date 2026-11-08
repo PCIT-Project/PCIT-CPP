@@ -3009,6 +3009,22 @@ namespace pcit::panther{
 			}
 
 
+			//////////////////
+			// ArrayConcat
+
+			[[nodiscard]] auto createArrayConcat(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::ARRAY_CONCAT,
+					this->array_concats.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getArrayConcat(Instruction instr) const -> const Instruction::ArrayConcat& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::ARRAY_CONCAT, "Not an ArrayConcat");
+				return this->array_concats[instr._index];
+			}
+
+
 
 			//////////////////
 			// Accessor<true>
@@ -3706,6 +3722,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::MathInfix<false, Instruction::MathInfixKind::SHIFT>, uint32_t>
 				math_infix_shifts{};
 
+			core::SyncLinearStepAlloc<Instruction::ArrayConcat, uint32_t> array_concats{};
 			core::SyncLinearStepAlloc<Instruction::Accessor<true>, uint32_t> comptime_accessors{};
 			core::SyncLinearStepAlloc<Instruction::Accessor<false>, uint32_t> accessors{};
 			core::SyncLinearStepAlloc<Instruction::PrimitiveType, uint32_t> primitive_types{};

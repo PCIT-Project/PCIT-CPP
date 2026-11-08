@@ -245,6 +245,12 @@ namespace pcit::panther{
 							}
 						} break;
 
+						case '+': {
+							this->char_stream.skip(evo::stringSize("++"));
+							this->create_token(Token::lookupKind("++"));
+							return evo::Result<>();
+						} break;
+
 						case '|': {
 							if(ammount_left > 2 && this->char_stream.peek(2) == '='){
 								this->char_stream.skip(evo::stringSize("+|="));

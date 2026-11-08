@@ -326,6 +326,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_expr_math_infix(const Instruction::MathInfix<IS_COMPTIME, MATH_INFIX_KIND>& instr)
 				-> Result;
 
+			[[nodiscard]] auto instr_array_concat(const Instruction::ArrayConcat& instr) -> Result;
+
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto instr_accessor(const Instruction::Accessor<IS_COMPTIME>& instr) -> Result;
 

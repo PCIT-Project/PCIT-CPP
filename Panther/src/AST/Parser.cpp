@@ -3164,6 +3164,7 @@ namespace pcit::panther{
 			case Token::lookupKind("-"):       return 5;
 			case Token::lookupKind("-%"):      return 5;
 			case Token::lookupKind("-|"):      return 5;
+			case Token::lookupKind("++"):      return 5;
 
 			case Token::lookupKind("*"):       return 6;
 			case Token::lookupKind("*%"):      return 6;
