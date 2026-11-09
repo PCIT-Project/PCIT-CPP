@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.428.2"></a>
+## v0.0.428.2
+
+### Panther
+- Fixed missing check for `#private` on operator `new`
+
+
+<!---------------------------------->
 <a name="v0.0.428.1"></a>
 ## v0.0.428.1
 

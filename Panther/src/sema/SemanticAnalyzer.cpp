@@ -10901,6 +10901,19 @@ namespace pcit::panther{
 
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
 
+				if(
+					selected_func.attributes.isPrivate
+					&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
+				){
+					this->emit_error(
+						"Operator `new` has attribute `#private`, and is not accessable from this scope",
+						instr.infix.rhs,
+						Diagnostic::Info("Function alias defined here:", this->get_location(selected_func_id))
+					);
+					return Result::ERROR;
+				}
+
+
 				const BaseType::Function& selected_func_type =
 					this->context.getTypeManager().getFunction(selected_func.typeID);
 
@@ -18527,6 +18540,18 @@ namespace pcit::panther{
 				}();
 
 				const sema::Func& selected_func = this->context.getSemaBuffer().getFunc(selected_func_id);
+
+				if(
+					selected_func.attributes.isPrivate
+					&& selected_func.parent != this->scope.getCurrentTypeScopeIfExists()
+				){
+					this->emit_error(
+						"Operator `new` has attribute `#private`, and is not accessable from this scope",
+						instr.ast_new,
+						Diagnostic::Info("Function alias defined here:", this->get_location(selected_func_id))
+					);
+					return Result::ERROR;
+				}
 
 				const BaseType::Function& selected_func_type =
 					this->context.getTypeManager().getFunction(selected_func.typeID);
