@@ -79,11 +79,13 @@ namespace pcit::panther{
 			enum class Kind{
 				OPT_EXTRACT,
 				ARRAY_SIZE,
+				ARRAY_IS_EMPTY,
 				ARRAY_DIMENSIONS,
 				ARRAY_DATA,
 				ARRAY_FIRST,
 				ARRAY_LAST,
 				ARRAY_REF_SIZE,
+				ARRAY_REF_IS_EMPTY,
 				ARRAY_REF_DIMENSIONS,
 				ARRAY_REF_DATA,
 				ARRAY_REF_FIRST,

@@ -13291,6 +13291,18 @@ namespace pcit::panther{
 				return Result::SUCCESS;
 			} break;
 
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_IS_EMPTY: {
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					true,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeBool(),
+					sema::Expr(this->context.sema_buffer.createBoolValue(false, false))
+				);
+				return Result::SUCCESS;
+			} break;
+
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_DIMENSIONS: {
 				const BaseType::Array& array_type = this->context.getTypeManager().getArray(
 					this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayID()
@@ -13478,7 +13490,6 @@ namespace pcit::panther{
 					);
 
 					uint64_t size_value = 1;
-
 					for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
 						size_value *= dimension.as<uint64_t>();
 					}
@@ -13512,6 +13523,71 @@ namespace pcit::panther{
 						TermInfo::ValueState::NOT_APPLICABLE,
 						TypeManager::getTypeUSize(),
 						sema::Expr(created_array_ref_size)
+					);
+					return Result::SUCCESS;
+				}
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_IS_EMPTY: {
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				if(may_be_comptime){
+					const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+						fake_term_info.expr.initArrayRefID()
+					);
+
+					uint64_t size_value = 1;
+					for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
+						size_value *= dimension.as<uint64_t>();
+					}
+
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						true,
+						true,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeBool(),
+						sema::Expr(this->context.sema_buffer.createBoolValue(size_value != 0, false))
+					);
+					return Result::SUCCESS;
+
+				}else{
+					const BaseType::ArrayRef::ID array_ref_type_id = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+					const sema::Expr created_array_ref_size = sema::Expr(
+						this->context.sema_buffer.createArrayRefSize(fake_term_info.expr, array_ref_type_id)
+					);
+
+					using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+					const InstantiationID instantiation_id =
+						this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+							TemplateIntrinsicFunc::Kind::EQ,
+							evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
+								TypeManager::getTypeUSize()
+							}
+						);
+
+					const sema::IntValue::ID num_zero = this->context.sema_buffer.createIntValue(
+						core::GenericInt::create<uint64_t>(0), // TODO(FUTURE): set to same width as expr?
+						this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+					);
+
+					const sema::FuncCall::ID created_eq = this->context.sema_buffer.createFuncCall(
+						instantiation_id,
+						evo::SmallVector<sema::Expr>{sema::Expr(created_array_ref_size), sema::Expr(num_zero)},
+						this->get_sema_location(this->get_location(ast_func_call))
+					);
+
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						false,
+						false,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						TypeManager::getTypeBool(),
+						sema::Expr(created_eq)
 					);
 					return Result::SUCCESS;
 				}
@@ -28561,6 +28637,39 @@ namespace pcit::panther{
 			);
 			return Result::SUCCESS;
 
+		}else if(rhs_ident_str == "isEmpty"){
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				true,
+				true,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_IS_EMPTY),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
 		}else if(rhs_ident_str == "dimensions"){
 			const BaseType::Array& array_type =
 				this->context.getTypeManager().getArray(decayed_lhs_type.baseTypeID().arrayID());
@@ -28841,6 +28950,39 @@ namespace pcit::panther{
 				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "isEmpty"){
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{TypeManager::getTypeBool()},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_IS_EMPTY),
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;

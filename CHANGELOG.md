@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.430.0"></a>
+## v0.0.430.0
+
+### Panther
+- Added array `.isEmpty()`
+- Added array reference `.isEmpty()`
+
+
+<!---------------------------------->
 <a name="v0.0.429.0"></a>
 ## v0.0.429.0
 
