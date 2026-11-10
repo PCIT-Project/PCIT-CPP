@@ -44,6 +44,7 @@ namespace pcit::pir{
 
 
 			[[nodiscard]] auto getExprType(Expr expr) const -> Type;
+			[[nodiscard]] auto getExprType(GlobalVar::Value expr) const -> std::optional<Type>;
 
 			auto getBasicBlock(BasicBlock::ID id) const -> const BasicBlock&;
 

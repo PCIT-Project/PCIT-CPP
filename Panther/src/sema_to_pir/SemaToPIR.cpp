@@ -14169,7 +14169,18 @@ namespace pcit::panther{
 					} break;
 
 					default: {
-						evo::debugFatalBreak("Not valid global var value (addr of)");
+						const pir::GlobalVar::Value value = this->get_global_var_value(addr_of_target);
+						const pir::Type value_pir_type = *this->handler.getExprType(value);
+
+						const pir::GlobalVar::ID global_var = this->module.createGlobalVar(
+							std::format("PTHR.addrOfComptimeValue{}", this->data.get_addr_of_comptime_id()),
+							value_pir_type,
+							pir::Linkage::PRIVATE,
+							value,
+							false
+						);
+
+						return this->handler.createGlobalValue(global_var);
 					} break;
 				}
 			} break;

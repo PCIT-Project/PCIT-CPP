@@ -94,6 +94,7 @@ namespace pcit::pir{
 			// misc expr stuff
 
 			[[nodiscard]] auto getExprType(Expr expr) const -> Type;
+			[[nodiscard]] auto getExprType(GlobalVar::Value expr) const -> std::optional<Type>;
 
 			auto replaceExpr(Expr original, Expr replacement) const -> void;
 			auto removeStmt(Expr stmt_to_remove) const -> void;

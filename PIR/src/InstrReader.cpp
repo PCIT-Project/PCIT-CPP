@@ -172,6 +172,47 @@ namespace pcit::pir{
 		evo::debugFatalBreak("Unknown or unsupported expr");
 	}
 
+
+	auto InstrReader::getExprType(GlobalVar::Value expr) const -> std::optional<Type> {
+		return expr.visit([&](const auto& value) -> std::optional<Type> {
+			using ExprType = std::decay_t<decltype(value)>;
+		
+			if constexpr(std::is_same<ExprType, GlobalVar::NoValue>()){
+				return std::nullopt;
+
+			}else if constexpr(std::is_same<ExprType, Expr>()){
+				return this->getExprType(value);
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::Zeroinit>()){
+				return std::nullopt;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::Uninit>()){
+				return std::nullopt;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::String::ID>()){
+				return this->module.getGlobalString(value).type;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::ByteArray::ID>()){
+				return this->module.getGlobalByteArray(value).type;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::Array::ID>()){
+				return this->module.getGlobalArray(value).type;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::Struct::ID>()){
+				return this->module.getGlobalStruct(value).type;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::Union::ID>()){
+				return this->module.getGlobalUnion(value).type;
+
+			}else if constexpr(std::is_same<ExprType, GlobalVar::CalcPtr::ID>()){
+				return this->module.createPtrType();
+
+			}else{
+				static_assert(false, "Unknown ");
+			}
+		});
+	}
+
 	
 	auto InstrReader::getBasicBlock(BasicBlock::ID id) const -> const BasicBlock& {
 		return this->module.basic_blocks[id];

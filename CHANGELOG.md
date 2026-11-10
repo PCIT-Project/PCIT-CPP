@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.428.3"></a>
+## v0.0.428.3
+
+### Panther
+- Fixed comptime indexing of arrays, pointer to arrays, and array references
+
+
+<!---------------------------------->
 <a name="v0.0.428.2"></a>
 ## v0.0.428.2
 

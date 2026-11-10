@@ -20727,7 +20727,7 @@ namespace pcit::panther{
 			"Expected type to be array or array ref (struct should have returned already)"
 		);
 
-
+		bool all_indices_are_comptime = true;
 		auto indices = evo::SmallVector<sema::Expr>();
 		indices.reserve(instr.indices.size());
 		for(size_t i = 0; const SymbolProc::TermInfoID index_id : instr.indices){
@@ -20738,7 +20738,7 @@ namespace pcit::panther{
 			);
 			if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
 
-			if(index.isComptime && index.getExpr().kind() == sema::Expr::Kind::INT_VALUE){
+			if(index.isComptime){
 				if(decayed_target_type.baseTypeID().kind() == BaseType::Kind::ARRAY){
 					const BaseType::Array& array_type =
 						this->context.getTypeManager().getArray(decayed_target_type.baseTypeID().arrayID());
@@ -20771,6 +20771,8 @@ namespace pcit::panther{
 						}
 					}
 				}
+			}else{
+				all_indices_are_comptime = false;
 			}
 
 			indices.emplace_back(index.getExpr());
@@ -20797,20 +20799,8 @@ namespace pcit::panther{
 			TypeInfo(element_type->baseTypeID(), std::move(resultant_qualifiers))
 		);
 
-		const sema::Expr sema_indexer_expr = [&](){
-			const sema::Expr target_expr = [&]() -> sema::Expr {
-				if(is_ptr){
-					const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-						decayed_target_type.copyWithPoppedQualifier()
-					);
-
-					return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id));
-
-				}else{
-					return target.getExpr();
-				}
-			}();
-
+		// TODO(FUTURE): remove result when it's no longer needed
+		const evo::Result<sema::Expr> sema_indexer_expr = [&]() -> evo::Result<sema::Expr> {
 			if(
 				this->currently_in_func()
 				&& this->context.getConfig().checkedIndexing
@@ -20819,33 +20809,191 @@ namespace pcit::panther{
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
 			}
 
-			if(is_arr_ref){
-				return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
-					target_expr,
-					decayed_target_type.baseTypeID().arrayRefID(),
-					std::move(indices),
-					this->get_sema_location(instr.indexer)
-				));
 
-			}else if(is_ptr){
-				const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
-					this->context.getTypeManager()
-						.getTypeInfo(target.type_id.as<TypeInfo::ID>()).copyWithPoppedQualifier()
+			const bool may_be_comptime = IS_COMPTIME || (target.isComptime && all_indices_are_comptime);
+			if(may_be_comptime){
+				if(indices.size() != 1){
+					this->emit_error(
+						"Comptime multi-dimensional indexing for arrays and array references "
+							"is currently unimplemented",
+						instr.indexer
+					);
+					return evo::resultError;
+				}
+
+				const sema::IntValue& index_sema_int_value = this->context.getSemaBuffer().getIntValue(
+					indices[0].intValueID()
 				);
+				const size_t index_value = static_cast<size_t>(index_sema_int_value.value);
 
-				return sema::Expr(this->context.sema_buffer.createIndexer(
-					target_expr, derefed_type_id, std::move(indices), this->get_sema_location(instr.indexer)
-				));
 
+				if(is_arr_ref){
+					sema::Expr target_expr = [&]() -> sema::Expr {
+						if(target.getExpr().kind() == sema::Expr::Kind::GLOBAL_VAR){
+							const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
+								target.getExpr().globalVarID()
+							);
+
+							return global_var.value.as<sema::Expr>();
+
+						}else{
+							return target.getExpr();	
+						}
+					}();
+
+
+					target_expr = this->context.getSemaBuffer().getInitArrayRef(target_expr.initArrayRefID()).expr;
+
+					bool continue_looking_for_expr = true;
+					while(continue_looking_for_expr){
+						switch(target_expr.kind()){
+							case sema::Expr::Kind::GLOBAL_VAR: {
+								const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
+									target_expr.globalVarID()
+								);
+
+								target_expr = global_var.value.as<sema::Expr>();
+							} break;
+
+							case sema::Expr::Kind::ADDR_OF: {
+								target_expr = this->context.getSemaBuffer().getAddrOf(target_expr.addrOfID());
+							} break;
+
+							default: {
+								continue_looking_for_expr = false;	
+							} break;
+						}
+					}
+
+					if(target_expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+						const sema::AggregateValue& aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+							target_expr.aggregateValueID()
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values[index_value]));
+						
+					}else{
+						const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+							target_expr.stringValueID()
+						);
+
+						return sema::Expr(
+							this->context.sema_buffer.createAddrOf(
+								sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[index_value]))
+							)
+						);
+					}
+
+				}else if(is_ptr){
+					sema::Expr target_expr = target.getExpr();
+
+					bool continue_looking_for_expr = true;
+					while(continue_looking_for_expr){
+						switch(target_expr.kind()){
+							case sema::Expr::Kind::GLOBAL_VAR: {
+								const sema::GlobalVar& global_var = this->context.getSemaBuffer().getGlobalVar(
+									target_expr.globalVarID()
+								);
+
+								target_expr = global_var.value.as<sema::Expr>();
+							} break;
+
+							case sema::Expr::Kind::ADDR_OF: {
+								target_expr = this->context.getSemaBuffer().getAddrOf(target_expr.addrOfID());
+							} break;
+
+							default: {
+								continue_looking_for_expr = false;	
+							} break;
+						}
+					}
+
+
+					if(target_expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+						const sema::AggregateValue& aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+							target_expr.aggregateValueID()
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values[index_value]));
+						
+					}else{
+						const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+							target_expr.stringValueID()
+						);
+
+						return sema::Expr(
+							this->context.sema_buffer.createAddrOf(
+								sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[index_value]))
+							)
+						);
+					}
+
+				}else{
+					if(target.getExpr().kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+						const sema::AggregateValue& aggregate_value = this->context.getSemaBuffer().getAggregateValue(
+							target.getExpr().aggregateValueID()
+						);
+
+						return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values[index_value]));
+						
+					}else{
+						const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+							target.getExpr().stringValueID()
+						);
+
+						return sema::Expr(
+							this->context.sema_buffer.createAddrOf(
+								sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[index_value]))
+							)
+						);
+					}
+				}
+				
 			}else{
-				return sema::Expr(this->context.sema_buffer.createIndexer(
-					target_expr,
-					target.type_id.as<TypeInfo::ID>(),
-					std::move(indices),
-					this->get_sema_location(instr.indexer)
-				));
+				const sema::Expr target_expr = [&]() -> sema::Expr {
+					if(is_ptr){
+						const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
+							decayed_target_type.copyWithPoppedQualifier()
+						);
+
+						return sema::Expr(this->context.sema_buffer.createDeref(target.getExpr(), derefed_type_id));
+
+					}else{
+						return target.getExpr();
+					}
+				}();
+
+				if(is_arr_ref){
+					return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
+						target_expr,
+						decayed_target_type.baseTypeID().arrayRefID(),
+						std::move(indices),
+						this->get_sema_location(instr.indexer)
+					));
+
+				}else if(is_ptr){
+					const TypeInfo::ID derefed_type_id = this->context.type_manager.getOrCreateTypeInfo(
+						this->context.getTypeManager()
+							.getTypeInfo(target.type_id.as<TypeInfo::ID>()).copyWithPoppedQualifier()
+					);
+
+					return sema::Expr(this->context.sema_buffer.createIndexer(
+						target_expr, derefed_type_id, std::move(indices), this->get_sema_location(instr.indexer)
+					));
+
+				}else{
+					return sema::Expr(this->context.sema_buffer.createIndexer(
+						target_expr,
+						target.type_id.as<TypeInfo::ID>(),
+						std::move(indices),
+						this->get_sema_location(instr.indexer)
+					));
+				}
 			}
 		}();
+
+
+		if(sema_indexer_expr.isError()){ return Result::ERROR; }
 
 
 		this->return_term_info(instr.output,
@@ -20854,7 +21002,7 @@ namespace pcit::panther{
 			target.isComptime,
 			TermInfo::ValueState::NOT_APPLICABLE,
 			resultant_type_id,
-			sema_indexer_expr
+			sema_indexer_expr.value()
 		);
 		return Result::SUCCESS;
 	}

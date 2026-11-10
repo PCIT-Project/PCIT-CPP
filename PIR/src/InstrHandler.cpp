@@ -141,6 +141,10 @@ namespace pcit::pir{
 		}
 	}
 
+	auto InstrHandler::getExprType(GlobalVar::Value expr) const -> std::optional<Type> {
+		return InstrReader(this->module).getExprType(expr);
+	}
+
 
 
 	auto InstrHandler::replaceExpr(Expr original, Expr replacement) const -> void {
