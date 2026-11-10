@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.429.0"></a>
+## v0.0.429.0
+
+### Panther
+- Added array `.first()` and `.last()`
+- Added array reference `.first()` and `.last()`
+
+
+<!---------------------------------->
 <a name="v0.0.428.3"></a>
 ## v0.0.428.3
 

@@ -81,9 +81,13 @@ namespace pcit::panther{
 				ARRAY_SIZE,
 				ARRAY_DIMENSIONS,
 				ARRAY_DATA,
+				ARRAY_FIRST,
+				ARRAY_LAST,
 				ARRAY_REF_SIZE,
 				ARRAY_REF_DIMENSIONS,
 				ARRAY_REF_DATA,
+				ARRAY_REF_FIRST,
+				ARRAY_REF_LAST,
 			};
 
 			TypeInfo::ID typeID;

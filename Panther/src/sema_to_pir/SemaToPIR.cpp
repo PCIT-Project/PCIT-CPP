@@ -12392,7 +12392,7 @@ namespace pcit::panther{
 						this->handler.createBranch(*op_wrapped, fail_block, end_block);
 
 						this->handler.setTargetBasicBlock(fail_block);
-						this->create_unreachable("Non-modular addition operation wrapped");
+						this->create_unreachable("Non-modular subtraction operation wrapped");
 
 						this->handler.setTargetBasicBlock(end_block);
 						return *op_res;
@@ -12554,7 +12554,7 @@ namespace pcit::panther{
 						this->handler.createBranch(*op_wrapped, fail_block, end_block);
 
 						this->handler.setTargetBasicBlock(fail_block);
-						this->create_unreachable("Non-modular addition operation wrapped");
+						this->create_unreachable("Non-modular multiplication operation wrapped");
 
 						this->handler.setTargetBasicBlock(end_block);
 						return *op_res;

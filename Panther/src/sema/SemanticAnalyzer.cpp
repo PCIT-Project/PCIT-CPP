@@ -13355,6 +13355,120 @@ namespace pcit::panther{
 				}
 			} break;
 
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_FIRST: {
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(may_be_comptime){
+						if(fake_term_info.expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+							const sema::AggregateValue& aggregate_value =
+								this->context.getSemaBuffer().getAggregateValue(fake_term_info.expr.aggregateValueID());
+
+							return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values[0]));
+							
+						}else{
+							const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+								fake_term_info.expr.stringValueID()
+							);
+
+							return sema::Expr(
+								this->context.sema_buffer.createAddrOf(
+									sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[0]))
+								)
+							);
+						}
+					}else{
+						return sema::Expr(this->context.sema_buffer.createIndexer(
+							fake_term_info.expr,
+							fake_term_info.typeID,
+							evo::SmallVector<sema::Expr>{
+								sema::Expr{
+									this->context.sema_buffer.createIntValue(
+										core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0),
+										this->context.getTypeManager().getTypeInfo(
+											TypeManager::getTypeUSize()
+										).baseTypeID()
+									)
+								}
+							},
+							this->get_sema_location(ast_func_call)
+						));
+					}
+				}();
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					may_be_comptime,
+					may_be_comptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type_id,
+					output_expr
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_LAST: {
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(may_be_comptime){
+						if(fake_term_info.expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+							const sema::AggregateValue& aggregate_value =
+								this->context.getSemaBuffer().getAggregateValue(fake_term_info.expr.aggregateValueID());
+
+							return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values.back()));
+							
+						}else{
+							const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+								fake_term_info.expr.stringValueID()
+							);
+
+							return sema::Expr(
+								this->context.sema_buffer.createAddrOf(
+									sema::Expr(this->context.sema_buffer.createCharValue(string_value.value.back()))
+								)
+							);
+						}
+					}else{
+						const BaseType::Array& array_type = this->context.getTypeManager().getArray(
+							this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayID()
+						);
+
+						const sema::IntValue::ID created_int_value = this->context.sema_buffer.createIntValue(
+							core::GenericInt::create<uint64_t>(array_type.dimensions[0] - 1),
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+						);
+
+						return sema::Expr(this->context.sema_buffer.createIndexer(
+							fake_term_info.expr,
+							fake_term_info.typeID,
+							evo::SmallVector<sema::Expr>{sema::Expr(created_int_value)},
+							this->get_sema_location(ast_func_call)
+						));
+					}
+				}();
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					may_be_comptime,
+					may_be_comptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type_id,
+					output_expr
+				);
+				return Result::SUCCESS;
+			} break;
+
 			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SIZE: {
 				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
 
@@ -13411,7 +13525,7 @@ namespace pcit::panther{
 				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
 					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
 				);
-				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
 
 
 				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
@@ -13437,7 +13551,7 @@ namespace pcit::panther{
 					const sema::AggregateValue::ID created_aggregate_value_id =
 						this->context.sema_buffer.createAggregateValue(
 							std::move(dimensions),
-							this->context.getTypeManager().getTypeInfo(return_type).baseTypeID(),
+							this->context.getTypeManager().getTypeInfo(return_type_id).baseTypeID(),
 							IS_COMPTIME
 						);
 
@@ -13446,7 +13560,7 @@ namespace pcit::panther{
 						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						return_type,
+						return_type_id,
 						sema::Expr(created_aggregate_value_id)
 					);
 					return Result::SUCCESS;
@@ -13461,7 +13575,7 @@ namespace pcit::panther{
 						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						return_type,
+						return_type_id,
 						sema::Expr(created_array_ref_dimensions)
 					);
 					return Result::SUCCESS;
@@ -13473,7 +13587,7 @@ namespace pcit::panther{
 					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
 				);
 
-				const TypeInfo::ID return_type = call_type.returnTypes[0].asTypeID();
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
 
 				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
 				if(may_be_comptime){
@@ -13491,7 +13605,7 @@ namespace pcit::panther{
 						true,
 						true,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						return_type,
+						return_type_id,
 						init_array_ref.expr
 					);
 					return Result::SUCCESS;
@@ -13508,11 +13622,199 @@ namespace pcit::panther{
 						false,
 						false,
 						TermInfo::ValueState::NOT_APPLICABLE,
-						return_type,
+						return_type_id,
 						sema::Expr(created_array_ref_data)
 					);
 					return Result::SUCCESS;
 				}
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_FIRST: {
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(may_be_comptime){
+						const sema::Expr target_expr = [&]() -> sema::Expr {
+							if(fake_term_info.expr.kind() == sema::Expr::Kind::GLOBAL_VAR){
+								return this->context.getSemaBuffer().getGlobalVar(
+									fake_term_info.expr.globalVarID()
+								).value.as<sema::Expr>();
+							}else{
+								return fake_term_info.expr;
+							}
+						}();
+
+						const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+							target_expr.initArrayRefID()
+						);
+
+						const sema::Expr addr_of_expr = this->context.getSemaBuffer().getAddrOf(
+							init_array_ref.expr.addrOfID()
+						);
+
+						if(addr_of_expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+							const sema::AggregateValue& aggregate_value =
+								this->context.getSemaBuffer().getAggregateValue(addr_of_expr.aggregateValueID());
+
+							return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values[0]));
+							
+						}else{
+							const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+								addr_of_expr.stringValueID()
+							);
+
+							return sema::Expr(
+								this->context.sema_buffer.createAddrOf(
+									sema::Expr(this->context.sema_buffer.createCharValue(string_value.value[0]))
+								)
+							);
+						}
+
+					}else{
+						if(
+							this->currently_in_func()
+							&& this->context.getConfig().checkedIndexing
+							&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
+						){
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+						}
+
+						return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
+							fake_term_info.expr,
+							this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID(),
+							evo::SmallVector<sema::Expr>{
+								sema::Expr{
+									this->context.sema_buffer.createIntValue(
+										core::GenericInt(unsigned(this->context.getTypeManager().numBitsOfPtr()), 0),
+										this->context.getTypeManager().getTypeInfo(
+											TypeManager::getTypeUSize()
+										).baseTypeID()
+									)
+								}
+							},
+							this->get_sema_location(ast_func_call)
+						));
+					}
+				}();
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					may_be_comptime,
+					may_be_comptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type_id,
+					output_expr
+				);
+				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_LAST: {
+				const bool may_be_comptime = IS_COMPTIME || fake_term_info.isComptime;
+
+				const sema::Expr output_expr = [&]() -> sema::Expr {
+					if(may_be_comptime){
+						const sema::Expr target_expr = [&]() -> sema::Expr {
+							if(fake_term_info.expr.kind() == sema::Expr::Kind::GLOBAL_VAR){
+								return this->context.getSemaBuffer().getGlobalVar(
+									fake_term_info.expr.globalVarID()
+								).value.as<sema::Expr>();
+							}else{
+								return fake_term_info.expr;
+							}
+						}();
+
+						const sema::InitArrayRef& init_array_ref = this->context.getSemaBuffer().getInitArrayRef(
+							target_expr.initArrayRefID()
+						);
+
+						const sema::Expr addr_of_expr = this->context.getSemaBuffer().getAddrOf(
+							init_array_ref.expr.addrOfID()
+						);
+
+						if(addr_of_expr.kind() == sema::Expr::Kind::AGGREGATE_VALUE){
+							const sema::AggregateValue& aggregate_value =
+								this->context.getSemaBuffer().getAggregateValue(addr_of_expr.aggregateValueID());
+
+							return sema::Expr(this->context.sema_buffer.createAddrOf(aggregate_value.values.back()));
+							
+						}else{
+							const sema::StringValue& string_value = this->context.getSemaBuffer().getStringValue(
+								addr_of_expr.stringValueID()
+							);
+
+							return sema::Expr(
+								this->context.sema_buffer.createAddrOf(
+									sema::Expr(this->context.sema_buffer.createCharValue(string_value.value.back()))
+								)
+							);
+						}
+
+					}else{
+						if(
+							this->currently_in_func()
+							&& this->context.getConfig().checkedIndexing
+							&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
+						){
+							this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+						}
+
+						const BaseType::ArrayRef::ID array_ref_type_id = 
+							this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+						const sema::Expr created_array_ref_size = sema::Expr(
+							this->context.sema_buffer.createArrayRefSize(fake_term_info.expr, array_ref_type_id)
+						);
+
+
+						using InstantiationID = sema::TemplateIntrinsicFuncInstantiation::ID;
+						const InstantiationID instantiation_id =
+							this->context.sema_buffer.createTemplateIntrinsicFuncInstantiation(
+								TemplateIntrinsicFunc::Kind::SUB,
+								evo::SmallVector<evo::Variant<TypeInfo::ID, core::GenericValue>>{
+									TypeManager::getTypeUSize(), core::GenericValue(false)
+								}
+							);
+
+						const sema::IntValue::ID num_one = this->context.sema_buffer.createIntValue(
+							core::GenericInt::create<uint64_t>(1), // TODO(FUTURE): set to same width as expr?
+							this->context.getTypeManager().getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+						);
+
+						
+						const sema::FuncCall::ID created_sub = this->context.sema_buffer.createFuncCall(
+							instantiation_id,
+							evo::SmallVector<sema::Expr>{sema::Expr(created_array_ref_size), sema::Expr(num_one)},
+							this->get_sema_location(this->get_location(ast_func_call))
+						);
+
+						return sema::Expr(this->context.sema_buffer.createArrayRefIndexer(
+							fake_term_info.expr,
+							this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID(),
+							evo::SmallVector<sema::Expr>{sema::Expr(created_sub)},
+							this->get_sema_location(ast_func_call)
+						));
+					}
+				}();
+
+				const BaseType::Function& call_type = this->context.getTypeManager().getFunction(
+					this->context.getTypeManager().getTypeInfo(builtin_type_method.typeID).baseTypeID().funcID()
+				);
+				const TypeInfo::ID return_type_id = call_type.returnTypes[0].asTypeID();
+
+				this->return_term_info(output,
+					TermInfo::ValueCategory::EPHEMERAL,
+					may_be_comptime,
+					may_be_comptime,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					return_type_id,
+					output_expr
+				);
+				return Result::SUCCESS;
 			} break;
 		}
 		evo::debugFatalBreak("Unknown builtin-type method");
@@ -28355,6 +28657,116 @@ namespace pcit::panther{
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "first"){
+			const BaseType::Array& array_type =
+				this->context.getTypeManager().getArray(decayed_lhs_type.baseTypeID().arrayID());
+
+			if(array_type.dimensions.size() != 1){
+				this->emit_error("Multi-dimentional arrays don't have method `.first()`", instr.infix);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_FIRST),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "last"){
+			const BaseType::Array& array_type =
+				this->context.getTypeManager().getArray(decayed_lhs_type.baseTypeID().arrayID());
+
+			if(array_type.dimensions.size() != 1){
+				this->emit_error("Multi-dimentional arrays don't have method `.last()`", instr.infix);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type = this->context.getTypeManager().getTypeInfo(array_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_LAST),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
 		}
 
 
@@ -28521,6 +28933,118 @@ namespace pcit::panther{
 				lhs.ableToBeComptime,
 				TermInfo::ValueState::NOT_APPLICABLE,
 				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_DATA),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "first"){
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(decayed_lhs_type.baseTypeID().arrayRefID());
+
+			if(array_ref_type.dimensions.size() != 1){
+				this->emit_error("Multi-dimentional array references don't have method `.first()`", instr.infix);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type =
+					this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_FIRST),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "last"){
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(decayed_lhs_type.baseTypeID().arrayRefID());
+
+			if(array_ref_type.dimensions.size() != 1){
+				this->emit_error("Multi-dimentional array references don't have method `.last()`", instr.infix);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID return_type_id = [&]() -> TypeInfo::ID {
+				const TypeInfo& arr_elem_type =
+					this->context.getTypeManager().getTypeInfo(array_ref_type.elementTypeID);
+
+				if(lhs.is_mutable()){
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createMutPtr())
+					);
+				}else{
+					return this->context.type_manager.getOrCreateTypeInfo(
+						arr_elem_type.copyWithPushedQualifier(TypeInfo::Qualifier::createPtr())
+					);
+				}
+			}();
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>(),
+							evo::SmallVector<TypeInfo::VoidableID>{return_type_id},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_LAST),
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;
