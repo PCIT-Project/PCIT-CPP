@@ -86,6 +86,7 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<ArrayRefSize, ArrayRefSize::ID> array_ref_size{};
 		core::SyncLinearStepAlloc<ArrayRefDimensions, ArrayRefDimensions::ID> array_ref_dimensions{};
 		core::SyncLinearStepAlloc<ArrayRefData, ArrayRefData::ID> array_ref_data{};
+		core::SyncLinearStepAlloc<ArrayRefSubarray, ArrayRefSubarray::ID> array_ref_subarray{};
 		core::SyncLinearStepAlloc<UnionDesignatedInitNew, UnionDesignatedInitNew::ID> union_designated_init_news{};
 		core::SyncLinearStepAlloc<UnionTagCmp, UnionTagCmp::ID> union_tag_cmps{};
 		core::SyncLinearStepAlloc<SameTypeCmp, SameTypeCmp::ID> same_type_cmps{};
@@ -1225,6 +1226,23 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::getArrayRefData(ArrayRefData::ID id) const -> const ArrayRefData& {
 		return this->internal->array_ref_data[id];
+	}
+
+
+	///////////////////////////////////
+	// array ref subarray
+
+	auto SemaBuffer::createArrayRefSubarray(
+		Expr target,
+		BaseType::ArrayRef::ID targetTypeID,
+		Expr offsetIndex,
+		Expr numElements
+	) -> ArrayRefSubarray::ID {
+		return this->internal->array_ref_subarray.emplace_back(target, targetTypeID, offsetIndex, numElements);
+	}
+
+	auto SemaBuffer::getArrayRefSubarray(ArrayRefSubarray::ID id) const -> const ArrayRefSubarray& {
+		return this->internal->array_ref_subarray[id];
 	}
 
 

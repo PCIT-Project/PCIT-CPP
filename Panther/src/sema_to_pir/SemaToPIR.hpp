@@ -326,6 +326,11 @@ namespace pcit::panther{
 			) -> std::optional<pir::Expr>;
 
 			template<GetExprMode MODE>
+			[[nodiscard]] auto get_expr_impl_array_ref_subarray(
+				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
+			) -> std::optional<pir::Expr>;
+
+			template<GetExprMode MODE>
 			[[nodiscard]] auto get_expr_impl_union_designated_init_new(
 				sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations
 			) -> std::optional<pir::Expr>;

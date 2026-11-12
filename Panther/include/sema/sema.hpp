@@ -393,6 +393,15 @@ namespace pcit::panther::sema{
 		BaseType::ArrayRef::ID targetTypeID;
 	};
 
+	struct ArrayRefSubarray{
+		using ID = ArrayRefSubarrayID;
+
+		Expr target;
+		BaseType::ArrayRef::ID targetTypeID;
+		Expr offsetIndex;
+		Expr numElements;
+	};
+
 
 	struct UnionDesignatedInitNew{
 		using ID = UnionDesignatedInitNewID;

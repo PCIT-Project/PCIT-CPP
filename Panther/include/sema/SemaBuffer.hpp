@@ -767,6 +767,16 @@ namespace pcit::panther::sema{
 
 
 			///////////////////////////////////
+			// array ref subarray
+
+			[[nodiscard]] auto createArrayRefSubarray(
+				Expr target, BaseType::ArrayRef::ID targetTypeID, Expr offsetIndex, Expr numElements
+			) -> ArrayRefSubarray::ID;
+
+			[[nodiscard]] auto getArrayRefSubarray(ArrayRefSubarray::ID id) const -> const ArrayRefSubarray&;
+
+
+			///////////////////////////////////
 			// union designated init new
 
 			[[nodiscard]] auto createUnionDesignatedInitNew(

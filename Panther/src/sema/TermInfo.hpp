@@ -90,6 +90,7 @@ namespace pcit::panther{
 				ARRAY_REF_DATA,
 				ARRAY_REF_FIRST,
 				ARRAY_REF_LAST,
+				ARRAY_REF_SUBARRAY,
 			};
 
 			TypeInfo::ID typeID;

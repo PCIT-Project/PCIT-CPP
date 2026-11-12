@@ -42,16 +42,16 @@ For brevity, the minor and patch may be left off (making it just `[major].[relea
 	- Support for Windows, Linux, WASM
 	- Support for x64
 - 0.2:
+	- `PCIT`: Self hosted (written in Panther) compiler with superset of `PCIT-CPP`
+- 0.3:
+	- `PTHR-bootstrap`: a full rewrite of `PCIT-CPP` with only the features necessary to compile `PCIT`
+	- Deprication of `PCIT-CPP`
+- 0.4:
 	- More C++ support
 	- Richer Panther standard library
 	- Vectors
 	- Bitpacked
 	- SPIR-V support
-- 0.3:
-	- `PCIT`: Self hosted (written in Panther) compiler with superset of `PCIT-CPP`
-- 0.4:
-	- `PTHR-bootstrap`: a full rewrite of `PCIT-CPP` with only the features necessary to compile `PCIT`
-	- Deprication of `PCIT-CPP`
 - *in-between*:
 	- TBD
 - 1.0:

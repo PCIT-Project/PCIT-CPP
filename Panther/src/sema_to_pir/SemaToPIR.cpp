@@ -4148,6 +4148,9 @@ namespace pcit::panther{
 			case sema::Expr::Kind::ARRAY_REF_DATA:
 				return this->get_expr_impl_array_ref_data<MODE>(expr, store_locations);
 
+			case sema::Expr::Kind::ARRAY_REF_SUBARRAY:
+				return this->get_expr_impl_array_ref_subarray<MODE>(expr, store_locations);
+
 			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
 				return this->get_expr_impl_union_designated_init_new<MODE>(expr, store_locations);
 
@@ -6475,6 +6478,13 @@ namespace pcit::panther{
 
 
 		if constexpr(MODE == GetExprMode::DISCARD){
+			this->get_expr_discard(init_array_ref.expr);
+			for(const evo::Variant<uint64_t, sema::Expr>& dimension : init_array_ref.dimensions){
+				if(dimension.is<sema::Expr>()){ this->get_expr_discard(dimension.as<sema::Expr>()); }
+			}
+
+			this->get_expr_discard(init_array_ref.expr);
+
 			return std::nullopt;
 
 		}else{
@@ -7013,6 +7023,202 @@ namespace pcit::panther{
 			}
 		}
 	}
+
+
+	template<SemaToPIR::GetExprMode MODE>
+	auto SemaToPIR::get_expr_impl_array_ref_subarray(sema::Expr expr, evo::ArrayProxy<pir::Expr> store_locations)
+	-> std::optional<pir::Expr> {
+		const sema::ArrayRefSubarray& array_ref_subarray = this->context.getSemaBuffer().getArrayRefSubarray(
+			expr.arrayRefSubarrayID()
+		);
+
+
+		const pir::Type pir_array_ref_type = this->data.getArrayRefType(
+			this->module,
+			this->context,
+			array_ref_subarray.targetTypeID,
+			[&](TypeInfo::ID id){ return *this->get_type<false, true>(id).meta_type_id; }
+		).pir_type;
+
+
+		const pir::Expr offset_index = this->get_expr_register(array_ref_subarray.offsetIndex);
+		const pir::Expr num_elements = this->get_expr_register(array_ref_subarray.numElements);
+
+
+		const pir::Expr target_array_ref = this->get_expr_pointer(array_ref_subarray.target);
+
+		if(this->context.getConfig().checkedIndexing){
+			const pir::Expr size_value_ptr = this->handler.createCalcPtr(
+				target_array_ref,
+				pir_array_ref_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+				this->name(".ARRAY_REF_SUBARRAY.CHECKED_SIZE_PTR")
+			);
+
+			const pir::Type type_usize = this->get_type<false, false>(TypeManager::getTypeUSize()).type;
+
+			const pir::Expr size_value = this->handler.createLoad(
+				size_value_ptr, type_usize, this->name(".ARRAY_REF_SUBARRAY.CHECKED_SIZE")
+			);
+
+
+			///////////////////////////////////
+			// check offset
+
+			const pir::BasicBlock::ID offset_fail_block = this->handler.createBasicBlockInline(
+				this->name("ARRAY_REF_SUBARRAY.CHECKED_OFFSET.FAIL")
+			);
+			const pir::BasicBlock::ID offset_end_block = this->handler.createBasicBlockInline(
+				this->name("ARRAY_REF_SUBARRAY.CHECKED_OFFSET.END")
+			);
+
+			const pir::Expr offset_in_bounds = this->handler.createULT(
+				offset_index, size_value, this->name(".ARRAY_REF_SUBARRAY.CHECKED_OFFSET.IN_BOUNDS")
+			);
+
+			this->handler.createBranch(offset_in_bounds, offset_end_block, offset_fail_block);
+
+			this->handler.setTargetBasicBlock(offset_fail_block);
+			this->create_unreachable("Array reference subarray offset is out of bounds");
+
+			this->handler.setTargetBasicBlock(offset_end_block);
+
+
+			///////////////////////////////////
+			// check num elements 
+
+
+			const pir::BasicBlock::ID num_elements_fail_block = this->handler.createBasicBlockInline(
+				this->name("ARRAY_REF_SUBARRAY.CHECKED_NUM_ELEMS.FAIL")
+			);
+			const pir::BasicBlock::ID num_elements_end_block = this->handler.createBasicBlockInline(
+				this->name("ARRAY_REF_SUBARRAY.CHECKED_NUM_ELEMS.END")
+			);
+
+
+			// the assertion `offsetIndex + numElements <= size` can potentially have an overflow in the addition
+			// 		to fix this, the assertion is `numElements <= size - offsetIndex`
+			const pir::Expr num_elements_bound = this->handler.createSub(
+				size_value,
+				offset_index,
+				false,
+				true,
+				this->name(".ARRAY_REF_SUBARRAY.CHECKED_NUM_ELEMS.OFFSET_INDEX_BOUND")
+			);
+			const pir::Expr last_elem_index_in_bounds = this->handler.createULTE(
+				num_elements, num_elements_bound, this->name(".ARRAY_REF_SUBARRAY.CHECKED_NUM_ELEMS.IN_BOUNDS")
+			);
+
+			this->handler.createBranch(last_elem_index_in_bounds, num_elements_end_block, num_elements_fail_block);
+
+			this->handler.setTargetBasicBlock(num_elements_fail_block);
+			this->create_unreachable("Array reference subarray number of elements is out of bounds");
+
+			this->handler.setTargetBasicBlock(num_elements_end_block);
+		}
+
+
+
+
+
+		if constexpr(MODE != GetExprMode::DISCARD){
+			const BaseType::ArrayRef& array_ref_type = this->context.getTypeManager().getArrayRef(
+				array_ref_subarray.targetTypeID
+			);
+
+
+
+			const pir::Expr data_value_ptr = this->handler.createCalcPtr(
+				target_array_ref,
+				pir_array_ref_type,
+				evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+				this->name(".ARRAY_REF_SUBARRAY.INPUT_DATA_PTR")
+			);
+
+			const pir::Expr data_value = this->handler.createLoad(
+				data_value_ptr, this->module.createPtrType(), this->name(".ARRAY_REF_SUBARRAY.INPUT_DATA")
+			);
+
+
+			const pir::Expr output_data_value = this->handler.createCalcPtr(
+				data_value,
+				this->get_type<false, false>(array_ref_type.elementTypeID).type,
+				evo::SmallVector<pir::CalcPtr::Index>{offset_index},
+				this->name(".ARRAY_REF_INDEXER.OUTPUT_DATA_VALUE")
+			);
+
+
+			if constexpr(MODE == GetExprMode::REGISTER){
+				const pir::Expr array_ref_alloca =
+					this->handler.createAlloca(pir_array_ref_type, this->name(".ARRAY_REF_SUBARRAY.ALLOCA"));
+
+				const pir::Expr output_data_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_DATA_PTR")
+				);
+				this->handler.createStore(output_data_ptr, output_data_value);
+
+				const pir::Expr output_size_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_SIZE_PTR")
+				);
+				this->handler.createStore(output_size_ptr, num_elements);
+
+				return this->handler.createLoad(array_ref_alloca, pir_array_ref_type, this->name("ARRAY_REF_SUBARRAY"));
+
+			}else if constexpr(MODE == GetExprMode::POINTER){
+				const pir::Expr array_ref_alloca =
+					this->handler.createAlloca(pir_array_ref_type, this->name("ARRAY_REF_SUBARRAY"));
+
+				const pir::Expr output_data_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_DATA_PTR")
+				);
+				this->handler.createStore(output_data_ptr, output_data_value);
+
+				const pir::Expr output_size_ptr = this->handler.createCalcPtr(
+					array_ref_alloca,
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_SIZE_PTR")
+				);
+				this->handler.createStore(output_size_ptr, num_elements);
+
+				return array_ref_alloca;
+
+			}else{
+				const pir::Expr output_data_ptr = this->handler.createCalcPtr(
+					store_locations[0],
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 0},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_DATA_PTR")
+				);
+				this->handler.createStore(output_data_ptr, output_data_value);
+
+				const pir::Expr output_size_ptr = this->handler.createCalcPtr(
+					store_locations[0],
+					pir_array_ref_type,
+					evo::SmallVector<pir::CalcPtr::Index>{0, 1},
+					this->name(".ARRAY_REF_SUBARRAY.OUTPUT_SIZE_PTR")
+				);
+
+				this->get_expr_store(array_ref_subarray.numElements, output_size_ptr);
+
+				return std::nullopt;
+			}
+
+		}else{
+
+			return std::nullopt;
+		}
+	}
+
 
 
 	template<SemaToPIR::GetExprMode MODE>
@@ -14405,12 +14611,12 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INTERFACE_CALL:           case sema::Expr::Kind::INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_INDEXER:        case sema::Expr::Kind::ARRAY_REF_SIZE:
 			case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:     case sema::Expr::Kind::ARRAY_REF_DATA:
-			case sema::Expr::Kind::UNION_TAG_CMP:            case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::PARAM:                    case sema::Expr::Kind::VARIADIC_PARAM:
-			case sema::Expr::Kind::RETURN_PARAM:             case sema::Expr::Kind::ERROR_RETURN_PARAM:
-			case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:        case sema::Expr::Kind::EXCEPT_PARAM:
-			case sema::Expr::Kind::FOR_PARAM:                case sema::Expr::Kind::VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::ARRAY_REF_SUBARRAY:       case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:            case sema::Expr::Kind::PARAM:
+			case sema::Expr::Kind::VARIADIC_PARAM:           case sema::Expr::Kind::RETURN_PARAM:
+			case sema::Expr::Kind::ERROR_RETURN_PARAM:       case sema::Expr::Kind::BLOCK_EXPR_OUTPUT:
+			case sema::Expr::Kind::EXCEPT_PARAM:             case sema::Expr::Kind::FOR_PARAM:
+			case sema::Expr::Kind::VAR:                      case sema::Expr::Kind::FUNC: {
 				evo::debugFatalBreak("Not valid global var value");
 			} break;
 		}

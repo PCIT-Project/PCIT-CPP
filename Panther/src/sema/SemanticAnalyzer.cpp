@@ -13208,10 +13208,6 @@ namespace pcit::panther{
 		SymbolProc::TermInfoID output,
 		const AST::FuncCall& ast_func_call
 	) -> Result {
-		evo::debugAssert(args.empty(), "Currently, none of these methods take any args (if changes, remove next line)");
-		std::ignore = args;
-
-
 		const TermInfo::BuiltinTypeMethod& builtin_type_method =
 			target_term_info.type_id.as<TermInfo::BuiltinTypeMethod>();
 
@@ -13891,6 +13887,40 @@ namespace pcit::panther{
 					output_expr
 				);
 				return Result::SUCCESS;
+			} break;
+
+			case TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SUBARRAY: {
+				if constexpr(IS_COMPTIME){
+					this->emit_error("Comptime array reference subarray is unimplemented", ast_func_call.target);
+					return Result::ERROR;
+
+				}else{
+					if(
+						this->currently_in_func()
+						&& this->context.getConfig().checkedIndexing
+						&& this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC
+					){
+						this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
+					}
+
+					const BaseType::ArrayRef::ID array_ref_type_id = 
+						this->context.getTypeManager().getTypeInfo(fake_term_info.typeID).baseTypeID().arrayRefID();
+
+					this->return_term_info(output,
+						TermInfo::ValueCategory::EPHEMERAL,
+						false,
+						false,
+						TermInfo::ValueState::NOT_APPLICABLE,
+						fake_term_info.typeID,
+						sema::Expr(
+							this->context.sema_buffer.createArrayRefSubarray(
+								fake_term_info.expr, array_ref_type_id, args[0], args[1]
+							)
+						)
+					);
+					return Result::SUCCESS;
+				}
+
 			} break;
 		}
 		evo::debugFatalBreak("Unknown builtin-type method");
@@ -29190,6 +29220,54 @@ namespace pcit::panther{
 				sema::Expr(method_this)
 			);
 			return Result::SUCCESS;
+
+		}else if(rhs_ident_str == "subarray"){
+			const BaseType::ArrayRef& array_ref_type =
+				this->context.getTypeManager().getArrayRef(decayed_lhs_type.baseTypeID().arrayRefID());
+
+			if(array_ref_type.dimensions.size() != 1){
+				this->emit_error("Multi-dimentional array references don't have method `.subarray()`", instr.infix);
+				return Result::ERROR;
+			}
+
+			const TypeInfo::ID method_type = this->context.type_manager.getOrCreateTypeInfo(
+				TypeInfo(
+					this->context.type_manager.getOrCreateFunction(
+						BaseType::Function(
+							evo::SmallVector<BaseType::Function::Param>{
+								BaseType::Function::Param(
+									TypeManager::getTypeUSize(), BaseType::Function::Param::Kind::READ
+								),
+								BaseType::Function::Param(
+									TypeManager::getTypeUSize(), BaseType::Function::Param::Kind::READ
+								)
+							},
+							evo::SmallVector<TypeInfo::VoidableID>{lhs.type_id.as<TypeInfo::ID>()},
+							evo::SmallVector<TypeInfo::VoidableID>(),
+							BaseType::Function::Attributes{
+								.isComptime        = true,
+								.isRuntime         = true,
+								.isUnsafe          = false,
+								.isNoReturn        = false,
+								.callingConvention = pir::CallingConvention::DEFAULT,
+								.abi               = BaseType::Function::ABI::PANTHER,
+							},
+							false,
+							false
+						)
+					)
+				)
+			);
+
+			this->return_term_info(instr.output,
+				TermInfo::ValueCategory::BUILTIN_TYPE_METHOD,
+				lhs.isComptime,
+				lhs.ableToBeComptime,
+				TermInfo::ValueState::NOT_APPLICABLE,
+				TermInfo::BuiltinTypeMethod(method_type, TermInfo::BuiltinTypeMethod::Kind::ARRAY_REF_SUBARRAY),
+				sema::Expr(method_this)
+			);
+			return Result::SUCCESS;
 		}
 
 
@@ -32251,10 +32329,10 @@ namespace pcit::panther{
 			case sema::Expr::Kind::INDEXER:                    case sema::Expr::Kind::DEFAULT_NEW:
 			case sema::Expr::Kind::INIT_ARRAY_REF:             case sema::Expr::Kind::ARRAY_REF_INDEXER:
 			case sema::Expr::Kind::ARRAY_REF_SIZE:             case sema::Expr::Kind::ARRAY_REF_DIMENSIONS:
-			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:
-			case sema::Expr::Kind::UNION_TAG_CMP:              case sema::Expr::Kind::SAME_TYPE_CMP:
-			case sema::Expr::Kind::VARIADIC_PARAM:             case sema::Expr::Kind::GLOBAL_VAR:
-			case sema::Expr::Kind::FUNC: {
+			case sema::Expr::Kind::ARRAY_REF_DATA:             case sema::Expr::Kind::ARRAY_REF_SUBARRAY:
+			case sema::Expr::Kind::UNION_DESIGNATED_INIT_NEW:  case sema::Expr::Kind::UNION_TAG_CMP:
+			case sema::Expr::Kind::SAME_TYPE_CMP:              case sema::Expr::Kind::VARIADIC_PARAM:
+			case sema::Expr::Kind::GLOBAL_VAR:                 case sema::Expr::Kind::FUNC: {
 				return evo::Result<>();
 			} break;
 		}

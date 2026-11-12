@@ -191,6 +191,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, ArrayRefDataID>::UniqueID;
 	};
 
+	struct ArrayRefSubarrayID : public core::UniqueID<uint32_t, struct ArrayRefSubarrayID> {
+		using core::UniqueID<uint32_t, ArrayRefSubarrayID>::UniqueID;
+	};
+
 	struct UnionDesignatedInitNewID : public core::UniqueID<uint32_t, struct UnionDesignatedInitNewID> {
 		using core::UniqueID<uint32_t, UnionDesignatedInitNewID>::UniqueID;
 	};
