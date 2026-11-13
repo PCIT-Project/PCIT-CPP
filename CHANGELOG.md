@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.0"></a>
+## v0.0.432.0
+
+### Panther
+- Added deleted types
+
+### Misc
+- Updated to [Panther-std v0.0.77.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.77.0)
+
+
+<!---------------------------------->
 <a name="v0.0.431.0"></a>
 ## v0.0.431.0
 

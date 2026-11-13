@@ -118,6 +118,10 @@ namespace pcit::panther::AST{
 			[[nodiscard]] auto getInterfaceDef(const Node& node) const -> const InterfaceDef&;
 
 
+			[[nodiscard]] auto createDeletedTypeDef(Token::ID ident, std::optional<Node> message) -> Node;
+			[[nodiscard]] auto getDeletedTypeDef(const Node& node) const -> const DeletedTypeDef&;
+
+
 			[[nodiscard]] auto createInterfaceImpl(
 				Node target, Node attributeBlock, evo::SmallVector<InterfaceImpl::Method>&& methods
 			) -> Node;

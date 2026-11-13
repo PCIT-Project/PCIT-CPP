@@ -93,6 +93,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto build_interface_def(
 				const AST::Node& stmt, NonTemplateDependentMode non_template_dependent_mode
 			) -> evo::Result<>;
+			[[nodiscard]] auto build_deleted_type_def(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_interface_impl(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_when_conditional(const AST::Node& stmt) -> evo::Result<>;
 			[[nodiscard]] auto build_when_switch(const AST::Node& stmt) -> evo::Result<>;
@@ -117,6 +118,7 @@ namespace pcit::panther{
 			auto analyze_local_union(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_enum(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_local_interface(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
+			auto analyze_local_deleted_type(const AST::Node& stmt) -> evo::Result<>; // yes, param AST::Node is correct
 			auto analyze_return(const AST::Return& return_stmt) -> evo::Result<>;
 			auto analyze_error(const AST::Error& error_stmt) -> evo::Result<>;
 			auto analyze_unreachable(const AST::Unreachable& unreachable_token) -> evo::Result<>;

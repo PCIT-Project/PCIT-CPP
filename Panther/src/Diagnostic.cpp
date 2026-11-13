@@ -45,6 +45,7 @@ namespace pcit::panther{
 			case AST::Kind::UNION_DEF:           return Location::get(ast_buffer.getUnionDef(node), src);
 			case AST::Kind::ENUM_DEF:            return Location::get(ast_buffer.getEnumDef(node), src);
 			case AST::Kind::INTERFACE_DEF:       return Location::get(ast_buffer.getInterfaceDef(node), src);
+			case AST::Kind::DELETED_TYPE_DEF:    return Location::get(ast_buffer.getDeletedTypeDef(node), src);
 			case AST::Kind::INTERFACE_IMPL:      return Location::get(ast_buffer.getInterfaceImpl(node), src);
 			case AST::Kind::RETURN:              return Location::get(ast_buffer.getReturn(node), src); 
 			case AST::Kind::ERROR:               return Location::get(ast_buffer.getError(node), src);
@@ -146,6 +147,10 @@ namespace pcit::panther{
 
 	auto Diagnostic::Location::get(const AST::InterfaceDef& interface_def, const Source& src) -> Location {
 		return Location::get(interface_def.ident, src);
+	}
+
+	auto Diagnostic::Location::get(const AST::DeletedTypeDef& deleted_type_def, const Source& src) -> Location {
+		return Location::get(deleted_type_def.ident, src);
 	}
 
 	auto Diagnostic::Location::get(const AST::InterfaceImpl& interface_impl, const Source& src) -> Location {

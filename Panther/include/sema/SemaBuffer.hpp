@@ -112,6 +112,15 @@ namespace pcit::panther::sema{
 
 
 			///////////////////////////////////
+			// deleted type
+
+			[[nodiscard]] auto createDeletedType(SourceID sourceID, Token::ID ident, std::optional<Expr> message)
+				-> DeletedType::ID;
+
+			[[nodiscard]] auto getDeletedType(DeletedType::ID id) const -> const DeletedType&;
+
+
+			///////////////////////////////////
 			// vars
 
 			[[nodiscard]] auto createVar(

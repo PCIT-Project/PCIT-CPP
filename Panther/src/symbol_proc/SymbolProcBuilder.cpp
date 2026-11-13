@@ -69,6 +69,9 @@ namespace pcit::panther{
 			break; case AST::Kind::INTERFACE_DEF:
 				if(this->build_interface_def(stmt, non_template_dependent_mode).isError()){ return evo::resultError; }
 
+			break; case AST::Kind::DELETED_TYPE_DEF:
+				if(this->build_deleted_type_def(stmt).isError()){ return evo::resultError; }
+
 			break; case AST::Kind::INTERFACE_IMPL:
 				if(this->build_interface_impl(stmt).isError()){ return evo::resultError; }
 
@@ -572,6 +575,10 @@ namespace pcit::panther{
 
 			case AST::Kind::INTERFACE_DEF: {
 				return token_buffer[ast_buffer.getInterfaceDef(stmt).ident].getString();
+			} break;
+
+			case AST::Kind::DELETED_TYPE_DEF: {
+				return token_buffer[ast_buffer.getDeletedTypeDef(stmt).ident].getString();
 			} break;
 
 			case AST::Kind::INTERFACE_IMPL: {
@@ -1602,6 +1609,48 @@ namespace pcit::panther{
 	}
 
 
+
+	auto SymbolProcBuilder::build_deleted_type_def(const AST::Node& stmt) -> evo::Result<> {
+		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
+		const AST::DeletedTypeDef& deleted_type_def = ast_buffer.getDeletedTypeDef(stmt);
+
+		auto message_term_info_id = std::optional<SymbolProc::TermInfoID>();
+		if(deleted_type_def.message.has_value()){
+			const evo::Result<SymbolProc::TermInfoID> message_res = this->analyze_expr<true>(*deleted_type_def.message);
+			if(message_res.isError()){ return evo::resultError; }
+
+			message_term_info_id = message_res.value();
+		}
+
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createDeletedType(deleted_type_def, message_term_info_id)
+		);
+
+
+		SymbolProcInfo* current_symbol = &this->get_current_symbol();
+		
+		if(this->is_child_symbol() && this->symbol_scopes.back() != nullptr){
+			SymbolProcInfo& parent_symbol = this->get_parent_symbol();
+
+			parent_symbol.symbol_proc.decl_waited_on_by.emplace_back(current_symbol->symbol_proc_id);
+			current_symbol->symbol_proc.waiting_for.emplace_back(parent_symbol.symbol_proc_id);
+
+			this->symbol_scopes.back()->emplace_back(current_symbol->symbol_proc_id);
+		}
+
+		if(this->symbol_namespaces.back() != nullptr){
+			this->symbol_namespaces.back()->emplace(
+				current_symbol->symbol_proc.getIdent(), current_symbol->symbol_proc_id
+			);
+		}
+
+		return evo::Result<>();
+	}
+
+
+
+
 	auto SymbolProcBuilder::build_interface_impl(const AST::Node& stmt) -> evo::Result<> {
 		const AST::ASTBuffer& ast_buffer = this->source.getASTBuffer();
 		const AST::InterfaceImpl& interface_impl = ast_buffer.getInterfaceImpl(stmt);
@@ -2380,6 +2429,7 @@ namespace pcit::panther{
 			case AST::Kind::UNION_DEF:           return this->analyze_local_union(stmt);
 			case AST::Kind::ENUM_DEF:            return this->analyze_local_enum(stmt);
 			case AST::Kind::INTERFACE_DEF:       return this->analyze_local_interface(stmt);
+			case AST::Kind::DELETED_TYPE_DEF:    return this->analyze_local_deleted_type(stmt);
 
 			case AST::Kind::RETURN:              return this->analyze_return(ast_buffer.getReturn(stmt));
 			case AST::Kind::ERROR:               return this->analyze_error(ast_buffer.getError(stmt));
@@ -2605,6 +2655,27 @@ namespace pcit::panther{
 
 	auto SymbolProcBuilder::analyze_local_interface(const AST::Node& stmt) -> evo::Result<> {
 		evo::debugAssert(stmt.kind() == AST::Kind::INTERFACE_DEF, "Not an interface decl");
+
+		const evo::Result<std::optional<SymbolProc::ID>> interface_symbol_proc_id = this->build(stmt);
+		if(interface_symbol_proc_id.isError()){ return evo::resultError; }
+
+		SymbolProc& interface_symbol_proc =
+			this->context.symbol_proc_manager.getSymbolProc(*interface_symbol_proc_id.value());
+
+		interface_symbol_proc.is_local_symbol = true;
+		if(interface_symbol_proc.isTemplateSubSymbol() == false){
+			this->context.symbol_proc_manager.num_procs_not_done -= 1;
+		}
+
+		this->add_instruction(
+			this->context.symbol_proc_manager.createWaitOnSubSymbolProcDef(*interface_symbol_proc_id.value())
+		);
+		return evo::Result<>();
+	}
+
+
+	auto SymbolProcBuilder::analyze_local_deleted_type(const AST::Node& stmt) -> evo::Result<> {
+		evo::debugAssert(stmt.kind() == AST::Kind::DELETED_TYPE_DEF, "Not an deleted type decl");
 
 		const evo::Result<std::optional<SymbolProc::ID>> interface_symbol_proc_id = this->build(stmt);
 		if(interface_symbol_proc_id.isError()){ return evo::resultError; }

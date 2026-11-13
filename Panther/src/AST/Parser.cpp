@@ -619,6 +619,7 @@ namespace pcit::panther{
 			case Token::Kind::KEYWORD_ENUM:      return this->parse_enum_def(ident.value());
 			case Token::Kind::KEYWORD_ALIAS:     return this->parse_type_alias(ident.value());
 			case Token::Kind::KEYWORD_INTERFACE: return this->parse_interface_def(ident.value());
+			case Token::Kind::KEYWORD_DELETE:    return this->parse_deleted_type_def(ident.value());
 		}
 
 		this->expected_but_got("valid type kind ([struct], [union], [enum], or [alias])", this->reader.peek());
@@ -832,7 +833,9 @@ namespace pcit::panther{
 			return Result::Code::ERROR;
 		}
 
-		return this->source.ast_buffer.createAliasDef(AST::ASTBuffer::getIdent(ident), attributes.value(), type.value());
+		return this->source.ast_buffer.createAliasDef(
+			AST::ASTBuffer::getIdent(ident), attributes.value(), type.value()
+		);
 	}
 
 
@@ -896,6 +899,35 @@ namespace pcit::panther{
 		return this->source.ast_buffer.createInterfaceDef(
 			AST::ASTBuffer::getIdent(ident), attributes.value(), std::move(methods), std::move(impls)
 		);
+	}
+
+
+	auto Parser::parse_deleted_type_def(const AST::Node& ident) -> Result {
+		if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
+
+		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+
+		auto message = std::optional<AST::Node>();
+		if(this->reader[this->reader.peek()].kind() == Token::lookupKind("(")){
+			this->reader.skip();
+
+			const Result expr = this->parse_expr();
+			if(this->check_result(expr, "message after [(] in deleted type statement").isError()){
+				return Result::Code::ERROR;
+			}
+
+			message = expr.value();
+
+			if(this->expect_token(Token::lookupKind(")"), "at end of deleted type statement message").isError()){
+				return Result::Code::ERROR;
+			}
+		}
+
+		if(this->expect_token(Token::lookupKind(";"), "at end of deleted type statement message").isError()){
+			return Result::Code::ERROR;
+		}
+
+		return this->source.ast_buffer.createDeletedTypeDef(AST::ASTBuffer::getIdent(ident), message);
 	}
 
 
@@ -1186,7 +1218,9 @@ namespace pcit::panther{
 		if(this->assert_token(Token::Kind::KEYWORD_DELETE).isError()){ return Result::Code::ERROR; }
 
 		const Result expr = this->parse_expr();
-		if(this->check_result(expr, "expression in [delete] statement").isError()){ return Result::Code::ERROR; }
+		if(this->check_result(expr, "expression in [delete] statement").isError()){
+			return Result::Code::ERROR;
+		}
 
 		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
 		if(this->expect_token(Token::lookupKind(";"), "at the end of a [delete] statement").isError()){

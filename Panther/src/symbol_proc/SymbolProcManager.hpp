@@ -684,6 +684,23 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// DeletedType
+
+			[[nodiscard]] auto createDeletedType(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::DELETED_TYPE,
+					this->deleted_types.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getDeletedType(Instruction instr) const -> const Instruction::DeletedType& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::DELETED_TYPE, "Not a DeletedType");
+				return this->deleted_types[instr._index];
+			}
+
+
+
+			//////////////////
 			// InterfaceImplDecl
 
 			[[nodiscard]] auto createInterfaceImplDecl(auto&&... args) -> Instruction {
@@ -3555,6 +3572,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::FuncAliasDef, uint32_t> func_alias_def{};
 			core::SyncLinearStepAlloc<Instruction::InterfacePrepare, uint32_t> interface_prepares{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceFuncDef, uint32_t> interface_func_defs{};
+			core::SyncLinearStepAlloc<Instruction::DeletedType, uint32_t> deleted_types{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceImplDecl, uint32_t> interface_impl_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceInDefImplDecl, uint32_t> interface_in_def_impl_decls{};
 			core::SyncLinearStepAlloc<Instruction::InterfaceDeducerImplInstantiationDecl, uint32_t>

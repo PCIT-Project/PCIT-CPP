@@ -444,6 +444,13 @@ namespace pcit::panther{
 		};
 
 
+		struct DeletedType{
+			const AST::DeletedTypeDef& deleted_type_def;
+			std::optional<SymbolProcTermInfoID> message;
+		};
+
+
+
 
 		struct InterfaceImplDecl{
 			const AST::InterfaceImpl& interface_impl;
@@ -1299,6 +1306,7 @@ namespace pcit::panther{
 			INTERFACE_DECL,
 			INTERFACE_DEF,
 			INTERFACE_FUNC_DEF,
+			DELETED_TYPE,
 			INTERFACE_IMPL_DECL,
 			INTERFACE_IN_DEF_IMPL_DECL,
 			INTERFACE_DEDUCER_IMPL_INSTANTIATION_DECL,

@@ -26,6 +26,7 @@ namespace pcit::panther::AST{
 		core::LinearStepAlloc<UnionDef, uint32_t> union_defs{};
 		core::LinearStepAlloc<EnumDef, uint32_t> enum_defs{};
 		core::LinearStepAlloc<InterfaceDef, uint32_t> interface_defs{};
+		core::LinearStepAlloc<DeletedTypeDef, uint32_t> deleted_type_defs{};
 		core::LinearStepAlloc<InterfaceImpl, uint32_t> interface_impls{};
 
 		core::LinearStepAlloc<Return, uint32_t> _returns{};
@@ -296,6 +297,17 @@ namespace pcit::panther::AST{
 	auto ASTBuffer::getInterfaceDef(const Node& node) const -> const InterfaceDef& {
 		evo::debugAssert(node.kind() == Kind::INTERFACE_DEF, "Node is not an InterfaceDef");
 		return this->internal->interface_defs[node._value.node_index];
+	}
+
+
+	auto ASTBuffer::createDeletedTypeDef(Token::ID ident, std::optional<Node> message) -> Node {
+		evo::debugAssert(this->is_locked == false, "Cannot create as buffer is locked");
+		const uint32_t node_index = this->internal->deleted_type_defs.emplace_back(ident, message);
+		return Node(Kind::DELETED_TYPE_DEF, node_index);
+	}
+	auto ASTBuffer::getDeletedTypeDef(const Node& node) const -> const DeletedTypeDef& {
+		evo::debugAssert(node.kind() == Kind::DELETED_TYPE_DEF, "Node is not an DeletedTypeDef");
+		return this->internal->deleted_type_defs[node._value.node_index];
 	}
 
 

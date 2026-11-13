@@ -326,6 +326,10 @@ namespace pcit::panther::sema{
 		using core::UniqueID<uint32_t, StructTemplateAliasID>::UniqueID;
 	};
 
+	struct DeletedTypeID : public core::UniqueID<uint32_t, struct DeletedTypeID> {
+		using core::UniqueID<uint32_t, DeletedTypeID>::UniqueID;
+	};
+
 
 	struct VarID : public core::UniqueID<uint32_t, struct VarID> {
 		using core::UniqueID<uint32_t, VarID>::UniqueID;
@@ -1014,6 +1018,17 @@ namespace pcit::core{
 		}
 
 		static constexpr auto has_value(const panther::sema::StructTemplateAliasID& id) -> bool {
+			return id.get() != std::numeric_limits<uint32_t>::max();
+		}
+	};
+
+	template<>
+	struct OptionalInterface<panther::sema::DeletedTypeID>{
+		static constexpr auto init(panther::sema::DeletedTypeID* id) -> void {
+			std::construct_at(id, std::numeric_limits<uint32_t>::max());
+		}
+
+		static constexpr auto has_value(const panther::sema::DeletedTypeID& id) -> bool {
 			return id.get() != std::numeric_limits<uint32_t>::max();
 		}
 	};
@@ -2187,6 +2202,22 @@ namespace std{
 		public:
 			using pcit::core::Optional<pcit::panther::sema::StructTemplateAliasID>::Optional;
 			using pcit::core::Optional<pcit::panther::sema::StructTemplateAliasID>::operator=;
+	};
+
+
+
+	template<>
+	struct hash<pcit::panther::sema::DeletedTypeID>{
+		auto operator()(pcit::panther::sema::DeletedTypeID id) const noexcept -> size_t {
+			return std::hash<uint32_t>{}(id.get());
+		};
+	};
+	template<>
+	class optional<pcit::panther::sema::DeletedTypeID>
+		: public pcit::core::Optional<pcit::panther::sema::DeletedTypeID>{
+		public:
+			using pcit::core::Optional<pcit::panther::sema::DeletedTypeID>::Optional;
+			using pcit::core::Optional<pcit::panther::sema::DeletedTypeID>::operator=;
 	};
 
 

@@ -123,6 +123,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_interface_decl() -> Result;
 			[[nodiscard]] auto instr_interface_def() -> Result;
 			[[nodiscard]] auto instr_interface_func_def(const Instruction::InterfaceFuncDef& instr) -> Result;
+			[[nodiscard]] auto instr_deleted_type(const Instruction::DeletedType& instr) -> Result;
 			[[nodiscard]] auto instr_interface_impl_decl(const Instruction::InterfaceImplDecl& instr) -> Result;
 			[[nodiscard]] auto instr_interface_in_def_impl_decl(const Instruction::InterfaceInDefImplDecl& instr)
 				-> Result;
@@ -1781,11 +1782,20 @@ namespace pcit::panther{
 			[[nodiscard]] auto get_location(sema::StructTemplateAlias::ID struct_template_alias_id) const
 			-> Diagnostic::Location {
 				const sema::StructTemplateAlias& struct_template_alias =
-					this->context.sema_buffer.getStructTemplateAlias(struct_template_alias_id);					
+					this->context.sema_buffer.getStructTemplateAlias(struct_template_alias_id);
 
 				return Diagnostic::Location::get(
 					struct_template_alias.ident,
 					this->context.getSourceManager()[struct_template_alias.sourceID]
+				);
+			}
+
+			[[nodiscard]] auto get_location(sema::DeletedType::ID deleted_type_id) const
+			-> Diagnostic::Location {
+				const sema::DeletedType& deleted_type = this->context.sema_buffer.getDeletedType(deleted_type_id);
+
+				return Diagnostic::Location::get(
+					deleted_type.ident, this->context.getSourceManager()[deleted_type.sourceID]
 				);
 			}
 

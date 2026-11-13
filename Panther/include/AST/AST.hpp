@@ -32,6 +32,7 @@ namespace pcit::panther::AST{
 		ALIAS_DEF,
 		STRUCT_DEF,
 		INTERFACE_DEF,
+		DELETED_TYPE_DEF,
 		INTERFACE_IMPL,
 		UNION_DEF,
 		ENUM_DEF,
@@ -286,6 +287,11 @@ namespace pcit::panther::AST{
 		Node attributeBlock;
 		evo::SmallVector<Node> methods; // Nodes are all FuncDef
 		evo::SmallVector<Node> impls; // Nodes are all InterfaceImpl
+	};
+
+	struct DeletedTypeDef{
+		Token::ID ident;
+		std::optional<Node> message;
 	};
 
 

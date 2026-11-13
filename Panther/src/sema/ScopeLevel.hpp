@@ -189,6 +189,7 @@ namespace pcit::panther::sema{
 				BaseType::InterfaceID,
 				sema::TemplatedStructID,
 				sema::StructTemplateAliasID,
+				sema::DeletedTypeID,
 				TemplateTypeParam,
 				TemplateExprParam,
 				DeducedType,
@@ -357,6 +358,7 @@ namespace pcit::panther::sema{
 			[[nodiscard]] auto addIdent(std::string_view ident, BaseType::InterfaceID id) -> AddIdentResult;
 			[[nodiscard]] auto addIdent(std::string_view ident, sema::TemplatedStructID id) -> AddIdentResult;
 			[[nodiscard]] auto addIdent(std::string_view ident, sema::StructTemplateAliasID id) -> AddIdentResult;
+			[[nodiscard]] auto addIdent(std::string_view ident, sema::DeletedTypeID id) -> AddIdentResult;
 
 
 			//////////////////

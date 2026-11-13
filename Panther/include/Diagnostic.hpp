@@ -88,6 +88,8 @@ namespace pcit::panther{
 				[[nodiscard]] static auto get(const AST::EnumDef& enum_def, const class Source& src) -> Location;
 				[[nodiscard]] static auto get(const AST::InterfaceDef& interface_def, const class Source& src)
 					-> Location;
+				[[nodiscard]] static auto get(const AST::DeletedTypeDef& deleted_type_def, const class Source& src)
+					-> Location;
 				[[nodiscard]] static auto get(const AST::InterfaceImpl& interface_impl, const class Source& src)
 					-> Location;
 				[[nodiscard]] static auto get(const AST::Return& return_stmt, const class Source& src) -> Location;

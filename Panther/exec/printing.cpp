@@ -301,6 +301,10 @@ namespace pthr{
 						this->print_interface_def(this->ast_buffer.getInterfaceDef(stmt));
 					} break;
 
+					case panther::AST::Kind::DELETED_TYPE_DEF: {
+						this->print_deleted_type_def(this->ast_buffer.getDeletedTypeDef(stmt));
+					} break;
+
 					case panther::AST::Kind::INTERFACE_IMPL: {
 						this->print_interface_impl(this->ast_buffer.getInterfaceImpl(stmt));
 					} break;
@@ -1056,6 +1060,35 @@ namespace pthr{
 
 
 
+			auto print_deleted_type_def(const panther::AST::DeletedTypeDef& deleted_type_def) -> void {
+				this->indenter.print();
+				this->print_major_header("Deleted Type");
+
+				{
+					this->indenter.push();
+
+					this->indenter.print_arrow();
+					this->print_minor_header("Identifier");
+					this->printer.printMagenta(" {}\n", this->source.getTokenBuffer()[deleted_type_def.ident].kind());
+
+					this->indenter.print_end();
+					this->print_minor_header("Message");
+					if(deleted_type_def.message.has_value()){
+						this->indenter.push();
+						this->printer.println();
+						this->print_expr(*deleted_type_def.message);
+						this->indenter.pop();
+						
+					}else{
+						this->printer.printlnGray(" {NONE}");
+					}
+
+					this->indenter.pop();
+				}
+			}
+
+
+
 			auto print_interface_impl(const panther::AST::InterfaceImpl& interface_impl) -> void {
 				this->indenter.print();
 				this->print_major_header("Interface Impl");
@@ -1225,7 +1258,7 @@ namespace pthr{
 						this->indenter.pop();
 						
 					}else{
-						this->printer.printlnGray(" {NONE");
+						this->printer.printlnGray(" {NONE}");
 					}
 
 					this->indenter.pop();
@@ -2157,19 +2190,19 @@ namespace pthr{
 					case panther::AST::Kind::FUNC_ALIAS_DEF:   case panther::AST::Kind::ALIAS_DEF:
 					case panther::AST::Kind::STRUCT_DEF:       case panther::AST::Kind::UNION_DEF:
 					case panther::AST::Kind::ENUM_DEF:         case panther::AST::Kind::INTERFACE_DEF:
-					case panther::AST::Kind::INTERFACE_IMPL:   case panther::AST::Kind::RETURN:
-					case panther::AST::Kind::ERROR:            case panther::AST::Kind::UNREACHABLE:
-					case panther::AST::Kind::BREAK:            case panther::AST::Kind::CONTINUE:
-					case panther::AST::Kind::DELETE:           case panther::AST::Kind::CONDITIONAL:
-					case panther::AST::Kind::WHEN_CONDITIONAL: case panther::AST::Kind::WHILE:
-					case panther::AST::Kind::FOR:              case panther::AST::Kind::SWITCH:
-					case panther::AST::Kind::WHEN_SWITCH:      case panther::AST::Kind::DEFER:
-					case panther::AST::Kind::TEMPLATE_PACK:    case panther::AST::Kind::MULTI_ASSIGN:
-					case panther::AST::Kind::UNSAFE:           case panther::AST::Kind::ARRAY_TYPE:
-					case panther::AST::Kind::FUNC_TYPE:        case panther::AST::Kind::INTERFACE_MAP:
-					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
-					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
-					case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::DELETED_TYPE_DEF: case panther::AST::Kind::INTERFACE_IMPL:
+					case panther::AST::Kind::RETURN:           case panther::AST::Kind::ERROR:
+					case panther::AST::Kind::UNREACHABLE:      case panther::AST::Kind::BREAK:
+					case panther::AST::Kind::CONTINUE:         case panther::AST::Kind::DELETE:
+					case panther::AST::Kind::CONDITIONAL:      case panther::AST::Kind::WHEN_CONDITIONAL:
+					case panther::AST::Kind::WHILE:            case panther::AST::Kind::FOR:
+					case panther::AST::Kind::SWITCH:           case panther::AST::Kind::WHEN_SWITCH:
+					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::UNSAFE:
+					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::FUNC_TYPE:
+					case panther::AST::Kind::INTERFACE_MAP:    case panther::AST::Kind::TYPEID_CONVERTER:
+					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
+					case panther::AST::Kind::DEDUCER:          case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}

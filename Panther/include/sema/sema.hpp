@@ -1001,4 +1001,13 @@ namespace pcit::panther::sema{
 		bool isPrivate;
 	};
 
+
+	struct DeletedType{
+		using ID = DeletedTypeID;
+
+		SourceID sourceID;
+		Token::ID ident;
+		std::optional<Expr> message;
+	};
+
 }

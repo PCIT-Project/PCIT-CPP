@@ -313,6 +313,9 @@ namespace pcit::panther{
 			case Instruction::Kind::INTERFACE_FUNC_DEF:
 				return this->instr_interface_func_def(this->context.symbol_proc_manager.getInterfaceFuncDef(instr));
 
+			case Instruction::Kind::DELETED_TYPE:
+				return this->instr_deleted_type(this->context.symbol_proc_manager.getDeletedType(instr));
+
 			case Instruction::Kind::INTERFACE_IMPL_DECL:
 				return this->instr_interface_impl_decl(this->context.symbol_proc_manager.getInterfaceImplDecl(instr));
 
@@ -6479,6 +6482,42 @@ namespace pcit::panther{
 		);
 		current_interface.methods.emplace_back(current_method_id);
 
+		return Result::SUCCESS;
+	}
+
+
+
+	auto SemanticAnalyzer::instr_deleted_type(const Instruction::DeletedType& instr) -> Result {
+		auto message = std::optional<sema::Expr>();
+
+		if(instr.message.has_value()){
+			TermInfo& message_term_info = this->get_term_info(*instr.message);
+
+			TypeCheckInfo message_type_check_info = this->type_check<true, true, true>(
+				TypeManager::getTypeStringRef(),
+				message_term_info,
+				"Message in deleted type",
+				this->get_location(*instr.deleted_type_def.message)
+			);
+			if(message_type_check_info.ok == false){
+				return message_type_check_info.extractSpecialResultForReturning();
+			}
+
+			message = message_term_info.getExpr();
+		}
+
+
+		const sema::DeletedType::ID created_deleted_type = this->context.sema_buffer.createDeletedType(
+			this->source.getID(), instr.deleted_type_def.ident, message
+		);
+
+
+		const std::string_view ident_str = this->source.getTokenBuffer()[instr.deleted_type_def.ident].getString();
+		if(this->add_ident_to_scope(ident_str, instr.deleted_type_def, true, created_deleted_type).isError()){
+			return Result::ERROR;
+		}
+
+		this->propagate_finished_decl_def();
 		return Result::SUCCESS;
 	}
 
@@ -31716,6 +31755,29 @@ namespace pcit::panther{
 				}else{
 					return ReturnType(TermInfo(TermInfo::ValueCategory::TEMPLATE_TYPE, ident_id));
 				}
+
+			}else if constexpr(std::is_same<IdentIDType, sema::DeletedType::ID>()){
+				const sema::DeletedType& deleted_type = this->context.getSemaBuffer().getDeletedType(ident_id);
+
+				auto infos = evo::SmallVector<Diagnostic::Info>();
+
+				if(deleted_type.message.has_value()){
+					infos.emplace_back(
+						std::format(
+							"Message: \"{}\"", sema::extractStringFromExpr(*deleted_type.message, this->context)
+						)
+					);
+				}
+
+				infos.emplace_back(
+					"Type was defined here:",
+					Diagnostic::Location::get(
+						deleted_type.ident, this->context.getSourceManager()[deleted_type.sourceID]
+					)
+				);
+
+				this->emit_error("This type was deleted", ident, std::move(infos));
+				return ReturnType(evo::Unexpected(AnalyzeExprIdentInScopeLevelError::ERROR_EMITTED));
 
 			}else if constexpr(std::is_same<IdentIDType, sema::ScopeLevel::TemplateTypeParam>()){
 				return ReturnType(TermInfo(TermInfo::ValueCategory::TYPE, ident_id.typeID));

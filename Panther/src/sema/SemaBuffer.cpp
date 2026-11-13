@@ -22,6 +22,7 @@ namespace pcit::panther::sema{
 		core::SyncLinearStepAlloc<TemplatedStruct, TemplatedStruct::ID> templated_structs{};
 		core::SyncLinearStepAlloc<StructTemplateAlias, StructTemplateAlias::ID>
 			struct_template_aliases{};
+		core::SyncLinearStepAlloc<DeletedType, DeletedType::ID> deleted_types{};
 		core::SyncLinearStepAlloc<Var, Var::ID> vars{};
 		core::SyncLinearStepAlloc<GlobalVar, GlobalVar::ID> global_vars{};
 		core::SyncLinearStepAlloc<Param, Param::ID> _params{};
@@ -257,6 +258,20 @@ namespace pcit::panther::sema{
 
 	auto SemaBuffer::getStructTemplateAlias(StructTemplateAlias::ID id) const -> const StructTemplateAlias& {
 		return this->internal->struct_template_aliases[id];
+	}
+
+
+
+	///////////////////////////////////
+	// deleted type
+
+	auto SemaBuffer::createDeletedType(SourceID sourceID, Token::ID ident, std::optional<Expr> message)
+	-> DeletedType::ID {
+		return this->internal->deleted_types.emplace_back(sourceID, ident, message);
+	}
+
+	auto SemaBuffer::getDeletedType(DeletedType::ID id) const -> const DeletedType& {
+		return this->internal->deleted_types[id];
 	}
 
 
