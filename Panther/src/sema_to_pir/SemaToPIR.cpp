@@ -7734,34 +7734,26 @@ namespace pcit::panther{
 
 
 		if(target_type->errorTypes[0].isVoid() == false){
-			const pir::Expr error_value = this->handler.createAlloca(
-				*error_return_type, this->name("ERR.ALLOCA")
-			);
+			const pir::Expr error_value = this->handler.createAlloca(*error_return_type, this->name("ERR.ALLOCA"));
 
+			for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
+				const sema::ExceptParam& except_param =
+					this->context.getSemaBuffer().getExceptParam(except_param_id);
 
-			if(target_type->hasNamedReturns){
-				for(const sema::ExceptParam::ID except_param_id : try_else_expr.exceptParams){
-					const sema::ExceptParam& except_param =
-						this->context.getSemaBuffer().getExceptParam(except_param_id);
-
-					const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
-						error_value,
-						*error_return_type,
-						evo::SmallVector<pir::CalcPtr::Index>{
-							pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
-						},
-						this->name(
-							"EXCEPT_PARAM.{}",
-							this->current_source->getTokenBuffer()[
-								this->context.getSemaBuffer().getExceptParam(except_param_id).ident
-							].getString()
-						)
-					);
-					this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
-				}
-
-			}else{
-				this->local_func_exprs.emplace(sema::Expr(try_else_expr.exceptParams[0]), error_value);
+				const pir::Expr except_param_pir_expr = this->handler.createCalcPtr(
+					error_value,
+					*error_return_type,
+					evo::SmallVector<pir::CalcPtr::Index>{
+						pir::CalcPtr::Index(0), pir::CalcPtr::Index(except_param.index)
+					},
+					this->name(
+						"EXCEPT_PARAM.{}",
+						this->current_source->getTokenBuffer()[
+							this->context.getSemaBuffer().getExceptParam(except_param_id).ident
+						].getString()
+					)
+				);
+				this->local_func_exprs.emplace(sema::Expr(except_param_id), except_param_pir_expr);
 			}
 
 			args.emplace_back(error_value);

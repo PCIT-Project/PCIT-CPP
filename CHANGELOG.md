@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.1"></a>
+## v0.0.432.1
+
+### Panther
+- Fixed lowering of erroring function calls where error values are discarded
+
+
+<!---------------------------------->
 <a name="v0.0.432.0"></a>
 ## v0.0.432.0
 
