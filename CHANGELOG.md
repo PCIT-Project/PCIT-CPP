@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.2"></a>
+## v0.0.432.2
+
+### Panther
+- Fixed semantic analysis of type accessors for non-structs when the LHS has no member with the name of the RHS
+
+
+<!---------------------------------->
 <a name="v0.0.432.1"></a>
 ## v0.0.432.1
 

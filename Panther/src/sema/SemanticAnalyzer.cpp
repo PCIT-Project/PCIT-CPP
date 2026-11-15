@@ -26949,12 +26949,16 @@ namespace pcit::panther{
 				///////////////////////////////////
 				// check nonTemplateDependents
 
-				const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
-					decayed_lhs_type.baseTypeID().structID()
-				);
+				if(decayed_lhs_type.baseTypeID().kind() == BaseType::Kind::STRUCT){
+					const BaseType::Struct& lhs_struct = this->context.getTypeManager().getStruct(
+						decayed_lhs_type.baseTypeID().structID()
+					);
 
-				if(lhs_struct.templateID.has_value()){
-					return this->template_struct_accessor<IS_COMPTIME>(instr, rhs_ident_str, *lhs_struct.templateID);
+					if(lhs_struct.templateID.has_value()){
+						return this->template_struct_accessor<IS_COMPTIME>(
+							instr, rhs_ident_str, *lhs_struct.templateID
+						);
+					}
 				}
 
 
