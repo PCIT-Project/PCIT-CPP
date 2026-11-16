@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.5"></a>
+## v0.0.432.5
+
+### Panther
+- Fixed checking for number of `case` statements in a `switch` statements where there are >= 2^64 possible values (such as a `UI64`)
+
+
+<!---------------------------------->
 <a name="v0.0.432.4"></a>
 ## v0.0.432.4
 

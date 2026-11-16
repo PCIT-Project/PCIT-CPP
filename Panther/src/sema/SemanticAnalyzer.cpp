@@ -9443,7 +9443,13 @@ namespace pcit::panther{
 							const size_t bit_width =
 								this->context.getTypeManager().numBits(decayed_cond_type.baseTypeID(), false);
 
-							const size_t expected_num_cases = size_t(1) << bit_width; // 0 means > 2^64
+							const size_t expected_num_cases = [&]() -> size_t {
+								if(bit_width >= sizeof(size_t) * 8){
+									return std::numeric_limits<size_t>::max();
+								}else{
+									return size_t(1) << bit_width;
+								}
+							}();
 
 							if(else_index.has_value()){
 								if(used_values.size() == expected_num_cases && used_values.size() != 0){
