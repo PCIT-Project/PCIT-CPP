@@ -442,7 +442,11 @@ namespace pcit::panther{
 			}
 		}
 
-		auto error_return_type = std::optional<pir::Type>();
+
+		const Data::FuncTypeInfo& func_type_info = this->get_or_create_func_type_info(func.typeID);
+
+
+		// auto error_return_type = std::optional<pir::Type>();
 		if(func_type.hasErrorReturnValue()){
 			auto debug_members = evo::SmallVector<pir::meta::StructType::Member>();
 			if(this->data.config.includeDebugInfo){
@@ -482,15 +486,13 @@ namespace pcit::panther{
 
 
 
-			error_return_type = this->module.createStructType(
-				this->mangle_name(func_id) + ".ERR", std::move(error_return_param_types), true
-			);
-
 			auto attributes = evo::SmallVector<pir::Parameter::Attribute>{
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNoAlias()),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrNonNull()),
 				pir::Parameter::Attribute(
-					pir::Parameter::Attribute::PtrDereferencable(this->module.numBytes(*error_return_type))
+					pir::Parameter::Attribute::PtrDereferencable(
+						this->module.numBytes(*func_type_info.error_return_type)
+					)
 				),
 				pir::Parameter::Attribute(pir::Parameter::Attribute::PtrWritable())
 			};
@@ -504,19 +506,7 @@ namespace pcit::panther{
 			}
 
 			if(this->data.config.includeDebugInfo){
-				const Location location = this->get_location(Diagnostic::Location::get(func, this->context));
-
-				const pir::meta::StructType::ID struct_type_id = this->module.createMetaStructType(
-					*error_return_type,
-					this->mangle_name(func_id) + ".ERR",
-					this->mangle_name(func_id) + ".ERR",
-					std::move(debug_members),
-					location.meta_file_id,
-					location.meta_file_id,
-					location.line_number
-				);
-
-				meta_params.emplace_back(struct_type_id);
+				meta_params.emplace_back(*this->module.lookupMetaStructType(*func_type_info.error_return_type));
 			}
 		}
 
@@ -590,8 +580,6 @@ namespace pcit::panther{
 					pir_funcs.emplace_back(created_external_func_id);
 
 					this->data.create_func(func_id, std::move(pir_funcs));
-
-					std::ignore = this->get_or_create_func_type_info(func.typeID);
 				}
 
 				return;
@@ -707,8 +695,6 @@ namespace pcit::panther{
 
 
 		this->data.create_func(func_id, std::move(pir_funcs));
-
-		std::ignore = this->get_or_create_func_type_info(func.typeID);
 	}
 
 
@@ -738,18 +724,6 @@ namespace pcit::panther{
 			this->current_func_info = nullptr;
 			this->current_func_type_info = nullptr;
 		});
-
-		auto error_ret_debug_meta_type = std::optional<pir::meta::Type>();
-		if(this->data.config.includeDebugInfo && sema_func.hasNamedErrors()){
-			const pir::StructType& err_ret_struct_type = this->module.getStructType(*func_type_info.error_return_type);
-
-			error_ret_debug_meta_type = this->module.createMetaQualifiedType(
-				std::format("{}&", err_ret_struct_type.name),
-				std::format("{}&", err_ret_struct_type.name),
-				*this->module.lookupMetaStructType(*func_type_info.error_return_type),
-				pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
-			);
-		}
 
 
 		this->in_param_bitmap = 0;
@@ -974,7 +948,10 @@ namespace pcit::panther{
 						this->create_scoped_source_location(param_location.lineStart, param_location.collumnStart);
 
 					this->handler.createMetaParam(
-						std::string(param_name), param_alloca, uint32_t(abi_index), *error_ret_debug_meta_type
+						std::string(param_name),
+						param_alloca,
+						uint32_t(abi_index),
+						*func_type_info.error_return_meta_type_reference
 					);
 				}
 			}
@@ -1088,6 +1065,7 @@ namespace pcit::panther{
 		}
 
 		auto error_return_type = std::optional<pir::Type>();
+		auto error_return_meta_type_reference = std::optional<pir::meta::Type>();
 		if(func_type.hasErrorReturnValue()){
 			auto error_return_param_types = evo::SmallVector<pir::Type>();
 			error_return_param_types.reserve(func_type.errorTypes.size());
@@ -1118,7 +1096,7 @@ namespace pcit::panther{
 			);
 
 			if(this->data.config.includeDebugInfo){
-				std::ignore = this->module.createMetaStructType(
+				const pir::meta::StructType::ID err_meta_struct_type_id = this->module.createMetaStructType(
 					*error_return_type,
 					std::format("PTHR.FUNC_ERR_{}", func_type_id.get()),
 					std::format("PTHR.FUNC_ERR_{}", func_type_id.get()),
@@ -1126,6 +1104,15 @@ namespace pcit::panther{
 					this->data.get_builtin_meta_file(this->module),
 					this->data.get_builtin_meta_file(this->module),
 					0
+				);
+
+				error_return_meta_type_reference = pir::meta::Type(
+					this->module.createMetaQualifiedType(
+						std::format("PTHR.FUNC_ERR_{}&", func_type_id.get()),
+						std::format("PTHR.FUNC_ERR_{}&", func_type_id.get()),
+						err_meta_struct_type_id,
+						pir::meta::QualifiedType::Qualifier::MUT_REFERENCE
+					)
 				);
 			}
 		}
@@ -1149,7 +1136,8 @@ namespace pcit::panther{
 			func_type.attributes.isNoReturn,
 			std::move(param_infos),
 			std::move(return_params),
-			error_return_type
+			error_return_type,
+			error_return_meta_type_reference
 		);
 	}
 

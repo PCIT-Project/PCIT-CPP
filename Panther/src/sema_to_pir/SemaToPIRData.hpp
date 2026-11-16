@@ -86,6 +86,7 @@ namespace pcit::panther{
 				evo::SmallVector<Param> params;
 				evo::SmallVector<ReturnParam> return_params; // only used if they are out params
 				std::optional<pir::Type> error_return_type;
+				std::optional<pir::meta::Type> error_return_meta_type_reference;
 			};
 
 			struct UnionTypeInfo{

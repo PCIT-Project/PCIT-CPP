@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.3"></a>
+## v0.0.432.3
+
+### Panther
+- Fixed lowering of two or more functions that have the same type and have named error returns when adding debug info
+
+
+<!---------------------------------->
 <a name="v0.0.432.2"></a>
 ## v0.0.432.2
 

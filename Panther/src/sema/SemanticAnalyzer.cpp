@@ -5526,11 +5526,13 @@ namespace pcit::panther{
 			if(func_info.flipped_version.has_value()){
 				sema_to_pir.lowerFuncDecl(*func_info.flipped_version);
 			}
+
+			
+			this->propagate_finished_pir_decl();
 		}
 
 
 
-		this->propagate_finished_pir_decl();
 
 
 		//////////////////
