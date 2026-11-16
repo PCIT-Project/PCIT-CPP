@@ -591,6 +591,7 @@ namespace pcit::panther::sema{
 		Token::ID whileToken;
 		std::optional<Token::ID> label;
 		StmtBlock block{};
+		bool isWhileTrue;
 	};
 
 	struct For{

@@ -2147,7 +2147,7 @@ namespace pcit::panther{
 					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 				);
 
-				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
+				created_default_init_new.value.as<sema::Func::DefValue>().stmtBlock.setFunctionTerminated();
 				created_default_init_new.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.newInitOverloads.emplace_back(created_default_init_new_id);
@@ -2316,7 +2316,7 @@ namespace pcit::panther{
 					this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 				);
 
-				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
+				created_default_delete.value.as<sema::Func::DefValue>().stmtBlock.setFunctionTerminated();
 				created_default_delete.status = sema::Func::Status::DEF_DONE;
 
 				created_struct.deleteOverload = created_default_delete_id;
@@ -2516,7 +2516,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 					);
 
-					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
+					created_default_move.value.as<sema::Func::DefValue>().stmtBlock.setFunctionTerminated();
 					created_default_move.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.moveInitOverload = BaseType::Struct::DeletableOverload(created_default_move_id);
@@ -2731,7 +2731,7 @@ namespace pcit::panther{
 						this->context.sema_buffer.createReturn(std::nullopt, std::nullopt, sema::Location(0, 0))
 					);
 
-					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
+					created_default_copy.value.as<sema::Func::DefValue>().stmtBlock.setFunctionTerminated();
 					created_default_copy.status = sema::Func::Status::DEF_DONE;
 
 					created_struct.copyInitOverload = BaseType::Struct::DeletableOverload(created_default_copy_id);
@@ -4957,7 +4957,7 @@ namespace pcit::panther{
 									)
 								);
 
-								created_swapped_func.value.as<sema::Func::DefValue>().stmtBlock.setTerminated();
+								created_swapped_func.value.as<sema::Func::DefValue>().stmtBlock.setFunctionTerminated();
 								created_swapped_func.status = sema::Func::Status::DEF_DONE;
 
 								func_info.flipped_version = created_swapped_func_id;
@@ -7398,7 +7398,7 @@ namespace pcit::panther{
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_return_id);
-		this->get_current_scope_level().setTerminated();
+		this->get_current_scope_level().setFunctionTerminated();
 
 		return Result::SUCCESS;
 	}
@@ -7635,7 +7635,7 @@ namespace pcit::panther{
 		);
 
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_error_id);
-		this->get_current_scope_level().setTerminated();
+		this->get_current_scope_level().setFunctionTerminated();
 
 		return Result::SUCCESS;
 	}
@@ -7669,7 +7669,7 @@ namespace pcit::panther{
 			)
 		);
 
-		this->get_current_scope_level().setTerminated();
+		this->get_current_scope_level().setFunctionTerminated();
 
 		if(this->context.getConfig().runtimeErrorMode == Context::Config::RuntimeErrorMode::PANIC){
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().depends_on_panic = true;
@@ -8189,10 +8189,19 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
+		bool is_while_true = false;
+		if(cond_term_info.isComptime){
+			const sema::Expr cond_expr = cond_term_info.getExpr();
+			if(cond_expr.kind() == sema::Expr::Kind::BOOL_VALUE){
+				is_while_true = true;
+			}
+		}
+
+
 		const AST::Block& while_block = this->source.getASTBuffer().getBlock(instr.while_stmt.block);
 
 		const sema::While::ID sema_while_id = this->context.sema_buffer.createWhile(
-			cond_term_info.getExpr(), instr.while_stmt.keyword, while_block.label
+			cond_term_info.getExpr(), instr.while_stmt.keyword, while_block.label, is_while_true
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_while_id);
 
@@ -8204,6 +8213,10 @@ namespace pcit::panther{
 		}
 
 		this->get_current_scope_level().setIsLoopMainScope();
+
+		if(is_while_true == false){
+			this->get_current_scope_level().addSubScope();
+		}
 
 		return Result::SUCCESS;
 	}
@@ -10108,7 +10121,7 @@ namespace pcit::panther{
 						);
 
 						this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
-						this->get_current_scope_level().setTerminated();
+						this->get_current_scope_level().setFunctionTerminated();
 					} break;
 
 					default: {
@@ -10137,7 +10150,7 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
 
 				if(func_call_impl_res.value().selected_func_type.attributes.isNoReturn){
-					this->get_current_scope_level().setTerminated();
+					this->get_current_scope_level().setFunctionTerminated();
 				}
 			}
 
@@ -10204,7 +10217,7 @@ namespace pcit::panther{
 				this->get_current_scope_level().stmtBlock().emplace_back(sema_func_call_id);
 
 				if(func_call_impl_res.value().selected_func_type.attributes.isNoReturn){
-					this->get_current_scope_level().setTerminated();
+					this->get_current_scope_level().setFunctionTerminated();
 				}
 			}
 
@@ -29384,7 +29397,7 @@ namespace pcit::panther{
 				&& current_scope_level.stmtBlock().isTerminated() == false
 				&& current_scope_is_terminated
 			){
-				current_scope_level.stmtBlock().setTerminated();
+				current_scope_level.stmtBlock().setFunctionTerminated();
 
 			}else if(current_scope_is_terminated == false && this->scope.inEncapsulatingSymbol()){
 				sema::ScopeLevel& parent_scope_level = 
@@ -31886,7 +31899,7 @@ namespace pcit::panther{
 				}
 				
 			}else{
-				current_scope_level.stmtBlock().setTerminated();
+				current_scope_level.stmtBlock().setFunctionTerminated();
 			}
 		}
 

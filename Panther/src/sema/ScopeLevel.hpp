@@ -297,11 +297,12 @@ namespace pcit::panther::sema{
 			auto setSubScopeLabelTerminated() -> void;
 			auto setSubScopeLoopTerminated() -> void;
 
-			auto setTerminated() -> void;
+			auto setFunctionTerminated() -> void;
 			auto setLabelTerminated() -> void;
 			auto setLoopTerminated() -> void;
 
 			[[nodiscard]] auto isTerminated() const -> bool;
+			[[nodiscard]] auto isFunctionTerminated() const -> bool;
 			[[nodiscard]] auto isLabelTerminated() const -> bool;
 			[[nodiscard]] auto isLoopTerminated() const -> bool;
 

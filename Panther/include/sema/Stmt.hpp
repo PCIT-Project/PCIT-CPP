@@ -251,7 +251,7 @@ namespace pcit::panther::sema{
 		enum class TerminatedKind{
 			NONE, // only used for optional interface
 
-			TERMINATED,
+			FUNCTION_TERMINATED,
 			LABEL_TERMINATED, // for example, through `return->label 12;`
 			LOOP_TERMINATED, // `break` / `continue`
 			NOT_TERMINATED,
@@ -266,6 +266,10 @@ namespace pcit::panther::sema{
 				return this->terminated_kind != TerminatedKind::NOT_TERMINATED;
 			}
 
+			[[nodiscard]] auto isFunctionTerminated() const -> bool {
+				return this->terminated_kind == TerminatedKind::FUNCTION_TERMINATED;
+			}
+
 			[[nodiscard]] auto isLabelTerminated() const -> bool {
 				return this->terminated_kind == TerminatedKind::LABEL_TERMINATED;
 			}
@@ -275,9 +279,9 @@ namespace pcit::panther::sema{
 			}
 			
 
-			auto setTerminated() -> void {
+			auto setFunctionTerminated() -> void {
 				evo::debugAssert(this->isTerminated() == false, "already terminated");
-				this->terminated_kind = TerminatedKind::TERMINATED;
+				this->terminated_kind = TerminatedKind::FUNCTION_TERMINATED;
 			}
 
 			auto setLabelTerminated() -> void {

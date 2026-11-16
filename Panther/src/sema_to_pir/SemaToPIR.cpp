@@ -3182,8 +3182,13 @@ namespace pcit::panther{
 				this->handler.createJump(cond_block);
 
 				this->handler.setTargetBasicBlock(cond_block);
-				const pir::Expr cond_value = this->get_expr_register(while_stmt.cond);
-				this->handler.createBranch(cond_value, body_block, end_block);
+				if(while_stmt.isWhileTrue){
+					this->handler.createJump(body_block);
+				}else{
+					const pir::Expr cond_value = this->get_expr_register(while_stmt.cond);
+					this->handler.createBranch(cond_value, body_block, end_block);
+				}
+
 
 				if(this->data.getConfig().includeDebugInfo){
 					this->handler.popSourceLocation();
@@ -3210,6 +3215,10 @@ namespace pcit::panther{
 
 				this->pop_scope_level();
 				this->handler.setTargetBasicBlock(end_block);
+
+				if(while_stmt.block.isFunctionTerminated() && while_stmt.isWhileTrue){
+					this->handler.createUnreachable();
+				}
 
 				if(this->data.getConfig().includeDebugInfo){
 					this->local_scopes.pop();

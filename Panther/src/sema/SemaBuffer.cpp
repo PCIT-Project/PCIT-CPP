@@ -678,9 +678,10 @@ namespace pcit::panther::sema{
 	///////////////////////////////////
 	// whiles
 
-	auto SemaBuffer::createWhile(Expr cond, Token::ID whileToken, std::optional<Token::ID> label, StmtBlock&& block)
-	-> While::ID {
-		return this->internal->whiles.emplace_back(cond, whileToken, label, std::move(block));
+	auto SemaBuffer::createWhile(
+		Expr cond, Token::ID whileToken, std::optional<Token::ID> label, bool isWhileTrue, StmtBlock&& block
+	) -> While::ID {
+		return this->internal->whiles.emplace_back(cond, whileToken, label, std::move(block), isWhileTrue);
 	}
 
 	auto SemaBuffer::getWhile(While::ID id) const -> const While& {

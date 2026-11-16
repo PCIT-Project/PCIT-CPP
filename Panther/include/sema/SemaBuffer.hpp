@@ -392,7 +392,11 @@ namespace pcit::panther::sema{
 			// whiles
 
 			[[nodiscard]] auto createWhile(
-				Expr cond, Token::ID whileToken, std::optional<Token::ID> label, StmtBlock&& block = StmtBlock{}
+				Expr cond,
+				Token::ID whileToken,
+				std::optional<Token::ID> label,
+				bool isWhileTrue,
+				StmtBlock&& block = StmtBlock{}
 			) -> While::ID;
 
 			[[nodiscard]] auto getWhile(While::ID id) const -> const While&;

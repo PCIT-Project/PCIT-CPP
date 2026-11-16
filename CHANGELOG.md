@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.4"></a>
+## v0.0.432.4
+
+### Panther
+- Fixed lowering of `while` loops that has a comptime `true` as the condition and that are function terminated
+- Fixed terminated checking for `while` loops that has a comptime `true` as the condition
+
+
+<!---------------------------------->
 <a name="v0.0.432.3"></a>
 ## v0.0.432.3
 
