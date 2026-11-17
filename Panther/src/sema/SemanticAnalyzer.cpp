@@ -7683,10 +7683,10 @@ namespace pcit::panther{
 		if(this->check_scope_isnt_terminated(instr.break_stmt).isError()){ return Result::ERROR; }
 
 		if(instr.break_stmt.label.has_value()){
-			const sema::ScopeLevel* scope_level = nullptr;
-
 			const std::string_view return_label = this->source.getTokenBuffer()[*instr.break_stmt.label].getString();
 
+			bool is_backwards_loop_jump = true;
+			size_t jump_target_scope_level_index = 0;
 			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
 				EVO_DEFER([&](){ i -= 1; });
 
@@ -7695,17 +7695,32 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				scope_level = &this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
-				if(scope_level->hasLabel() == false){ continue; }
+				const sema::ScopeLevel& scope_level =
+					this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
+				if(scope_level.hasLabel() == false){ continue; }
 			
-				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
+				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level.getLabel()].getString();
 
-				if(return_label == scope_label){ break; }
+				if(return_label == scope_label){
+					if(scope_level.isLoopMainScope() == false){
+						this->emit_error(
+							std::format("Cannot break to label \"{}\"", return_label), *instr.break_stmt.label
+						);
+						return Result::ERROR;
+					}
+
+					jump_target_scope_level_index = i;
+
+					break;
+				}
+
+				if(scope_level.isLoopMainScope()){ is_backwards_loop_jump = false; } // check if jumps to a parent loop
 			}
 
-			if(scope_level->isLoopMainScope() == false){
-				this->emit_error(std::format("Cannot break to label \"{}\"", return_label), *instr.break_stmt.label);
-				return Result::ERROR;
+			if(is_backwards_loop_jump == false){
+				if(this->check_backwards_loop_jump(
+					jump_target_scope_level_index, this->get_location(instr.break_stmt)
+				).isError()){ return Result::ERROR; }
 			}
 
 		}else{
@@ -7740,9 +7755,9 @@ namespace pcit::panther{
 	auto SemanticAnalyzer::instr_continue(const Instruction::Continue& instr) -> Result {
 		if(this->check_scope_isnt_terminated(instr.continue_stmt).isError()){ return Result::ERROR; }
 
-		if(instr.continue_stmt.label.has_value()){
-			const sema::ScopeLevel* scope_level = nullptr;
+		size_t jump_target_scope_level_index = 0;
 
+		if(instr.continue_stmt.label.has_value()){
 			const std::string_view return_label = this->source.getTokenBuffer()[*instr.continue_stmt.label].getString();
 
 			for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
@@ -7753,19 +7768,24 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				scope_level = &this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
-				if(scope_level->hasLabel() == false){ continue; }
+				const sema::ScopeLevel& scope_level =
+					this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
+				if(scope_level.hasLabel() == false){ continue; }
 			
-				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level->getLabel()].getString();
+				const std::string_view scope_label = this->source.getTokenBuffer()[scope_level.getLabel()].getString();
 
-				if(return_label == scope_label){ break; }
-			}
+				if(return_label == scope_label){
+					if(scope_level.isLoopMainScope() == false){
+						this->emit_error(
+							std::format("Cannot continue to label \"{}\"", return_label), *instr.continue_stmt.label
+						);
+						return Result::ERROR;
+					}
 
-			if(scope_level->isLoopMainScope() == false){
-				this->emit_error(
-					std::format("Cannot continue to label \"{}\"", return_label), *instr.continue_stmt.label
-				);
-				return Result::ERROR;
+					jump_target_scope_level_index = i;
+
+					break;
+				}
 			}
 
 		}else{
@@ -7779,6 +7799,7 @@ namespace pcit::panther{
 
 				if(scope_level.isLoopMainScope()){
 					found_loop = true;
+					jump_target_scope_level_index = i;
 					break;
 				}
 			}
@@ -7788,6 +7809,10 @@ namespace pcit::panther{
 				return Result::ERROR;
 			}
 		}
+
+		if(this->check_backwards_loop_jump(
+			jump_target_scope_level_index, this->get_location(instr.continue_stmt)
+		).isError()){ return Result::ERROR; }
 
 		const sema::Continue::ID new_continue_id = this->context.sema_buffer.createContinue(instr.continue_stmt.label);
 		this->get_current_scope_level().stmtBlock().emplace_back(new_continue_id);
@@ -8223,6 +8248,12 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_end_while(const Instruction::EndWhile& instr) -> Result {
+		if(this->get_current_scope_level().isTerminated() == false){
+			if(this->check_backwards_loop_jump(
+				this->scope.size() - 2, this->get_location(instr.close_brace)
+			).isError()){ return Result::ERROR; }
+		}
+
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 		return Result::SUCCESS;
@@ -8888,9 +8919,15 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::instr_end_for(const Instruction::EndFor& instr) -> Result {
+		if(this->get_current_scope_level().isTerminated() == false){
+			if(this->check_backwards_loop_jump(
+				this->scope.size() - 2, this->get_location(instr.close_brace)
+			).isError()){ return Result::ERROR; }
+		}
+
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 
-		if(instr.has_else()){
+		if(instr.has_else){
 			const sema::For::ID current_for_id =
 				this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.top().forID();
 
@@ -8899,7 +8936,7 @@ namespace pcit::panther{
 			this->push_scope_level(&current_for.elseBlock.emplace());
 
 		}else{
-			if(this->end_sub_scopes(this->get_location(*instr.close_brace)).isError()){ return Result::ERROR; }
+			if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
 			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().subscopes.pop();
 		}
 
@@ -29413,7 +29450,9 @@ namespace pcit::panther{
 					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){ continue; }
 
 					const evo::Expected<void, sema::ScopeLevel::ValueStateID> set_value_state_res =
-						parent_scope_level.setIdentValueStateFromSubScope(value_state_id, value_state_info.state);
+						parent_scope_level.setIdentValueStateFromSubScope(
+							value_state_id, value_state_info.state, this->scope.size() - 1
+						);
 
 
 					if(set_value_state_res.has_value() == false){
@@ -29459,10 +29498,50 @@ namespace pcit::panther{
 
 
 
+	auto SemanticAnalyzer::check_backwards_loop_jump(
+		size_t jump_target_scope_level_index, Diagnostic::Location&& location
+	) -> evo::Result<> {
+		auto decls = std::unordered_map<sema::ScopeLevel::ValueStateID, sema::ScopeLevel::ValueState>();
+
+		for(size_t i = 0; const sema::ScopeLevel::ID target_scope_level_id : this->scope | std::views::reverse){
+			EVO_DEFER([&](){ i += 1; });
+
+			const sema::ScopeLevel& scope_level =
+				this->context.sema_buffer.getScopeManager().getLevel(target_scope_level_id);
+
+			for(const auto& [value_state_id, value_state_info] : scope_level.getValueStateInfos()){
+				if(i <= jump_target_scope_level_index){ // is pre-loop
+					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::ModifyInfo>()){ continue; }
+					decls.emplace(value_state_id, value_state_info.state);
+
+				}else{
+					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){ continue; }
+
+					const auto decl_find = decls.find(value_state_id);
+					if(decl_find == decls.end()){ continue; }
+					if(decl_find->second == value_state_info.state){ continue; }
+
+					this->emit_error(
+						"Cannot determine value state from sub-scopes",
+						value_state_id,
+						Diagnostic::Info("Sub-scopes end here:", std::move(location))
+					);
+					return evo::resultError;
+				}
+
+			}
+		}
+
+		return evo::Result<>();
+	}
+
+
+
+
 	auto SemanticAnalyzer::currently_in_loop() const -> bool {
 		bool found_loop = false;
 
-		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID& target_scope_level_id : this->scope){
+		for(size_t i = this->scope.size() - 1; const sema::ScopeLevel::ID target_scope_level_id : this->scope){
 			EVO_DEFER([&](){ i -= 1; });
 
 			const sema::ScopeLevel& scope_level =
@@ -32000,6 +32079,7 @@ namespace pcit::panther{
 			const std::optional<sema::ScopeLevel::ValueState> value_state =
 				scope_level.getIdentValueState(value_state_id, scope_level_index);
 
+
 			if(value_state.has_value()){
 				switch(*value_state){
 					case sema::ScopeLevel::ValueState::INIT:                return TermInfo::ValueState::INIT;
@@ -32037,8 +32117,6 @@ namespace pcit::panther{
 				}
 				evo::debugFatalBreak("unknown value state");
 			}
-
-			scope_level_index -= 1;
 		}
 
 		return false;
@@ -32139,7 +32217,7 @@ namespace pcit::panther{
 	) -> void {
 		sema::ScopeLevel& current_scope_level = this->get_current_scope_level();
 
-		current_scope_level.setIdentValueState(value_state_id, value_state);
+		current_scope_level.setIdentValueState(value_state_id, value_state, this->scope.size() - 1);
 
 		value_state_id.visit([&](const auto& id) -> void {
 			using IDType = std::decay_t<decltype(id)>;

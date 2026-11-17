@@ -78,13 +78,9 @@ namespace pcit::panther::sema{
 					[[nodiscard]] auto size() const -> size_t { return this->scope_levels.size(); }
 
 					// note: these are purposely reverse iterators
-					// TODO(PERF): figure out if doing lookup in reverse is indeed faster
-					//             	If not, make sure to fix any place that assumes going in reverse
-
 					[[nodiscard]] auto begin() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
-
 					[[nodiscard]] auto begin() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
 						return this->scope_levels.rbegin();
 					}
@@ -92,10 +88,25 @@ namespace pcit::panther::sema{
 					[[nodiscard]] auto end() -> evo::SmallVector<ScopeLevel::ID>::reverse_iterator {
 						return this->scope_levels.rend();
 					}
-
 					[[nodiscard]] auto end() const -> evo::SmallVector<ScopeLevel::ID>::const_reverse_iterator {
 						return this->scope_levels.rend();
 					}
+
+
+					[[nodiscard]] auto rbegin() -> evo::SmallVector<ScopeLevel::ID>::iterator {
+						return this->scope_levels.begin();
+					}
+					[[nodiscard]] auto rbegin() const -> evo::SmallVector<ScopeLevel::ID>::const_iterator {
+						return this->scope_levels.begin();
+					}
+
+					[[nodiscard]] auto rend() -> evo::SmallVector<ScopeLevel::ID>::iterator {
+						return this->scope_levels.end();
+					}
+					[[nodiscard]] auto rend() const -> evo::SmallVector<ScopeLevel::ID>::const_iterator {
+						return this->scope_levels.end();
+					}
+
 
 
 					///////////////////////////////////

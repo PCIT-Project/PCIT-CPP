@@ -496,6 +496,11 @@ namespace pcit::panther{
 			template<PopScopeLevelKind POP_SCOPE_LEVEL_KIND = PopScopeLevelKind::NORMAL>
 			[[nodiscard]] auto pop_scope_level() -> evo::Result<>;
 
+			[[nodiscard]] auto check_backwards_loop_jump(
+				size_t jump_target_scope_level_index, Diagnostic::Location&& location
+			) -> evo::Result<>;
+
+
 			[[nodiscard]] auto currently_in_loop() const -> bool;
 
 

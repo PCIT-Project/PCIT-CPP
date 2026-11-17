@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.432.6"></a>
+## v0.0.432.6
+
+### Panther
+- Fixed determining value state when the change occurs within a subscope over multiple subscopes
+- Fixed missing check for undetermined value state on backwards loop
+
+
+<!---------------------------------->
 <a name="v0.0.432.5"></a>
 ## v0.0.432.5
 

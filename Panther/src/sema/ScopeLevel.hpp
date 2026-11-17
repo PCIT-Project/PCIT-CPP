@@ -406,10 +406,12 @@ namespace pcit::panther::sema{
 
 
 			auto addIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
-			auto setIdentValueState(ValueStateID value_state_id, ValueState state) -> void;
-			[[nodiscard]] auto setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
-				-> evo::Expected<void, ValueStateID>;
-			[[nodiscard]] auto getIdentValueState(ValueStateID value_state_id, size_t scope_level_index) const
+			auto setIdentValueState(ValueStateID value_state_id, ValueState state, size_t this_scope_level_index)
+				-> void;
+			[[nodiscard]] auto setIdentValueStateFromSubScope(
+				ValueStateID value_state_id, ValueState state, size_t scope_level_index_where_set
+			) -> evo::Expected<void, ValueStateID>;
+			[[nodiscard]] auto getIdentValueState(ValueStateID value_state_id, size_t this_scope_level_index) const
 				-> std::optional<ValueState>;
 
 			[[nodiscard]] auto getValueStateInfos() const

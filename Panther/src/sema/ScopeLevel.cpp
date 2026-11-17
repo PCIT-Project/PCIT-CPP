@@ -533,7 +533,8 @@ namespace pcit::panther::sema{
 		);
 	}
 
-	auto ScopeLevel::setIdentValueState(ValueStateID value_state_id, ValueState state) -> void {
+	auto ScopeLevel::setIdentValueState(ValueStateID value_state_id, ValueState state, size_t this_scope_level_index)
+	-> void {
 		const auto lock = std::scoped_lock(this->value_states_lock);
 
 		auto find = this->value_states.find(value_state_id);
@@ -543,7 +544,7 @@ namespace pcit::panther::sema{
 				value_state_id,
 				ValueStateInfo(
 					state,
-					ValueStateInfo::ModifyInfo{.scope_level_index = this->value_states.size() - 1, .num_sub_scopes = 0}
+					ValueStateInfo::ModifyInfo{.scope_level_index = this_scope_level_index, .num_sub_scopes = 0}
 				)
 			);
 
@@ -552,8 +553,9 @@ namespace pcit::panther::sema{
 		}
 	}
 
-	auto ScopeLevel::setIdentValueStateFromSubScope(ValueStateID value_state_id, ValueState state)
-	-> evo::Expected<void, ValueStateID> {
+	auto ScopeLevel::setIdentValueStateFromSubScope(
+		ValueStateID value_state_id, ValueState state, size_t scope_level_index_where_set
+	) -> evo::Expected<void, ValueStateID> {
 		const auto lock = std::scoped_lock(this->value_states_lock);
 
 		auto find = this->value_states.find(value_state_id);
@@ -563,7 +565,7 @@ namespace pcit::panther::sema{
 				value_state_id,
 				ValueStateInfo(
 					state,
-					ValueStateInfo::ModifyInfo{.scope_level_index = this->value_states.size() - 1, .num_sub_scopes = 1}
+					ValueStateInfo::ModifyInfo{.scope_level_index = scope_level_index_where_set, .num_sub_scopes = 1}
 				)
 			);
 			return evo::Expected<void, ValueStateID>();
@@ -599,7 +601,7 @@ namespace pcit::panther::sema{
 		}
 	}
 
-	auto ScopeLevel::getIdentValueState(ValueStateID value_state_id, size_t scope_level_index) const
+	auto ScopeLevel::getIdentValueState(ValueStateID value_state_id, size_t this_scope_level_index) const
 	-> std::optional<ValueState> {
 		const auto lock = std::scoped_lock(this->value_states_lock);
 
@@ -608,7 +610,7 @@ namespace pcit::panther::sema{
 
 		if(
 			find->second.info.is<ValueStateInfo::ModifyInfo>()
-			&& find->second.info.as<ValueStateInfo::ModifyInfo>().isPotential(scope_level_index)
+			&& find->second.info.as<ValueStateInfo::ModifyInfo>().isPotential(this_scope_level_index)
 		){
 			return std::nullopt;
 		}

@@ -600,9 +600,8 @@ namespace pcit::panther{
 		};
 
 		struct EndFor{
-			std::optional<Token::ID> close_brace;
-
-			[[nodiscard]] auto has_else() const -> bool { return this->close_brace.has_value() == false; }
+			Token::ID close_brace;
+			bool has_else;
 		};
 
 		struct EndForElse{

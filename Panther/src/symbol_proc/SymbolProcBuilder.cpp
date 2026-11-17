@@ -3092,7 +3092,7 @@ namespace pcit::panther{
 			}
 
 			if(for_stmt.elseBlock.has_value()){
-				this->add_instruction(this->context.symbol_proc_manager.createEndFor(std::nullopt));
+				this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace, true));
 
 				const AST::Block& else_block = this->source.getASTBuffer().getBlock(*for_stmt.elseBlock);
 				for(const AST::Node& stmt : else_block.statements){
@@ -3102,7 +3102,7 @@ namespace pcit::panther{
 				this->add_instruction(this->context.symbol_proc_manager.createEndForElse(else_block.closeBrace));
 
 			}else{
-				this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace));
+				this->add_instruction(this->context.symbol_proc_manager.createEndFor(block.closeBrace, false));
 			}
 
 			return evo::Result<>();
