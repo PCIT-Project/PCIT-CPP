@@ -14875,6 +14875,7 @@ namespace pcit::panther{
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES:
 			case TemplateIntrinsicFunc::Kind::NUM_BITS:
 			case TemplateIntrinsicFunc::Kind::NUM_ALIGN_BYTES:
+			case TemplateIntrinsicFunc::Kind::NUM_OFFSET_BYTES:
 			case TemplateIntrinsicFunc::Kind::GET_INTEGER_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE:
 			case TemplateIntrinsicFunc::Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE:
@@ -15290,6 +15291,77 @@ namespace pcit::panther{
 				this->return_term_info(
 					instr.output,
 					comptime_intrinsic_evaluator.numAlignBytes(template_args[0].as<TypeInfo::ID>())
+				);
+			} break;
+
+			case TemplateIntrinsicFunc::Kind::NUM_OFFSET_BYTES: {
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo& target_type_info = this->context.getTypeManager().getTypeInfo(target_type_id);
+
+				if(target_type_info.qualifiers().empty() == false){
+					this->emit_error(
+						"This template argument to `@_numOffsetBytes` must be a struct type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+					);
+					return Result::ERROR;
+				}
+
+				if(target_type_info.baseTypeID().kind() != BaseType::Kind::STRUCT){
+					this->emit_error(
+						"This template argument to `@_numOffsetBytes` must be a struct type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+					);
+					return Result::ERROR;
+				}
+
+				const BaseType::Struct& struct_type = this->context.getTypeManager().getStruct(
+					target_type_info.baseTypeID().structID()
+				);
+
+				const std::string_view member_name = [&]() -> std::string_view {
+					if(this->context.getTypeManager().numBitsOfPtr() == 64){
+						return *reinterpret_cast<const std::string_view*>(
+							template_args[1].as<core::GenericValue>().dataRange().data()
+						);
+						
+					}else{
+						const evo::ArrayProxy<std::byte> data_range =
+							template_args[1].as<core::GenericValue>().dataRange();
+
+						const uint32_t data_ptr_key = *reinterpret_cast<const uint32_t*>(&data_range[0]);
+						const uint32_t str_size = *reinterpret_cast<const uint32_t*>(&data_range[sizeof(uint32_t)]);
+
+						const void* str_ptr = *this->context.execution_engine.getPtrMap().lookupPtr(data_ptr_key);
+
+						return std::string_view(reinterpret_cast<const char*>(str_ptr), size_t(str_size));
+					}
+				}();
+
+
+				auto selected_member_index = std::optional<size_t>();
+				for(size_t i = 0; const BaseType::Struct::MemberVar* member_var : struct_type.memberVarsABI){
+					if(struct_type.getMemberName(*member_var, this->context.getSourceManager()) == member_name){
+						selected_member_index = i;
+						break;
+					}
+					
+					i += 1;
+				}
+
+				if(selected_member_index.has_value() == false){
+					this->emit_error(
+						std::format("Target struct type has no member named \"{}\"", member_name),
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
+					);
+					return Result::ERROR;
+				}
+
+
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.numOffsetBytes(
+						target_type_info.baseTypeID().structID(), *selected_member_index
+					)
 				);
 			} break;
 

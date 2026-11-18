@@ -42,6 +42,7 @@ namespace pcit::panther{
 			[[nodiscard]] auto numBytes(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			[[nodiscard]] auto numBits(TypeInfo::ID type_id, bool include_padding) -> TermInfo;
 			[[nodiscard]] auto numAlignBytes(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto numOffsetBytes(BaseType::Struct::ID struct_type_id, size_t member_index) -> TermInfo;
 
 			[[nodiscard]] auto getIntegerTypeID(uint32_t width, bool is_unsigned) -> TermInfo;
 

@@ -5323,6 +5323,16 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::NUM_OFFSET_BYTES) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{
+				TemplateParam::createType(), TypeManager::getTypeStringRef()
+			},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeUSize()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::GET_INTEGER_TYPE_ID) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TypeManager::getTypeUI32(), TypeManager::getTypeBool()},
 			.params         = evo::SmallVector<Param>(),

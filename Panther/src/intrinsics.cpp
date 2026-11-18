@@ -104,6 +104,7 @@ namespace pcit::panther{
 			{"_numBytes",                        Kind::NUM_BYTES},
 			{"_numBits",                         Kind::NUM_BITS},
 			{"_numAlignBytes",                   Kind::NUM_ALIGN_BYTES},
+			{"_numOffsetBytes",                  Kind::NUM_OFFSET_BYTES},
 			{"_getIntegerTypeID",                Kind::GET_INTEGER_TYPE_ID},
 			{"_isDefaultInitializable",          Kind::IS_DEFAULT_INITIALIZABLE},
 			{"_isTriviallyDefaultInitializable", Kind::IS_TRIVIALLY_DEFAULT_INITIALIZABLE},

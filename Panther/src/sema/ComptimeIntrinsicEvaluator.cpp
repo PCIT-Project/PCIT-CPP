@@ -119,6 +119,24 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::numOffsetBytes(BaseType::Struct::ID struct_type_id, size_t member_index)
+	-> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeUSize(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt(
+					unsigned(this->type_manager.numBitsOfPtr()),
+					uint64_t(this->type_manager.offsetOf(struct_type_id, member_index))
+				),
+				this->type_manager.getTypeInfo(TypeManager::getTypeUSize()).baseTypeID()
+			))
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::getIntegerTypeID(uint32_t width, bool is_unsigned) -> TermInfo {
 		const BaseType::ID primitive_type_id = [&]() -> BaseType::ID {
 			if(is_unsigned){
