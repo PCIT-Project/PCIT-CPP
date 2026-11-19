@@ -12092,6 +12092,12 @@ namespace pcit::panther{
 		if(func_call_impl_res.has_value() == false){ return func_call_impl_res.error(); }
 
 
+		if(func_call_impl_res.value().selected_func_type.returnsVoid() == false){
+			this->emit_error("Discarding return value of function call", instr.try_else.attemptExpr);
+			return Result::ERROR;
+		}
+
+
 		auto sema_args = evo::SmallVector<sema::Expr>();
 		switch(target_term_info.value_category){
 			case TermInfo::ValueCategory::METHOD_CALL: {
@@ -20233,6 +20239,12 @@ namespace pcit::panther{
 				} break;
 			}
 		}();
+
+
+		if(attempt_func_type.returnsVoid()){
+			this->emit_error("Function returns `Void` which is not a value", instr.try_else.attemptExpr);
+			return Result::ERROR;
+		}
 
 		
 		if(attempt_func_type.errorTypes[0].isVoid()){

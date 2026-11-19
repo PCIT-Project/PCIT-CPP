@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.433.3"></a>
+## v0.0.433.3
+
+### Panther
+- Fixed missing checks for `try` function calls for discarded return values or returning `Void` as an expression
+
+
+<!---------------------------------->
 <a name="v0.0.433.2"></a>
 ## v0.0.433.2
 
