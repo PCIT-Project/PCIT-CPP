@@ -5745,17 +5745,20 @@ namespace pcit::panther{
 				this->context.getSemaBuffer().getLogicalAnd(expr.logicalAndID());
 
 
-			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_AND.END");
-			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_AND.RHS");
 
 			const pir::Expr lhs_expr = this->get_expr_register(logical_and.lhs);
 			const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
-			this->handler.createBranch(lhs_expr, rhs_block, end_block);
 
+			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_AND.RHS");
 			this->handler.setTargetBasicBlock(rhs_block);
 			const pir::Expr rhs_expr = this->get_expr_register(logical_and.rhs);
 			const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
+
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_AND.END");
 			this->handler.createJump(end_block);
+
+			this->handler.setTargetBasicBlock(lhs_end_block);
+			this->handler.createBranch(lhs_expr, rhs_block, end_block);
 
 			this->handler.setTargetBasicBlock(end_block);
 
@@ -5802,21 +5805,24 @@ namespace pcit::panther{
 			const sema::LogicalOr& logical_or =
 				this->context.getSemaBuffer().getLogicalOr(expr.logicalOrID());
 
-			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_OR.END");
-			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_OR.RHS");
 
 			const pir::Expr lhs_expr = this->get_expr_register(logical_or.lhs);
 			const pir::BasicBlock::ID lhs_end_block = this->handler.getTargetBasicBlock().getID();
-			this->handler.createBranch(lhs_expr, end_block, rhs_block);
 
+			const pir::BasicBlock::ID rhs_block = this->handler.createBasicBlockInline("LOGICAL_OR.RHS");
 			this->handler.setTargetBasicBlock(rhs_block);
 			const pir::Expr rhs_expr = this->get_expr_register(logical_or.rhs);
 			const pir::BasicBlock::ID rhs_end_block = this->handler.getTargetBasicBlock().getID();
+
+			const pir::BasicBlock::ID end_block = this->handler.createBasicBlockInline("LOGICAL_OR.END");
 			this->handler.createJump(end_block);
 
-			this->handler.setTargetBasicBlock(end_block);
+			this->handler.setTargetBasicBlock(lhs_end_block);
+			this->handler.createBranch(lhs_expr, end_block, rhs_block);
 
 			this->handler.setTargetBasicBlock(end_block);
+
+
 			std::string output_expr_name = [&](){
 				if constexpr(MODE == GetExprMode::STORE){
 					return this->name(".LOGICAL_OR");

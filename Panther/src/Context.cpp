@@ -18,6 +18,7 @@ namespace fs = std::filesystem;
 #include "./sema/SemanticAnalyzer.hpp"
 #include "../src/sema_to_pir/SemaToPIR.hpp"
 #include "../../PIR/include/getDefaultDebugger.hpp"
+#include "../../PIR/include/ExecutionEngineDebuggerInterface.hpp"
 #include "./sema/ScopeLevel.hpp"
 
 #include <PIR.hpp>
@@ -1241,6 +1242,30 @@ namespace pcit::panther{
 				);
 
 
+				static constexpr pir::ExecutionEngine::FuncRunError::Code UNKNOWN_EXCEPTION_IN_EXTERN_FUNC = 
+					pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC;
+
+				if(this->_config.useInterpreterDebugger){
+					this->execution_engine.setDebugger(
+						[&](pir::ExecutionEngineDebuggerInterface& debugger, const pir::Module& module)
+						-> evo::Expected<core::GenericValue, pir::ExecutionEngineExecutor::FuncRunError::Code> {
+							if(
+								debugger.getLastErrorCode().has_value()
+								&& *debugger.getLastErrorCode() == UNKNOWN_EXCEPTION_IN_EXTERN_FUNC
+							){
+								return evo::Unexpected<pir::ExecutionEngineExecutor::FuncRunError::Code>(
+									UNKNOWN_EXCEPTION_IN_EXTERN_FUNC
+								);
+
+							}else{
+								const auto lock = std::scoped_lock(this->diagnostic_callback_mutex);
+								return pir::getDefaultDebugger()(debugger, module);
+							}
+						}
+					);
+				}
+
+
 				const pir::Function::ID entry_func_pir_id = this->sema_to_pir_data.lookupFunction(
 					*this->entry.load(std::memory_order::relaxed)
 				);
@@ -1249,7 +1274,16 @@ namespace pcit::panther{
 					this->execution_engine.runFunction(entry_func_pir_id, std::span<core::GenericValue>());
 
 				if(run_result.has_value() == false){
-					this->interpreter_result_emit_diagnostic(run_result.error());
+					if(run_result.error().code == UNKNOWN_EXCEPTION_IN_EXTERN_FUNC){
+						this->emitFatal(
+							"Encountered fatal exception while executing a build from the build system",
+							Diagnostic::Location::NONE
+						);
+						
+					}else{
+						this->interpreter_result_emit_diagnostic(run_result.error());
+					}
+
 					return evo::resultError;
 				}
 
@@ -2450,6 +2484,10 @@ namespace pcit::panther{
 
 			case pir::ExecutionEngine::FuncRunError::Code::FLOATING_POINT_EXCEPTION: {
 				infos.emplace_back("Cause of error: floating-point exception");
+			} break;
+
+			case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC: {
+				infos.emplace_back("Cause of error: unknown exception in external function call");
 			} break;
 
 			case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {

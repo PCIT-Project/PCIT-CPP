@@ -82,6 +82,9 @@ namespace pcit::pir{
 					break; case ExecutionEngineExecutor::FuncRunError::Code::FLOATING_POINT_EXCEPTION:
 						evo::printlnBlue("Process stopped with code: FLOATING_POINT_EXCEPTION");
 
+					break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC:
+						evo::printlnBlue("Process stopped with code: UNKNOWN_EXCEPTION_IN_EXTERN_FUNC");
+
 					break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 						evo::printlnBlue("Process stopped with code: UNKNOWN_EXCEPTION");
 
@@ -201,6 +204,9 @@ namespace pcit::pir{
 						break; case ExecutionEngineExecutor::FuncRunError::Code::FLOATING_POINT_EXCEPTION:
 							evo::printBlue("Process stopped with code: FLOATING_POINT_EXCEPTION\n\n");
 
+						break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC:
+							evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION_IN_EXTERN_FUNC\n\n");
+
 						break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 							evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION\n\n");
 
@@ -246,6 +252,9 @@ namespace pcit::pir{
 							break; case ExecutionEngineExecutor::FuncRunError::Code::FLOATING_POINT_EXCEPTION:
 								evo::printBlue("Process stopped with code: FLOATING_POINT_EXCEPTION\n\n");
 
+							break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC:
+								evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION_IN_EXTERN_FUNC\n\n");
+
 							break; case ExecutionEngineExecutor::FuncRunError::Code::UNKNOWN_EXCEPTION:
 								evo::printBlue("Process stopped with code: UNKNOWN_EXCEPTION\n\n");
 
@@ -271,7 +280,9 @@ namespace pcit::pir{
 				evo::println();
 			}
 
-			return evo::Unexpected(ExecutionEngineExecutor::FuncRunError::Code::ABORT);
+			return evo::Unexpected(
+				this->debugger.getLastErrorCode().value_or(ExecutionEngineExecutor::FuncRunError::Code::ABORT)
+			);
 		}
 
 

@@ -30530,6 +30530,10 @@ namespace pcit::panther{
 					infos.emplace_back("Cause of error: floating-point exception");
 				} break;
 
+				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC: {
+					infos.emplace_back("Cause of error: unknown exception in external function call");
+				} break;
+
 				case pir::ExecutionEngine::FuncRunError::Code::UNKNOWN_EXCEPTION: {
 					infos.emplace_back("Cause of error: unknown exception");
 				} break;

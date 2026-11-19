@@ -278,7 +278,7 @@ namespace pcit::pir{
 						__try{
 							(*extern_func_ptr)(params.data(), ret_ptr);
 						}__except(0x1){
-							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC;
 							break;
 						}
 
@@ -420,7 +420,7 @@ namespace pcit::pir{
 						__try{
 							(*extern_func_ptr)(params.data(), nullptr);
 						}__except(0x1){
-							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC;
 							break;
 						}
 
@@ -561,7 +561,7 @@ namespace pcit::pir{
 						__try{
 							(*extern_func_ptr)(params.data(), nullptr);
 						}__except(0x1){
-							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION;
+							this->last_error = FuncRunError::Code::UNKNOWN_EXCEPTION_IN_EXTERN_FUNC;
 							break;
 						}
 

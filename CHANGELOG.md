@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.433.4"></a>
+## v0.0.433.4
+
+### Panther
+- Fixed lowering of `&&` and `||` with expressions that create controll flow
+
+
+<!---------------------------------->
 <a name="v0.0.433.3"></a>
 ## v0.0.433.3
 
