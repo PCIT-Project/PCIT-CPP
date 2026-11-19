@@ -5418,7 +5418,7 @@ namespace pcit::panther{
 				this->handler.createBranch(flag_value, end_block, fail_block);
 
 				this->handler.setTargetBasicBlock(fail_block);
-				this->create_unreachable("Attempted to extract an optional that is null");
+				this->create_unreachable("Attempted to unwrap an optional that is null");
 
 				this->handler.setTargetBasicBlock(end_block);
 			}

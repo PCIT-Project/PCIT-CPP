@@ -1,6 +1,22 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.433.2"></a>
+## v0.0.433.2
+
+### Panther
+- Fixed missing check that LHS of method call is initialized
+
+
+<!---------------------------------->
+<a name="v0.0.433.1"></a>
+## v0.0.433.1
+
+### Panther
+- Fixed stalling during semantic analysis when `when` statement has a child symbol that has a child symbol
+
+
+<!---------------------------------->
 <a name="v0.0.433.0"></a>
 ## v0.0.433.0
 

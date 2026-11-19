@@ -1386,7 +1386,11 @@ namespace pcit::panther{
 
 
 		SymbolProc::WhenCondInfo& when_cond_info = this->symbol_proc.extra_info.as<SymbolProc::WhenCondInfo>();
-		auto passed_symbols = std::queue<SymbolProc::ID>();
+		struct PassedSymbolInfo{
+			SymbolProc::ID id;
+			bool is_in_same_name_scope_as_initial_when;	
+		};
+		auto passed_symbols = std::queue<PassedSymbolInfo>();
 
 		SymbolProc* encapsulating_symbol_proc = this->symbol_proc.parent;
 		while(
@@ -1427,7 +1431,7 @@ namespace pcit::panther{
 			}
 
 			for(const SymbolProc::ID& else_id : when_cond_info.else_ids){
-				passed_symbols.push(else_id);
+				passed_symbols.emplace(else_id, true);
 			}
 
 		}else{
@@ -1460,16 +1464,18 @@ namespace pcit::panther{
 			}
 
 			for(const SymbolProc::ID& then_id : when_cond_info.then_ids){
-				passed_symbols.push(then_id);
+				passed_symbols.emplace(then_id, true);
 			}
 		}
 
 		while(passed_symbols.empty() == false){
-			SymbolProc::ID passed_symbol_id = passed_symbols.front();
+			PassedSymbolInfo passed_symbol_info = passed_symbols.front();
 			passed_symbols.pop();
 
 
-			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
+			SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_info.id);
+
+			if(passed_symbol.passedOnByWhen()){ continue; }
 
 			{
 				const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
@@ -1492,39 +1498,48 @@ namespace pcit::panther{
 				for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
 					const SymbolProc& decl_waited_on =
 						this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
-					if(decl_waited_on.parent == &passed_symbol){ continue; }
 
-					this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+					if(decl_waited_on.parent == &passed_symbol){
+						passed_symbols.emplace(decl_waited_on_id, false);
+						
+					}else if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+						this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_info.id);
+					}
 				}
 				for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
 					const SymbolProc& def_waited_on =
 						this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
-					if(def_waited_on.parent == &passed_symbol){ continue; }
 
-					this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+					if(def_waited_on.parent == &passed_symbol){
+						passed_symbols.emplace(def_waited_on_id, false);
+						
+					}else if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+						this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_info.id);
+					}
 				}
 			}
 
+			if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+				if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
+					const SymbolProc::WhenCondInfo& passed_when_cond_info =
+						passed_symbol.extra_info.as<SymbolProc::WhenCondInfo>();
 
-			if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
-				const SymbolProc::WhenCondInfo& passed_when_cond_info =
-					passed_symbol.extra_info.as<SymbolProc::WhenCondInfo>();
+					for(const SymbolProc::ID& then_id : passed_when_cond_info.then_ids){
+						passed_symbols.emplace(then_id, true);
+					}
 
-				for(const SymbolProc::ID& then_id : passed_when_cond_info.then_ids){
-					passed_symbols.push(then_id);
-				}
+					for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
+						passed_symbols.emplace(else_id, true);
+					}
 
-				for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
-					passed_symbols.push(else_id);
-				}
-
-			}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
-				for(
-					const Instruction::WhenSwitch::Case& case_info
-					: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
-				){
-					for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
-						passed_symbols.push(case_symbol_id);
+				}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
+					for(
+						const Instruction::WhenSwitch::Case& case_info
+						: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
+					){
+						for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
+							passed_symbols.emplace(case_symbol_id, true);
+						}
 					}
 				}
 			}
@@ -9839,11 +9854,18 @@ namespace pcit::panther{
 			//////////////////
 			// signal selected and passed symbols
 
-			auto passed_symbols = std::queue<SymbolProc::ID>();
+
+			struct PassedSymbolInfo{
+				SymbolProc::ID id;
+				bool is_in_same_name_scope_as_initial_when;	
+			};
+			auto passed_symbols = std::queue<PassedSymbolInfo>();
+
+
 			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
 				if(i != *selected_case_index){
 					for(SymbolProc::ID passed_symbol_id : when_switch_case.symbol_scope){
-						passed_symbols.push(passed_symbol_id);
+						passed_symbols.emplace(passed_symbol_id, true);
 					}
 				}
 
@@ -9877,11 +9899,13 @@ namespace pcit::panther{
 			}
 
 			while(passed_symbols.empty() == false){
-				SymbolProc::ID passed_symbol_id = passed_symbols.front();
+				PassedSymbolInfo passed_symbol_info = passed_symbols.front();
 				passed_symbols.pop();
 
 
-				SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_id);
+				SymbolProc& passed_symbol = this->context.symbol_proc_manager.getSymbolProc(passed_symbol_info.id);
+
+				if(passed_symbol.passedOnByWhen()){ continue; }
 
 				{
 					const auto lock = std::scoped_lock(passed_symbol.waiting_for_lock);
@@ -9905,39 +9929,48 @@ namespace pcit::panther{
 					for(const SymbolProc::ID& decl_waited_on_id : passed_symbol.decl_waited_on_by){
 						const SymbolProc& decl_waited_on =
 							this->context.symbol_proc_manager.getSymbolProc(decl_waited_on_id);
-						if(decl_waited_on.parent == &passed_symbol){ continue; }
 
-						this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_id);
+						if(decl_waited_on.parent == &passed_symbol){
+							passed_symbols.emplace(decl_waited_on_id, false);
+							
+						}else if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+							this->set_waiting_for_is_done(decl_waited_on_id, passed_symbol_info.id);
+						}
 					}
 					for(const SymbolProc::ID& def_waited_on_id : passed_symbol.def_waited_on_by){
 						const SymbolProc& def_waited_on =
 							this->context.symbol_proc_manager.getSymbolProc(def_waited_on_id);
-						if(def_waited_on.parent == &passed_symbol){ continue; }
 
-						this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_id);
+						if(def_waited_on.parent == &passed_symbol){
+							passed_symbols.emplace(def_waited_on_id, false);
+							
+						}else if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+							this->set_waiting_for_is_done(def_waited_on_id, passed_symbol_info.id);
+						}
 					}
 				}
 
+				if(passed_symbol_info.is_in_same_name_scope_as_initial_when){
+					if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
+						const SymbolProc::WhenCondInfo& passed_when_cond_info =
+							passed_symbol.extra_info.as<SymbolProc::WhenCondInfo>();
 
-				if(passed_symbol.extra_info.is<SymbolProc::WhenCondInfo>()){
-					const SymbolProc::WhenCondInfo& passed_when_cond_info =
-						passed_symbol.extra_info.as<SymbolProc::WhenCondInfo>();
+						for(const SymbolProc::ID& then_id : passed_when_cond_info.then_ids){
+							passed_symbols.emplace(then_id, true);
+						}
 
-					for(const SymbolProc::ID& then_id : passed_when_cond_info.then_ids){
-						passed_symbols.push(then_id);
-					}
+						for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
+							passed_symbols.emplace(else_id, true);
+						}
 
-					for(const SymbolProc::ID& else_id : passed_when_cond_info.else_ids){
-						passed_symbols.push(else_id);
-					}
-
-				}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
-					for(
-						const Instruction::WhenSwitch::Case& case_info
-						: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
-					){
-						for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
-							passed_symbols.push(case_symbol_id);
+					}else if(passed_symbol.extra_info.is<SymbolProc::WhenSwitchInfo>()){
+						for(
+							const Instruction::WhenSwitch::Case& case_info
+							: passed_symbol.extra_info.as<SymbolProc::WhenSwitchInfo>().cases
+						){
+							for(SymbolProc::ID case_symbol_id : case_info.symbol_scope){
+								passed_symbols.emplace(case_symbol_id, true);
+							}
 						}
 					}
 				}
@@ -34493,6 +34526,39 @@ namespace pcit::panther{
 				this->emit_error("Cannot call expression like a function", func_call.target);
 				return evo::Unexpected(Result::ERROR);
 			} break;
+		}
+
+
+
+		if(method_this_term_info.has_value()){
+			switch(method_this_term_info->value_state){
+				case TermInfo::ValueState::NOT_APPLICABLE: case TermInfo::ValueState::INIT: {
+					// Ok
+				} break;
+
+				case TermInfo::ValueState::INITIALIZING: {
+					this->emit_error(
+						"LHS of method call must be initialized",
+						func_call.target,
+						Diagnostic::Info("LHS is not fully initialized")
+					);
+					return evo::Unexpected(Result::ERROR);
+				} break;
+
+				case TermInfo::ValueState::UNINIT: {
+					this->emit_error("LHS of method call must be initialized", func_call.target);
+					return evo::Unexpected(Result::ERROR);
+				} break;
+
+				case TermInfo::ValueState::MOVED_FROM: {
+					this->emit_error(
+						"LHS of method call must be initialized",
+						func_call.target,
+						Diagnostic::Info("LHS was moved from")
+					);
+					return evo::Unexpected(Result::ERROR);
+				} break;
+			}
 		}
 
 

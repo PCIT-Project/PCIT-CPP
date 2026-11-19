@@ -1600,8 +1600,8 @@ namespace pcit::panther{
 			}
 
 			[[nodiscard]] auto passedOnByWhen() const -> bool {
-				const auto lock = std::scoped_lock(this->waiting_for_lock);
-				return this->status == Status::PASSED_ON_BY_WHEN;
+				// const auto lock = std::scoped_lock(this->waiting_for_lock); // TODO(FUTURE): is this needed?
+				return this->status.load(std::memory_order::relaxed) == Status::PASSED_ON_BY_WHEN;
 			}
 
 			
