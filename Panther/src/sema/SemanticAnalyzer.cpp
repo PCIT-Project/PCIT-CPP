@@ -25786,14 +25786,6 @@ namespace pcit::panther{
 			if(instr.terminator.has_value()){
 				TermInfo& terminator_term_info = this->get_term_info(*instr.terminator);
 
-				if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
-					this->emit_error(
-						"Terminated array reference type with non-trivially copyable element type",
-						*instr.array_type.terminator
-					);
-					return Result::ERROR;
-				}
-
 				if(terminator_term_info.value_category == TermInfo::ValueCategory::EXPR_DEDUCER){
 					terminator = terminator_term_info.type_id.as<TermInfo::ExprDeducerType>().deducer_token_id;
 
@@ -25805,6 +25797,14 @@ namespace pcit::panther{
 						this->get_location(*instr.array_type.terminator)
 					);
 					if(type_check_info.ok == false){ return type_check_info.extractSpecialResultForReturning(); }
+
+					if(this->context.getTypeManager().isTriviallyCopyable(elem_type.asTypeID()) == false){
+						this->emit_error(
+							"Terminated array reference type with non-trivially copyable element type",
+							*instr.array_type.terminator
+						);
+						return Result::ERROR;
+					}
 
 					terminator = sema::exprToGenericValue(terminator_term_info.getExpr(), this->context);
 				}

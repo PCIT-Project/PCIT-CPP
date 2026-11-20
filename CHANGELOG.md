@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.433.5"></a>
+## v0.0.433.5
+
+### Panther
+- Fixed semantic analysis of array references that have a deducer terminator
+
+
+<!---------------------------------->
 <a name="v0.0.433.4"></a>
 ## v0.0.433.4
 
