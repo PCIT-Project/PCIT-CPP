@@ -29641,14 +29641,21 @@ namespace pcit::panther{
 				}else{
 					if(value_state_info.info.is<sema::ScopeLevel::ValueStateInfo::DeclInfo>()){ continue; }
 
+					const sema::ScopeLevel::ValueStateInfo::ModifyInfo& modify_info =
+						value_state_info.info.as<sema::ScopeLevel::ValueStateInfo::ModifyInfo>();
+					if(modify_info.isPotential(i)){ continue; }
+
 					const auto decl_find = decls.find(value_state_id);
 					if(decl_find == decls.end()){ continue; }
 					if(decl_find->second == value_state_info.state){ continue; }
 
 					this->emit_error(
-						"Cannot determine value state from sub-scopes",
+						"Cannot determine value state at loop termination",
 						value_state_id,
-						Diagnostic::Info("Sub-scopes end here:", std::move(location))
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info("Note: value state is not consistent between iterations of the loop"),
+							Diagnostic::Info("Loop terminates here:", std::move(location))
+						}
 					);
 					return evo::resultError;
 				}

@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.434.1"></a>
+## v0.0.434.1
+
+### Panther
+- Fixed value state determination on backwards loop terminator being incorrectly affected by subscopes of the same level
+
+
+<!---------------------------------->
 <a name="v0.0.434.0"></a>
 ## v0.0.434.0
 
