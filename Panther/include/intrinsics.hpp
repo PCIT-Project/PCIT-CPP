@@ -58,6 +58,7 @@ namespace pcit::panther{
 		enum class Kind{
 			// type traits
 			GET_TYPE_ID,
+			GET_UNDERLYING_TYPE_ID,
 			ARRAY_ELEMENT_TYPE_ID,
 			ARRAY_REF_ELEMENT_TYPE_ID,
 			NUM_BYTES,

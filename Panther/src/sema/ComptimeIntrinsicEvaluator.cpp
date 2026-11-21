@@ -32,6 +32,20 @@ namespace pcit::panther{
 		);
 	}
 
+	auto ComptimeIntrinsicEvaluator::getUnderlyingTypeID(TypeInfo::ID type_id) -> TermInfo {
+		return TermInfo(
+			TermInfo::ValueCategory::EPHEMERAL,
+			true,
+			true,
+			TermInfo::ValueState::NOT_APPLICABLE,
+			TypeManager::getTypeTypeID(),
+			sema::Expr(this->sema_buffer.createIntValue(
+				core::GenericInt::create<uint32_t>(this->type_manager.getUnderlyingType(type_id).get()),
+				this->type_manager.getTypeInfo(TypeManager::getTypeTypeID()).baseTypeID()
+			))
+		);
+	}
+
 	auto ComptimeIntrinsicEvaluator::arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo {
 		const TypeInfo& type_info = this->type_manager.getTypeInfo(type_id);
 		evo::debugAssert(type_info.qualifiers().empty(), "Should have no qualifiers");

@@ -99,6 +99,7 @@ namespace pcit::panther{
 
 		template_intrinsic_kinds = std::unordered_map<std::string_view, Kind>{
 			{"_getTypeID",                       Kind::GET_TYPE_ID},
+			{"_getUnderlyingTypeID",             Kind::GET_UNDERLYING_TYPE_ID},
 			{"_arrayElementTypeID",              Kind::ARRAY_ELEMENT_TYPE_ID},
 			{"_arrayRefElementTypeID",           Kind::ARRAY_REF_ELEMENT_TYPE_ID},
 			{"_numBytes",                        Kind::NUM_BYTES},

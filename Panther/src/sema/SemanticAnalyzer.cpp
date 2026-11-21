@@ -14909,6 +14909,7 @@ namespace pcit::panther{
 			} break;
 
 			case TemplateIntrinsicFunc::Kind::GET_TYPE_ID:
+			case TemplateIntrinsicFunc::Kind::GET_UNDERLYING_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::ARRAY_REF_ELEMENT_TYPE_ID:
 			case TemplateIntrinsicFunc::Kind::NUM_BYTES:
@@ -15268,6 +15269,13 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::GET_UNDERLYING_TYPE_ID: {
+				this->return_term_info(
+					instr.output,
+					comptime_intrinsic_evaluator.getUnderlyingTypeID(template_args[0].as<TypeInfo::ID>())
+				);
+			} break;
+
 			case TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID: {
 				const TypeInfo::ID arg_t_type_id = template_args[0].as<TypeInfo::ID>();
 				const TypeInfo& arg_t_type = this->context.getTypeManager().getTypeInfo(arg_t_type_id);
@@ -15413,7 +15421,6 @@ namespace pcit::panther{
 					)
 				);
 			} break;
-
 
 			case TemplateIntrinsicFunc::Kind::IS_DEFAULT_INITIALIZABLE: {
 				this->return_term_info(

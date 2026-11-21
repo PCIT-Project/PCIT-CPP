@@ -36,6 +36,7 @@ namespace pcit::panther{
 			// type traits
 
 			[[nodiscard]] auto getTypeID(TypeInfo::ID type_id) -> TermInfo;
+			[[nodiscard]] auto getUnderlyingTypeID(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto arrayElementTypeID(TypeInfo::ID type_id) -> TermInfo;
 			[[nodiscard]] auto arrayRefElementTypeID(TypeInfo::ID type_id) -> TermInfo;
 

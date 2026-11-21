@@ -5320,6 +5320,14 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::GET_UNDERLYING_TYPE_ID) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeTypeID()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::ARRAY_ELEMENT_TYPE_ID) = TemplateIntrinsicFuncInfo{
 			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType()},
 			.params         = evo::SmallVector<Param>(),
