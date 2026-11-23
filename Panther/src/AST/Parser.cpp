@@ -3796,35 +3796,63 @@ namespace pcit::panther{
 
 
 	auto Parser::parse_encapsulated_expr() -> Result {
-		const Result block_expr = this->parse_block(BlockLabelRequirement::REQUIRED);
-		if(block_expr.code() != Result::Code::WRONG_TYPE){ return block_expr; }
-
 		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
-		if(this->reader[this->reader.peek()].kind() != Token::lookupKind("(")){
-			return this->parse_atom();
-		}
+		switch(this->reader[this->reader.peek()].kind()){
+			case Token::lookupKind("("): {
+				const Token::ID open_token_id = this->reader.next();
+				
+				const Result inner_expr = this->parse_sub_expr();
+				if(inner_expr.code() != Result::Code::SUCCESS){ return inner_expr; }
 
-		const Token::ID open_token_id = this->reader.next();
-		
-		const Result inner_expr = this->parse_sub_expr();
-		if(inner_expr.code() != Result::Code::SUCCESS){ return inner_expr; }
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+				if(this->reader[this->reader.peek()].kind() != Token::lookupKind(")")){
+					this->expected_but_got(
+						"either closing [)] around expression or continuation of sub-expression",
+						this->reader.peek(),
+						evo::SmallVector<Diagnostic::Info>{
+							Diagnostic::Info(
+								"parenthesis opened here", Diagnostic::Location::get(open_token_id, this->source)
+							),
+						}
+					);
 
-		if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
-		if(this->reader[this->reader.peek()].kind() != Token::lookupKind(")")){
-			this->expected_but_got(
-				"either closing [)] around expression or continuation of sub-expression",
-				this->reader.peek(),
-				evo::SmallVector<Diagnostic::Info>{
-					Diagnostic::Info("parenthesis opened here", Diagnostic::Location::get(open_token_id, this->source)),
+					return Result::Code::ERROR;
 				}
-			);
 
-			return Result::Code::ERROR;
+				if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
+
+				return inner_expr;
+			} break;
+
+			case Token::lookupKind("{"): {
+				return this->parse_block(BlockLabelRequirement::REQUIRED);
+			} break;
+
+			case Token::Kind::KEYWORD_UNSAFE: {
+				const Token::ID unsafe_token_id = this->reader.next();
+
+				if(this->expect_num_left(3).isError()){ return Result::Code::ERROR; }
+				if(this->expect_token(Token::lookupKind("{"), "after [unsafe} in unsafe expression").isError()){
+					return Result::Code::ERROR;
+				}
+
+				const Result encapsulated_expr = this->parse_sub_expr();
+				if(encapsulated_expr.code() != Result::Code::SUCCESS){ return encapsulated_expr; }
+
+				if(this->expect_num_left(1).isError()){ return Result::Code::ERROR; }
+				if(this->expect_token(
+					Token::lookupKind("}"), "after encapsulated expression in unsafe expression"
+				).isError()){
+					return Result::Code::ERROR;
+				}
+
+				return this->source.ast_buffer.createUnsafe(unsafe_token_id, encapsulated_expr.value());
+			} break;
+
+			default: {
+				return this->parse_atom(); // TODO(PERF): inline this and add to the switch (also change name of func)
+			} break;
 		}
-
-		if(this->assert_token(Token::lookupKind(")")).isError()){ return Result::Code::ERROR; }
-
-		return inner_expr;
 	}
 
 	auto Parser::parse_atom() -> Result {

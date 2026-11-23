@@ -2105,6 +2105,10 @@ namespace pthr{
 						this->print_try_catch(this->ast_buffer.getTryCatch(node));
 					} break;
 
+					case panther::AST::Kind::UNSAFE: {
+						this->print_unsafe(this->ast_buffer.getUnsafe(node));
+					} break;
+
 					case panther::AST::Kind::ASM: {
 						this->print_asm(this->ast_buffer.getAsm(node));
 					} break;
@@ -2198,11 +2202,11 @@ namespace pthr{
 					case panther::AST::Kind::WHILE:            case panther::AST::Kind::FOR:
 					case panther::AST::Kind::SWITCH:           case panther::AST::Kind::WHEN_SWITCH:
 					case panther::AST::Kind::DEFER:            case panther::AST::Kind::TEMPLATE_PACK:
-					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::UNSAFE:
-					case panther::AST::Kind::ARRAY_TYPE:       case panther::AST::Kind::FUNC_TYPE:
-					case panther::AST::Kind::INTERFACE_MAP:    case panther::AST::Kind::TYPEID_CONVERTER:
-					case panther::AST::Kind::ATTRIBUTE_BLOCK:  case panther::AST::Kind::ATTRIBUTE:
-					case panther::AST::Kind::DEDUCER:          case panther::AST::Kind::PRIMITIVE_TYPE: {
+					case panther::AST::Kind::MULTI_ASSIGN:     case panther::AST::Kind::ARRAY_TYPE:
+					case panther::AST::Kind::FUNC_TYPE:        case panther::AST::Kind::INTERFACE_MAP:
+					case panther::AST::Kind::TYPEID_CONVERTER: case panther::AST::Kind::ATTRIBUTE_BLOCK:
+					case panther::AST::Kind::ATTRIBUTE:        case panther::AST::Kind::DEDUCER:
+					case panther::AST::Kind::PRIMITIVE_TYPE: {
 						evo::debugFatalBreak("Unsupported expr type");
 					} break;
 				}
@@ -2781,14 +2785,27 @@ namespace pthr{
 
 
 			auto print_unsafe(const panther::AST::Unsafe& unsafe_stmt) -> void {
+				const bool is_stmt = unsafe_stmt.encapsulated.kind() == panther::AST::Kind::BLOCK;
+
 				this->indenter.print();
-				this->print_major_header("Unsafe");
+				if(is_stmt){
+					this->print_major_header("Unsafe");
+				}else{
+					this->print_major_header("Unsafe Exprression");
+				}
 
 				this->indenter.push();
 
 				this->indenter.print_end();
-				this->print_minor_header("Block");
-				this->print_block(this->source.getASTBuffer().getBlock(unsafe_stmt.block));
+				if(is_stmt){
+					this->print_minor_header("Block");
+					this->print_block(this->source.getASTBuffer().getBlock(unsafe_stmt.encapsulated));
+
+				}else{
+					this->print_minor_header("Expression");
+					this->print_expr(unsafe_stmt.encapsulated);
+				}
+
 
 				this->indenter.pop();
 			}

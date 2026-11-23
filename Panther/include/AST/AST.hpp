@@ -526,7 +526,7 @@ namespace pcit::panther::AST{
 
 	struct Unsafe{
 		Token::ID keyword;
-		Node block;
+		Node encapsulated; // block if stmt, expr if expr
 	};
 
 

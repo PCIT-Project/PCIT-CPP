@@ -3570,7 +3570,7 @@ namespace pcit::panther{
 	auto SymbolProcBuilder::analyze_unsafe(const AST::Unsafe& unsafe_stmt) -> evo::Result<> {
 		this->add_instruction(this->context.symbol_proc_manager.createBeginUnsafe(unsafe_stmt));
 
-		const AST::Block& block = this->source.getASTBuffer().getBlock(unsafe_stmt.block);
+		const AST::Block& block = this->source.getASTBuffer().getBlock(unsafe_stmt.encapsulated);
 		for(const AST::Node& stmt : block.statements){
 			if(this->analyze_stmt(stmt).isError()){ return evo::resultError; }
 		}
@@ -3648,6 +3648,7 @@ namespace pcit::panther{
 				case AST::Kind::FUNC_CALL: return this->analyze_expr_func_call<IS_COMPTIME, true>(expr);
 				case AST::Kind::NEW:       return this->analyze_expr_new<IS_COMPTIME, true>(expr, assign_target);
 				case AST::Kind::PREFIX:    return this->analyze_expr_prefix<IS_COMPTIME, true>(expr, assign_target);
+				case AST::Kind::UNSAFE:    return this->analyze_expr_unsafe<IS_COMPTIME, true>(expr, assign_target);
 
 				default: {
 					this->emit_error("Invalid attempt expression in try", expr);
@@ -3688,6 +3689,8 @@ namespace pcit::panther{
 
 				case AST::Kind::TRY_CATCH:
 					return this->analyze_expr_try_catch<IS_COMPTIME>(expr, assign_target);
+
+				case AST::Kind::UNSAFE: return this->analyze_expr_unsafe<IS_COMPTIME, false>(expr, assign_target);
 
 				case AST::Kind::ASM: {
 					if constexpr(IS_COMPTIME){
@@ -5361,6 +5364,25 @@ namespace pcit::panther{
 			)
 		);
 		return new_term_info_id;
+	}
+
+
+	template<bool IS_COMPTIME, bool ERRORS>
+	auto SymbolProcBuilder::analyze_expr_unsafe(
+		const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+	) -> evo::Result<SymbolProc::TermInfoID> {
+		const AST::Unsafe& unsafe_expr = this->source.getASTBuffer().getUnsafe(node);
+
+		this->add_instruction(this->context.symbol_proc_manager.createBeginUnsafeExpr(unsafe_expr));
+
+		const evo::Result<SymbolProc::TermInfoID> encapsulated_expr =
+			this->analyze_term_impl<IS_COMPTIME, true, ERRORS>(unsafe_expr.encapsulated, assign_target);
+		if(encapsulated_expr.isError()){ return evo::resultError; }
+
+		this->add_instruction(this->context.symbol_proc_manager.createEndUnsafeExpr());
+
+		return encapsulated_expr;
+
 	}
 
 

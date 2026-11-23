@@ -205,6 +205,11 @@ namespace pcit::panther{
 				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
 			) -> evo::Result<SymbolProc::TermInfoID>;
 
+			template<bool IS_COMPTIME, bool ERRORS>
+			[[nodiscard]] auto analyze_expr_unsafe(
+				const AST::Node& node, std::optional<SymbolProc::TermInfoID> assign_target
+			) -> evo::Result<SymbolProc::TermInfoID>;
+
 			[[nodiscard]] auto analyze_expr_asm(const AST::Node& node) -> evo::Result<SymbolProc::TermInfoID>;
 
 			template<bool NEEDS_DEF>

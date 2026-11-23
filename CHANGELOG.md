@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.436.0"></a>
+## v0.0.436.0
+
+### Panther
+- Added `unsafe` expressions
+
+### Misc
+- Updated to [Panther-std v0.0.79.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.79.0)
+
+
+<!---------------------------------->
 <a name="v0.0.435.0"></a>
 ## v0.0.435.0
 

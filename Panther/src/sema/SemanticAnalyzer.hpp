@@ -298,6 +298,8 @@ namespace pcit::panther{
 			[[nodiscard]] auto instr_end_try_else_expr(const Instruction::EndTryElseExpr& instr) -> Result;
 			[[nodiscard]] auto instr_prepare_try_handler(const Instruction::PrepareTryHandler& instr) -> Result;
 			[[nodiscard]] auto instr_try_catch_expr(const Instruction::TryCatchExpr& instr) -> Result;
+			[[nodiscard]] auto instr_begin_unsafe_expr(const Instruction::BeginUnsafeExpr& instr) -> Result;
+			[[nodiscard]] auto instr_end_unsafe_expr() -> Result;
 			[[nodiscard]] auto instr_asm_expr(const Instruction::AsmExpr& instr) -> Result;
 			[[nodiscard]] auto instr_begin_expr_block(const Instruction::BeginExprBlock& instr) -> Result;
 			[[nodiscard]] auto instr_end_expr_block(const Instruction::EndExprBlock& instr) -> Result;

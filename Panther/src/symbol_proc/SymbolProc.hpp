@@ -1052,6 +1052,12 @@ namespace pcit::panther{
 			SymbolProcTermInfoID output;
 		};
 
+
+		struct BeginUnsafeExpr{
+			const AST::Unsafe& unsafe_expr;
+		};
+
+
 		struct AsmExpr{
 			struct Param{
 				SymbolProcTypeID type_id;
@@ -1423,6 +1429,8 @@ namespace pcit::panther{
 			END_TRY_ELSE_EXPR,
 			PREPARE_TRY_HANDLER,
 			TRY_CATCH_EXPR,
+			BEGIN_UNSAFE_EXPR,
+			END_UNSAFE_EXPR,
 			ASM_EXPR,
 			BEGIN_EXPR_BLOCK,
 			END_EXPR_BLOCK,
@@ -1852,6 +1860,7 @@ namespace pcit::panther{
 			struct NonLocalVarInfo{
 				evo::Variant<sema::GlobalVar::ID, uint32_t> sema_id; // uint32_t is for member index
 				                                                     //  (invalid after struct def)
+				size_t unsafe_expr_depth = 0;
 			};
 
 
@@ -1895,6 +1904,7 @@ namespace pcit::panther{
 				std::stack<sema::Stmt, evo::SmallVector<sema::Stmt, 16>> subscopes{};
 
 				size_t num_members_of_initializing_are_uninit = 0;
+				size_t unsafe_expr_depth = 0;
 
 				evo::SmallVector<std::optional<TypeInfo::ID>> param_type_to_check_if_is_copy{};
 				evo::SmallVector<sema::Param::ID> actual_variadic_params{};

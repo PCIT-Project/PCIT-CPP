@@ -719,6 +719,11 @@ namespace pcit::panther{
 			case Instruction::Kind::TRY_CATCH_EXPR:
 				return this->instr_try_catch_expr(this->context.symbol_proc_manager.getTryCatchExpr(instr));
 
+			case Instruction::Kind::BEGIN_UNSAFE_EXPR:
+				return this->instr_begin_unsafe_expr(this->context.symbol_proc_manager.getBeginUnsafeExpr(instr));
+
+			case Instruction::Kind::END_UNSAFE_EXPR: return this->instr_end_unsafe_expr();
+
 			case Instruction::Kind::ASM_EXPR:
 				return this->instr_asm_expr(this->context.symbol_proc_manager.getAsmExpr(instr));
 
@@ -12419,7 +12424,7 @@ namespace pcit::panther{
 
 
 		const sema::BlockScope::ID block_scope_id = this->context.sema_buffer.createBlockScope(
-			instr.unsafe_stmt.keyword, this->source.getASTBuffer().getBlock(instr.unsafe_stmt.block).closeBrace
+			instr.unsafe_stmt.keyword, this->source.getASTBuffer().getBlock(instr.unsafe_stmt.encapsulated).closeBrace
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(block_scope_id);
 
@@ -20791,6 +20796,42 @@ namespace pcit::panther{
 		);
 		return Result::SUCCESS;
 	}
+
+
+	auto SemanticAnalyzer::instr_begin_unsafe_expr(const Instruction::BeginUnsafeExpr& instr) -> Result {
+		if(this->get_current_scope_level().warn_context.alreadyUnsafe && this->currently_in_unsafe()){
+			this->emit_warning("Unsafe expression in a scope that is already unsafe", instr.unsafe_expr);
+		}
+
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().unsafe_expr_depth += 1;
+
+		}else if(this->symbol_proc.extra_info.is<SymbolProc::NonLocalVarInfo>()){
+			this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().unsafe_expr_depth += 1;
+
+		}else{
+			this->emit_error("Unsafe expressions cannot be used in this context", instr.unsafe_expr);
+			return Result::ERROR;
+		}
+
+		return Result::SUCCESS;
+	}
+
+	auto SemanticAnalyzer::instr_end_unsafe_expr() -> Result {
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+			this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().unsafe_expr_depth -= 1;
+
+		}else if(this->symbol_proc.extra_info.is<SymbolProc::NonLocalVarInfo>()){
+			this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().unsafe_expr_depth -= 1;
+
+		}else{
+			this->emit_fatal("Encountered unsafe expression in an invalid context", Diagnostic::Location::NONE);
+			return Result::ERROR;
+		}
+
+		return Result::SUCCESS;
+	}
+
 
 
 	auto SemanticAnalyzer::instr_asm_expr(const Instruction::AsmExpr& instr) -> Result {
@@ -30342,6 +30383,17 @@ namespace pcit::panther{
 
 
 	auto SemanticAnalyzer::currently_in_unsafe() const -> bool {
+		if(this->symbol_proc.extra_info.is<SymbolProc::FuncInfo>()){
+			if(this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>().unsafe_expr_depth != 0){
+				return true;
+			}
+
+		}else if(this->symbol_proc.extra_info.is<SymbolProc::NonLocalVarInfo>()){
+			if(this->symbol_proc.extra_info.as<SymbolProc::NonLocalVarInfo>().unsafe_expr_depth != 0){
+				return true;
+			}
+		}
+
 		for(const sema::ScopeLevel::ID scope_level_id : this->scope | std::views::reverse){
 			if(this->context.sema_buffer.getScopeManager().getLevel(scope_level_id).isUnsafe()){ return true; }
 		}

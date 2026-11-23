@@ -2620,6 +2620,31 @@ namespace pcit::panther{
 
 
 			//////////////////
+			// BeginUnsafeExpr
+
+			[[nodiscard]] auto createBeginUnsafeExpr(auto&&... args) -> Instruction {
+				return Instruction(
+					Instruction::Kind::BEGIN_UNSAFE_EXPR,
+					this->begin_unsafe_exprs.emplace_back(std::forward<decltype(args)>(args)...)
+				);
+			}
+
+			[[nodiscard]] auto getBeginUnsafeExpr(Instruction instr) const -> const Instruction::BeginUnsafeExpr& {
+				evo::debugAssert(instr.kind() == Instruction::Kind::BEGIN_UNSAFE_EXPR, "Not a BeginUnsafeExpr");
+				return this->begin_unsafe_exprs[instr._index];
+			}
+
+
+			//////////////////
+			// EndUnsafeExpr
+
+			[[nodiscard]] auto createEndUnsafeExpr() -> Instruction {
+				return Instruction(Instruction::Kind::END_UNSAFE_EXPR, 0);
+			}
+
+
+
+			//////////////////
 			// AsmExpr
 
 			[[nodiscard]] auto createAsmExpr(auto&&... args) -> Instruction {
@@ -3691,6 +3716,7 @@ namespace pcit::panther{
 			core::SyncLinearStepAlloc<Instruction::EndTryElseExpr, uint32_t> end_try_else_expr{};
 			core::SyncLinearStepAlloc<Instruction::PrepareTryHandler, uint32_t> prepare_try_handlers{};
 			core::SyncLinearStepAlloc<Instruction::TryCatchExpr, uint32_t> try_catch_exprs{};
+			core::SyncLinearStepAlloc<Instruction::BeginUnsafeExpr, uint32_t> begin_unsafe_exprs{};
 			core::SyncLinearStepAlloc<Instruction::AsmExpr, uint32_t> asm_exprs{};
 			core::SyncLinearStepAlloc<Instruction::BeginExprBlock, uint32_t> begin_expr_blocks{};
 			core::SyncLinearStepAlloc<Instruction::EndExprBlock, uint32_t> end_expr_blocks{};
