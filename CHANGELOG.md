@@ -1,6 +1,16 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.437.1"></a>
+## v0.0.437.1
+
+### Panther
+- Fixed terminated checking for `while` loops that has a comptime `true` as the condition and do not contain any `break` statements
+- Fixed terminated checking for `while` loops that dont have comptime `true` as the condition and have a body that's function terminated
+- Fixed `while` loops that has a comptime `false` as the condition being considered as `true` for termination checking and lowering
+
+
+<!---------------------------------->
 <a name="v0.0.437.0"></a>
 ## v0.0.437.0
 

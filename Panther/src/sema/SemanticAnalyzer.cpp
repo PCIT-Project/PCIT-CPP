@@ -7751,6 +7751,13 @@ namespace pcit::panther{
 
 					jump_target_scope_level_index = i;
 
+					sema::While& current_while = this->context.sema_buffer.getWhile(
+						scope_level.getLoopMainScope().as<sema::While::ID>()
+					);
+					if(current_while.kind == sema::While::Kind::WHILE_TRUE){
+						current_while.kind = sema::While::Kind::WHILE_TRUE_WITH_BREAK;
+					}
+
 					break;
 				}
 
@@ -7774,6 +7781,14 @@ namespace pcit::panther{
 
 				if(scope_level.isLoopMainScope()){
 					found_loop = true;
+
+					sema::While& current_while = this->context.sema_buffer.getWhile(
+						scope_level.getLoopMainScope().as<sema::While::ID>()
+					);
+					if(current_while.kind == sema::While::Kind::WHILE_TRUE){
+						current_while.kind = sema::While::Kind::WHILE_TRUE_WITH_BREAK;
+					}
+
 					break;
 				}
 			}
@@ -8254,19 +8269,27 @@ namespace pcit::panther{
 			return Result::ERROR;
 		}
 
-		bool is_while_true = false;
-		if(cond_term_info.isComptime){
-			const sema::Expr cond_expr = cond_term_info.getExpr();
-			if(cond_expr.kind() == sema::Expr::Kind::BOOL_VALUE){
-				is_while_true = true;
+		sema::While::Kind while_kind = [&]() -> sema::While::Kind {
+			if(cond_term_info.isComptime){
+				const sema::Expr cond_expr = cond_term_info.getExpr();
+
+				if(
+					cond_expr.kind() == sema::Expr::Kind::BOOL_VALUE
+					&& this->context.getSemaBuffer().getBoolValue(cond_expr.boolValueID()).value
+				){
+					return sema::While::Kind::WHILE_TRUE;
+				}
 			}
-		}
+
+			this->get_current_scope_level().addSubScope();
+			return sema::While::Kind::NORMAL;
+		}();
 
 
 		const AST::Block& while_block = this->source.getASTBuffer().getBlock(instr.while_stmt.block);
 
 		const sema::While::ID sema_while_id = this->context.sema_buffer.createWhile(
-			cond_term_info.getExpr(), instr.while_stmt.keyword, while_block.label, is_while_true
+			cond_term_info.getExpr(), instr.while_stmt.keyword, while_block.label, while_kind
 		);
 		this->get_current_scope_level().stmtBlock().emplace_back(sema_while_id);
 
@@ -8277,17 +8300,17 @@ namespace pcit::panther{
 			this->push_scope_level(&sema_while.block);
 		}
 
-		this->get_current_scope_level().setIsLoopMainScope();
-
-		if(is_while_true == false){
-			this->get_current_scope_level().addSubScope();
-		}
+		this->get_current_scope_level().setIsLoopMainScope(sema_while_id);
 
 		return Result::SUCCESS;
 	}
 
 
 	auto SemanticAnalyzer::instr_end_while(const Instruction::EndWhile& instr) -> Result {
+		const sema::While& current_while = this->context.getSemaBuffer().getWhile(
+			this->get_current_scope_level().getLoopMainScope().as<sema::While::ID>()
+		);
+
 		if(this->get_current_scope_level().isTerminated() == false){
 			if(this->check_backwards_loop_jump(
 				this->scope.size() - 2, this->get_location(instr.close_brace)
@@ -8296,6 +8319,11 @@ namespace pcit::panther{
 
 		if(this->pop_scope_level().isError()){ return Result::ERROR; }
 		if(this->end_sub_scopes(this->get_location(instr.close_brace)).isError()){ return Result::ERROR; }
+
+		if(current_while.kind == sema::While::Kind::WHILE_TRUE){
+			this->get_current_scope_level().setFunctionTerminated();
+		}
+
 		return Result::SUCCESS;
 	}
 
@@ -8952,7 +8980,7 @@ namespace pcit::panther{
 		}
 
 
-		this->get_current_scope_level().setIsLoopMainScope();
+		this->get_current_scope_level().setIsLoopMainScope(sema_for_id);
 
 		return Result::SUCCESS;
 	}
@@ -9274,7 +9302,7 @@ namespace pcit::panther{
 		}
 
 
-		this->get_current_scope_level().setIsLoopMainScope();
+		this->get_current_scope_level().setIsLoopMainScope(sema::ScopeLevel::ForUnrollLoopID{});
 
 		if(this->add_deduced_terms_to_scope(deduced_terms).isError()){ return Result::ERROR; }
 

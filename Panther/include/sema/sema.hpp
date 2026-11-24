@@ -587,11 +587,17 @@ namespace pcit::panther::sema{
 	struct While{
 		using ID = WhileID;
 
+		enum class Kind{
+			NORMAL,
+			WHILE_TRUE_WITH_BREAK,
+			WHILE_TRUE,
+		};
+
 		Expr cond;
 		Token::ID whileToken;
 		std::optional<Token::ID> label;
 		StmtBlock block{};
-		bool isWhileTrue;
+		Kind kind;
 	};
 
 	struct For{

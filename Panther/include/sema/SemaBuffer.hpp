@@ -396,7 +396,7 @@ namespace pcit::panther::sema{
 				Expr cond,
 				Token::ID whileToken,
 				std::optional<Token::ID> label,
-				bool isWhileTrue,
+				While::Kind kind,
 				StmtBlock&& block = StmtBlock{}
 			) -> While::ID;
 

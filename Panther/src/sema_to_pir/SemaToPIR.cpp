@@ -3182,7 +3182,7 @@ namespace pcit::panther{
 				this->handler.createJump(cond_block);
 
 				this->handler.setTargetBasicBlock(cond_block);
-				if(while_stmt.isWhileTrue){
+				if(while_stmt.kind != sema::While::Kind::NORMAL){
 					this->handler.createJump(body_block);
 				}else{
 					const pir::Expr cond_value = this->get_expr_register(while_stmt.cond);
@@ -3216,11 +3216,11 @@ namespace pcit::panther{
 				this->pop_scope_level();
 				this->handler.setTargetBasicBlock(end_block);
 
-				if(while_stmt.block.isFunctionTerminated() && while_stmt.isWhileTrue){
-					this->handler.createUnreachable();
-				}
 
-				if(this->data.getConfig().includeDebugInfo){
+				if(while_stmt.kind == sema::While::Kind::WHILE_TRUE){
+					this->handler.createUnreachable();
+
+				}else if(this->data.getConfig().includeDebugInfo){
 					this->local_scopes.pop();
 				}
 			} break;

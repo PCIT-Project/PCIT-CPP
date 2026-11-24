@@ -244,6 +244,11 @@ namespace pcit::panther::sema{
 				evo::Variant<DeclInfo, ModifyInfo> info;
 			};
 
+
+			struct ForUnrollLoopID{};
+			using LoopMainScope = evo::Variant<sema::WhileID, sema::ForID, ForUnrollLoopID>;
+
+
 		public:
 			ScopeLevel(WarningContext _warn_context, sema::StmtBlock* stmt_block = nullptr) : 
 				warn_context(_warn_context),
@@ -282,8 +287,12 @@ namespace pcit::panther::sema{
 			auto setIsDeferMainScope() -> void { this->is_defer_main_scope = true; }
 			[[nodiscard]] auto isDeferMainScope() const -> bool { return this->is_defer_main_scope; }
 
-			auto setIsLoopMainScope() -> void { this->is_loop_main_scope = true; }
-			[[nodiscard]] auto isLoopMainScope() const -> bool { return this->is_loop_main_scope; }
+			auto setIsLoopMainScope(LoopMainScope target_loop) -> void { this->loop_main_scope = target_loop; }
+			[[nodiscard]] auto isLoopMainScope() const -> bool { return this->loop_main_scope.has_value(); }
+			[[nodiscard]] auto getLoopMainScope() const -> LoopMainScope {
+				evo::debugAssert(this->isLoopMainScope(), "Isn't loop main scope");
+				return *this->loop_main_scope;
+			}
 
 			auto setDontDoShadowingChecks() -> void { this->do_shadowing_checks = false; }
 			[[nodiscard]] auto doesShadowingChecks() const -> bool { return this->do_shadowing_checks; }
@@ -435,8 +444,8 @@ namespace pcit::panther::sema{
 			sema::StmtBlock* _stmt_block;
 			std::optional<Token::ID> _label;
 			LabelNode _label_node;
+			std::optional<LoopMainScope> loop_main_scope = std::nullopt;
 			bool is_defer_main_scope = false;
-			bool is_loop_main_scope = false;
 			bool do_shadowing_checks = true; // only for this level, doesn't affect sub-scopes or super-scopes
 			bool is_unsafe = false;
 
