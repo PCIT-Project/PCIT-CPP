@@ -16088,6 +16088,10 @@ namespace pcit::panther{
 				return global_var.cFamilyMangledName;
 			}
 
+		}else if(global_var.isExport){
+			const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
+			return std::string(source.getTokenBuffer()[global_var.ident.as<Token::ID>()].getString());
+
 		}else{
 			const Source& source = this->context.getSourceManager()[global_var.sourceID.as<Source::ID>()];
 			if(this->data.getConfig().useReadableNames){

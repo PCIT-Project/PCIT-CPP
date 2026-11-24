@@ -318,11 +318,22 @@ namespace pcit::panther::sema{
 		evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value,
 		std::optional<TypeInfo::ID> typeID,
 		bool isPrivate,
+		bool isExport,
 		std::optional<SymbolProcID> symbolProcID,
 		bool defCompleted
 	) -> GlobalVar::ID {
 		return this->internal->global_vars.emplace_back(
-			kind, sourceID, ident, cFamilyMangledName, parent, value, typeID, isPrivate, symbolProcID, defCompleted
+			kind,
+			sourceID,
+			ident,
+			cFamilyMangledName,
+			parent,
+			value,
+			typeID,
+			isPrivate,
+			isExport,
+			symbolProcID,
+			defCompleted
 		);
 	}
 

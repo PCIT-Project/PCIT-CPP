@@ -999,6 +999,7 @@ namespace pcit::panther{
 			struct GlobalVarAttrs{
 				bool is_private;
 				bool is_global;
+				bool is_export;
 			};
 			[[nodiscard]] auto analyze_global_var_attrs(
 				const AST::VarDef& var_def, evo::ArrayProxy<Instruction::AttributeParams> attribute_params_info

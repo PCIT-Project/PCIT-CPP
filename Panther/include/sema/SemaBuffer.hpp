@@ -150,7 +150,8 @@ namespace pcit::panther::sema{
 				std::optional<EncapsulatingSymbolID> parent,
 				evo::Variant<std::monostate, Expr, GlobalVar::DeletedInfo> value, // monostate if def not done, or c-family
 				std::optional<TypeInfo::ID> typeID, // is nullopt iff (kind == `def` && is fluid)
-				bool isPriv,
+				bool isPrivate,
+				bool isExport,
 				std::optional<SymbolProcID> symbolProcID,
 				bool defCompleted = false
 			) -> GlobalVar::ID;

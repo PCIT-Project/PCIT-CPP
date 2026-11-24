@@ -942,6 +942,7 @@ namespace pcit::panther{
 				std::monostate(),
 				got_type_info_id.asTypeID(),
 				var_attrs.value().is_private,
+				var_attrs.value().is_export,
 				this->symbol_proc.getID()
 			);
 
@@ -959,7 +960,13 @@ namespace pcit::panther{
 				sema::GlobalVar& sema_var = this->context.sema_buffer.getGlobalVar(new_sema_var);
 				sema_var.comptimePIRGlobal = *sema_to_pir.lowerGlobalDecl(new_sema_var);
 			}
+
 		}else{
+			if(var_attrs.value().is_export){
+				this->emit_error("Member variables cannot have attribute `#export`", instr.var_def);
+				return Result::ERROR;
+			}
+
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -1284,6 +1291,7 @@ namespace pcit::panther{
 				value_term_info.getExpr(),
 				type_id,
 				var_attrs.value().is_private,
+				var_attrs.value().is_export,
 				this->symbol_proc.getID(),
 				true
 			);
@@ -1304,6 +1312,11 @@ namespace pcit::panther{
 			}
 
 		}else{
+			if(var_attrs.value().is_export){
+				this->emit_error("Member variables cannot have attribute `#export`", instr.var_def);
+				return Result::ERROR;
+			}
+
 			BaseType::Struct& current_struct = this->context.type_manager.getStruct(
 				this->scope.getCurrentEncapsulatingSymbol().as<BaseType::Struct::ID>()
 			);
@@ -1336,6 +1349,11 @@ namespace pcit::panther{
 			this->analyze_global_var_attrs(instr.var_def, instr.attribute_params_info);
 		if(var_attrs.has_value() == false){ return var_attrs.error(); }
 
+		if(var_attrs.value().is_export){
+			this->emit_error("Deleted variables cannot have attribute `#export`", instr.var_def);
+			return Result::ERROR;
+		}
+
 		auto message = std::optional<std::string_view>();
 		if(instr.value_id.has_value()){
 			TermInfo& message_term_info = this->get_term_info(*instr.value_id);
@@ -1361,6 +1379,7 @@ namespace pcit::panther{
 			message,
 			std::nullopt,
 			var_attrs.value().is_private,
+			false,
 			this->symbol_proc.getID(),
 			true
 		);
@@ -7087,6 +7106,7 @@ namespace pcit::panther{
 				this->scope.getCurrentEncapsulatingSymbolIfExists(),
 				value_term_info.getExpr(),
 				type_id,
+				false,
 				false,
 				this->symbol_proc.getID(),
 				true
@@ -24209,7 +24229,7 @@ namespace pcit::panther{
 									"Infix [{}] of this type is invalid",
 									this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 								),
-								instr.infix.lhs,
+								instr.infix,
 								std::move(infos)
 							);
 							return Result::ERROR;
@@ -24239,7 +24259,7 @@ namespace pcit::panther{
 								"RHS of operator [{}] must be unsigned integral",
 								this->source.getTokenBuffer()[instr.infix.opTokenID].kind()
 							),
-							instr.infix.lhs,
+							instr.infix.rhs,
 							std::move(infos)
 						);
 						return Result::ERROR;
@@ -39818,6 +39838,7 @@ namespace pcit::panther{
 	) -> evo::Expected<GlobalVarAttrs, Result> {
 		auto attr_global = Attribute(*this, "global");
 		auto attr_private = ConditionalAttribute(*this, "private");
+		auto attr_export = Attribute(*this, "export");
 
 		const AST::AttributeBlock& attribute_block = 
 			this->source.getASTBuffer().getAttributeBlock(var_decl.attributeBlock);
@@ -39868,6 +39889,14 @@ namespace pcit::panther{
 
 				if(attr_global.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
 
+			}else if(attribute_str == "export"){
+				if(attribute_params_info[i].empty() == false){
+					this->emit_error("Attribute #export does not accept any arguments", attribute.args.front());
+					return evo::Unexpected(Result::ERROR);
+				}
+
+				if(attr_export.set(attribute.attribute).isError()){ return evo::Unexpected(Result::ERROR); }
+
 
 			}else if(attribute_str == "movable"){
 				this->emit_error(
@@ -39892,6 +39921,7 @@ namespace pcit::panther{
 		return GlobalVarAttrs{
 			.is_private = attr_private.is_set(),
 			.is_global  = attr_global.is_set(),
+			.is_export  = attr_export.is_set(),
 		};
 	}
 

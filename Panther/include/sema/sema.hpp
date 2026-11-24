@@ -773,6 +773,7 @@ namespace pcit::panther::sema{
 		evo::Variant<std::monostate, Expr, DeletedInfo> value; // is monostate if def not done, or if c-family type
 		std::optional<TypeInfo::ID> typeID; // is nullopt iff (kind == `def` && is fluid)
 		bool isPrivate;
+		bool isExport;
 		std::optional<SymbolProcID> symbolProcID;
 
 		std::atomic<bool> defCompleted = false;

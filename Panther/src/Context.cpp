@@ -1995,6 +1995,7 @@ namespace pcit::panther{
 								std::monostate(),
 								panther_var_type->asTypeID(),
 								false,
+								false,
 								std::nullopt,
 								true
 							);
@@ -2036,15 +2037,14 @@ namespace pcit::panther{
 						this->sema_buffer.createGlobalVar(
 							AST::VarDef::Kind::DEF,
 							created_c_family_source_id,
-							created_c_family_source.createDeclInfo(
-								macro.name, macro.declLine, macro.declCollumn
-							),
+							created_c_family_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn),
 							macro.name,
 							std::nullopt,
 							sema::Expr(
 								this->sema_buffer.createBoolValue(clang_api.macroExprBuffer.getBool(macro.value), false)
 							),
 							TypeManager::getTypeBool(),
+							false,
 							false,
 							std::nullopt,
 							true
@@ -2088,13 +2088,12 @@ namespace pcit::panther{
 						this->sema_buffer.createGlobalVar(
 							AST::VarDef::Kind::DEF,
 							created_c_family_source_id,
-							created_c_family_source.createDeclInfo(
-								macro.name, macro.declLine, macro.declCollumn
-							),
+							created_c_family_source.createDeclInfo(macro.name, macro.declLine, macro.declCollumn),
 							macro.name,
 							std::nullopt,
 							expr_value,
 							int_type,
+							false,
 							false,
 							std::nullopt,
 							true
@@ -2145,6 +2144,7 @@ namespace pcit::panther{
 							std::nullopt,
 							expr_value,
 							float_type,
+							false,
 							false,
 							std::nullopt,
 							true
@@ -6342,6 +6342,7 @@ namespace pcit::panther{
 			std::nullopt,
 			value,
 			type_id,
+			false,
 			false,
 			std::nullopt,
 			true
