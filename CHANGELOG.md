@@ -1,6 +1,15 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.437.2"></a>
+## v0.0.437.2
+
+### Panther
+- Fixed compiler fatal when parsing a floating-point literal with a `+` as the exponent sign
+- Fixed checking for too large floating-point literals
+
+
+<!---------------------------------->
 <a name="v0.0.437.1"></a>
 ## v0.0.437.1
 

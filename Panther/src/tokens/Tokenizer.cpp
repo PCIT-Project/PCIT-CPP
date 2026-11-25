@@ -1138,8 +1138,11 @@ namespace pcit::panther{
 		){
 			this->char_stream.skip(1);
 
-			if(this->char_stream.peek() == '-' || this->char_stream.peek() == '+'){
+			if(this->char_stream.peek() == '-'){
 				exponent_string += this->char_stream.next();
+
+			}else if(this->char_stream.peek() == '+'){
+				this->char_stream.skip(1);
 			}
 
 			while(this->char_stream.at_end() == false){
@@ -1279,10 +1282,9 @@ namespace pcit::panther{
 
 			const evo::float64_t parsed_number = converted_parsed_number.value();
 
-
 			if(
-				parsed_number == 0.0 && 
-				std::numeric_limits<evo::float64_t>::max() / parsed_number < std::pow(10, exponent_number)
+				parsed_number != 0.0 && 
+					std::numeric_limits<evo::float64_t>::max() / parsed_number < std::pow(10, exponent_number)
 			){
 				const evo::Result<Source::Location> current_location = this->get_current_location_token();
 				if(current_location.isError()){ return evo::resultError; }
