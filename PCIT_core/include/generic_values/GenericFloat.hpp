@@ -61,7 +61,7 @@ namespace pcit::core{
 			[[nodiscard]] static auto createF16FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF16(0);
 				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN
 				);
 				return GenericFloat(std::move(output));
 			}
@@ -69,7 +69,7 @@ namespace pcit::core{
 			[[nodiscard]] static auto createF32FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF32(0);
 				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN
 				);
 				return GenericFloat(std::move(output));
 			}
@@ -77,7 +77,7 @@ namespace pcit::core{
 			[[nodiscard]] static auto createF64FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF64(0);
 				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN
 				);
 				return GenericFloat(std::move(output));
 			}
@@ -85,7 +85,7 @@ namespace pcit::core{
 			[[nodiscard]] static auto createF80FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF80(0);
 				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN
 				);
 				return GenericFloat(std::move(output));
 			}
@@ -93,7 +93,7 @@ namespace pcit::core{
 			[[nodiscard]] static auto createF128FromInt(const GenericInt& value, bool is_signed) -> GenericFloat {
 				auto output = createF128(0);
 				output.ap_float.convertFromAPInt(
-					value.getNative(), is_signed, llvmint::glue::RoundingMode::TowardZero
+					value.getNative(), is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN
 				);
 				return GenericFloat(std::move(output));
 			}
@@ -146,25 +146,25 @@ namespace pcit::core{
 
 			[[nodiscard]] auto add(const GenericFloat& rhs) const -> GenericFloat {
 				llvmint::APFloat ap_float_copy = this->ap_float;
-				std::ignore = ap_float_copy.add(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				std::ignore = ap_float_copy.add(rhs.ap_float, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN);
 				return GenericFloat(std::move(ap_float_copy));
 			}
 
 			[[nodiscard]] auto sub(const GenericFloat& rhs) const -> GenericFloat {
 				llvmint::APFloat ap_float_copy = this->ap_float;
-				std::ignore = ap_float_copy.subtract(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				std::ignore = ap_float_copy.subtract(rhs.ap_float, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN);
 				return GenericFloat(std::move(ap_float_copy));
 			}
 
 			[[nodiscard]] auto mul(const GenericFloat& rhs) const -> GenericFloat {
 				llvmint::APFloat ap_float_copy = this->ap_float;
-				std::ignore = ap_float_copy.multiply(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				std::ignore = ap_float_copy.multiply(rhs.ap_float, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN);
 				return GenericFloat(std::move(ap_float_copy));
 			}
 
 			[[nodiscard]] auto div(const GenericFloat& rhs) const -> GenericFloat {
 				llvmint::APFloat ap_float_copy = this->ap_float;
-				std::ignore = ap_float_copy.divide(rhs.ap_float, llvmint::glue::RoundingMode::TowardZero);
+				std::ignore = ap_float_copy.divide(rhs.ap_float, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN);
 				return GenericFloat(std::move(ap_float_copy));
 			}
 
@@ -209,7 +209,7 @@ namespace pcit::core{
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				bool loses_info;
 				ap_float_copy.convert(
-					llvmint::APFloatBase::IEEEhalf(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+					llvmint::APFloatBase::IEEEhalf(), llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &loses_info
 				);
 				return ap_float_copy;
 			}
@@ -218,7 +218,7 @@ namespace pcit::core{
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				bool loses_info;
 				ap_float_copy.convert(
-					llvmint::APFloatBase::IEEEsingle(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+					llvmint::APFloatBase::IEEEsingle(), llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &loses_info
 				);
 				return ap_float_copy;
 			}
@@ -227,7 +227,7 @@ namespace pcit::core{
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				bool loses_info;
 				ap_float_copy.convert(
-					llvmint::APFloatBase::IEEEdouble(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+					llvmint::APFloatBase::IEEEdouble(), llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &loses_info
 				);
 				return ap_float_copy;
 			}
@@ -236,7 +236,7 @@ namespace pcit::core{
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				bool loses_info;
 				ap_float_copy.convert(
-					llvmint::APFloatBase::x87DoubleExtended(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+					llvmint::APFloatBase::x87DoubleExtended(), llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &loses_info
 				);
 				return ap_float_copy;
 			}
@@ -245,7 +245,7 @@ namespace pcit::core{
 				llvmint::APFloat ap_float_copy = this->ap_float;
 				bool loses_info;
 				ap_float_copy.convert(
-					llvmint::APFloatBase::IEEEquad(), llvmint::glue::RoundingMode::TowardZero, &loses_info
+					llvmint::APFloatBase::IEEEquad(), llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &loses_info
 				);
 				return ap_float_copy;
 			}
@@ -260,7 +260,7 @@ namespace pcit::core{
 				auto output = core::GenericInt(width, 0, is_signed);
 				bool is_exact;
 				this->ap_float.convertToInteger(
-					output.data_span(), width, is_signed, llvmint::glue::RoundingMode::TowardZero, &is_exact
+					output.data_span(), width, is_signed, llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN, &is_exact
 				);
 				return output;
 			}

@@ -243,11 +243,11 @@ namespace pcit::llvmint{
 		/// IEEE-754R 4.3: Rounding-direction attributes.
 		using roundingMode = llvmint::glue::RoundingMode;
 
-		static constexpr roundingMode rmNearestTiesToEven = llvmint::glue::RoundingMode::NearestTiesToEven;
-		static constexpr roundingMode rmTowardPositive    = llvmint::glue::RoundingMode::TowardPositive;
-		static constexpr roundingMode rmTowardNegative    = llvmint::glue::RoundingMode::TowardNegative;
-		static constexpr roundingMode rmTowardZero        = llvmint::glue::RoundingMode::TowardZero;
-		static constexpr roundingMode rmNearestTiesToAway = llvmint::glue::RoundingMode::NearestTiesToAway;
+		static constexpr roundingMode rmNearestTiesToEven = llvmint::glue::RoundingMode::NEAREST_TIES_TO_EVEN;
+		static constexpr roundingMode rmTowardPositive    = llvmint::glue::RoundingMode::TOWARD_POSITIVE;
+		static constexpr roundingMode rmTowardNegative    = llvmint::glue::RoundingMode::TOWARD_NEGATIVE;
+		static constexpr roundingMode rmTowardZero        = llvmint::glue::RoundingMode::TOWARD_ZERO;
+		static constexpr roundingMode rmNearestTiesToAway = llvmint::glue::RoundingMode::NEAREST_TIES_TO_AWAY;
 
 		/// IEEE-754R 7: Default exception handling.
 		///

@@ -718,7 +718,13 @@ namespace pcit::pir{
 					this->printer.printMagenta(number.getInt().toString(true));
 
 				}else{
-					this->printer.printMagenta(number.getFloat().toString());
+					switch(number.type.getWidth()){
+						break; case 16:  this->printer.printMagenta(number.getFloat().asF16().toString());
+						break; case 32:  this->printer.printMagenta(number.getFloat().asF32().toString());
+						break; case 64:  this->printer.printMagenta(number.getFloat().asF64().toString());
+						break; case 80:  this->printer.printMagenta(number.getFloat().asF80().toString());
+						break; case 128: this->printer.printMagenta(number.getFloat().asF128().toString());
+					}
 				}
 				
 				this->printer.print(")");

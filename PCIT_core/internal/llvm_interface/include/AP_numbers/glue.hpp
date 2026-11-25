@@ -37,15 +37,15 @@ namespace pcit::llvmint::glue{
 
 	enum class RoundingMode : int8_t {
 		// Rounding mode defined in IEEE-754.
-		TowardZero        = 0,    ///< roundTowardZero.
-		NearestTiesToEven = 1,    ///< roundTiesToEven.
-		TowardPositive    = 2,    ///< roundTowardPositive.
-		TowardNegative    = 3,    ///< roundTowardNegative.
-		NearestTiesToAway = 4,    ///< roundTiesToAway.
+		TOWARD_ZERO          = 0,    ///< roundTowardZero.
+		NEAREST_TIES_TO_EVEN = 1,    ///< roundTiesToEven.
+		TOWARD_POSITIVE      = 2,    ///< roundTowardPositive.
+		TOWARD_NEGATIVE      = 3,    ///< roundTowardNegative.
+		NEAREST_TIES_TO_AWAY = 4,    ///< roundTiesToAway.
 
 		// Special values.
-		Dynamic = 7,    ///< Denotes mode unknown at compile time.
-		Invalid = -1    ///< Denotes invalid value.
+		DYNAMIC = 7,    ///< Denotes mode unknown at compile time.
+		INVALID = -1    ///< Denotes invalid value.
 	};
 
 
