@@ -2850,7 +2850,7 @@ namespace pcit::panther{
 					case Token::Kind::TYPE_F16:    return 16;
 					case Token::Kind::TYPE_F32:    return 32;
 					case Token::Kind::TYPE_F64:    return 64;
-					case Token::Kind::TYPE_F80:    return 80;
+					case Token::Kind::TYPE_F80:    return include_end_padding ? 128 : 80;
 					case Token::Kind::TYPE_F128:   return 128;
 					case Token::Kind::TYPE_BYTE:   return 8;
 					case Token::Kind::TYPE_BOOL:   return 1;
