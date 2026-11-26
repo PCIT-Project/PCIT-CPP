@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.438.0"></a>
+## v0.0.438.0
+
+### Panther
+- Added support for `F128` on x86_64
+- Fixed comptime `@_zext`, `@_sext`, `@_fext`, `@_trunc`, `@_ftrunc` in some cases
+	- Also fixes comptime operator `as` that lowers to these intrinsics
+- Fixed `when` `switch` in a non-local scope that has attribute `#partial` and the condition value doesn't match any cases
+
+
+<!---------------------------------->
 <a name="v0.0.437.3"></a>
 ## v0.0.437.3
 

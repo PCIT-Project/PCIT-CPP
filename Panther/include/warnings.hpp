@@ -22,7 +22,6 @@ namespace pcit::panther{
 		bool comptimeIfCond               = true;
 		bool comptimeSwitchCond           = true;
 		bool alreadyUnsafe                = true;
-		bool experimentalF80              = true;
 
 		static auto all() -> WarningContext { return WarningContext(); };
 	};
@@ -36,7 +35,6 @@ namespace pcit::panther{
 		COMPTIME_IF_COND,
 		COMPTIME_SWITCH_COND,
 		ALREADY_UNSAFE,
-		EXPERIMENTAL_F80,
 	};
 
 	

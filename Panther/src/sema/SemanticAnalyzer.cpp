@@ -9896,8 +9896,8 @@ namespace pcit::panther{
 			if(selected_case_index.has_value() == false){
 				if(else_index.has_value()){
 					selected_case_index = *else_index;
-					
-				}else{
+
+				}else if(switch_attrs.value().is_partial == false){
 					this->emit_error("Didn't find matching case for this value", instr.when_switch_stmt.cond);
 					return Result::ERROR;
 				}
@@ -9916,7 +9916,7 @@ namespace pcit::panther{
 
 
 			for(size_t i = 0; const Instruction::WhenSwitch::Case& when_switch_case : instr.cases){
-				if(i != *selected_case_index){
+				if(selected_case_index.has_value() == false || i != *selected_case_index){
 					for(SymbolProc::ID passed_symbol_id : when_switch_case.symbol_scope){
 						passed_symbols.emplace(passed_symbol_id, true);
 					}
@@ -9934,21 +9934,23 @@ namespace pcit::panther{
 				encapsulating_symbol_proc = encapsulating_symbol_proc->parent;
 			}
 
-			for(SymbolProc::ID symbol_scope_id : instr.cases[*selected_case_index].symbol_scope){
-				SymbolProc& symbol = this->context.symbol_proc_manager.getSymbolProc(symbol_scope_id);
-				symbol.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
-					*this->symbol_proc.sema_scope_id
-				);
+			if(selected_case_index.has_value()){
+				for(SymbolProc::ID symbol_scope_id : instr.cases[*selected_case_index].symbol_scope){
+					SymbolProc& symbol = this->context.symbol_proc_manager.getSymbolProc(symbol_scope_id);
+					symbol.sema_scope_id = this->context.sema_buffer.getScopeManager().copyScope(
+						*this->symbol_proc.sema_scope_id
+					);
 
-				if(encapsulating_symbol_proc != nullptr){
-					const auto lock =
-						std::scoped_lock(encapsulating_symbol_proc->waiting_for_lock, symbol.decl_waited_on_lock);
+					if(encapsulating_symbol_proc != nullptr){
+						const auto lock =
+							std::scoped_lock(encapsulating_symbol_proc->waiting_for_lock, symbol.decl_waited_on_lock);
 
-					symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
-					encapsulating_symbol_proc->waiting_for.emplace_back(symbol_scope_id);
+						symbol.decl_waited_on_by.emplace_back(encapsulating_symbol_proc->getID());
+						encapsulating_symbol_proc->waiting_for.emplace_back(symbol_scope_id);
+					}
+
+					this->set_waiting_for_is_done(symbol_scope_id, this->symbol_proc.getID());	
 				}
-
-				this->set_waiting_for_is_done(symbol_scope_id, this->symbol_proc.getID());	
 			}
 
 			while(passed_symbols.empty() == false){
@@ -14895,10 +14897,6 @@ namespace pcit::panther{
 						this->get_current_scope_level().warn_context.alreadyUnsafe = true;
 					} break;
 
-					case Warning::EXPERIMENTAL_F80: {
-						this->get_current_scope_level().warn_context.experimentalF80 = true;
-					} break;
-
 					default: {
 						this->emit_error(
 							"Unknown warning",
@@ -14943,10 +14941,6 @@ namespace pcit::panther{
 
 					case Warning::ALREADY_UNSAFE: {
 						this->get_current_scope_level().warn_context.alreadyUnsafe = false;
-					} break;
-
-					case Warning::EXPERIMENTAL_F80: {
-						this->get_current_scope_level().warn_context.experimentalF80 = false;
 					} break;
 
 					default: {
@@ -25511,16 +25505,16 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->get_current_scope_level().warn_context.experimentalF80){
-					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
-				}
-
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 			case Token::Kind::TYPE_F128: {
-				this->emit_error("Type `F128` is currenlty unimplemented", instr.ast_type);
-				return Result::ERROR;
+				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
+					this->emit_error("Type `F128` is currenlty unimplemented on this platform", instr.ast_type);
+					return Result::ERROR;
+				}
+
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 
@@ -25605,16 +25599,16 @@ namespace pcit::panther{
 					return Result::ERROR;
 				}
 
-				if(this->get_current_scope_level().warn_context.experimentalF80){
-					this->emit_warning("Type `F80` is experimental, and may not work as expected", instr.ast_type);
-				}
-
 				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 			case Token::Kind::TYPE_F128: {
-				this->emit_error("Type `F128` is currenlty unimplemented", instr.ast_type);
-				return Result::ERROR;
+				if(this->context.getConfig().target.architecture != core::Target::Architecture::X86_64){
+					this->emit_error("Type `F128` is currenlty unimplemented on this platform", instr.ast_type);
+					return Result::ERROR;
+				}
+
+				base_type = this->context.type_manager.getOrCreatePrimitiveBaseType(primitive_type_token.kind());
 			} break;
 
 

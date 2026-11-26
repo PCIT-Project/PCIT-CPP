@@ -663,6 +663,8 @@ namespace pcit::panther{
 	// type conversion
 
 	auto ComptimeIntrinsicEvaluator::trunc(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+		const size_t to_type_bit_width = this->type_manager.numBits(to_type_id, false);
+
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
@@ -671,13 +673,25 @@ namespace pcit::panther{
 			to_type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(
-					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+					arg.trunc(unsigned(to_type_bit_width)), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
 				)
 			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::ftrunc(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
+		core::GenericFloat converted_value = [&]() -> core::GenericFloat {
+			switch(this->type_manager.numBits(to_type_id, false)){
+				case 16:  return arg.asF16();
+				case 32:  return arg.asF32();
+				case 64:  return arg.asF64();
+				case 80:  return arg.asF80();
+				case 128: return arg.asF128();
+				default:  evo::debugFatalBreak("Invalid width");
+			}
+		}();
+
+
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
@@ -686,13 +700,15 @@ namespace pcit::panther{
 			to_type_id,
 			sema::Expr(
 				this->sema_buffer.createFloatValue(
-					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+					std::move(converted_value), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
 				)
 			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::sext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+		const size_t to_type_bit_width = this->type_manager.numBits(to_type_id, false);
+
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
@@ -701,13 +717,15 @@ namespace pcit::panther{
 			to_type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(
-					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+					arg.sext(unsigned(to_type_bit_width)), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
 				)
 			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::zext(const TypeInfo::ID to_type_id, const core::GenericInt& arg) -> TermInfo {
+		const size_t to_type_bit_width = this->type_manager.numBits(to_type_id, false);
+
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
@@ -716,13 +734,25 @@ namespace pcit::panther{
 			to_type_id,
 			sema::Expr(
 				this->sema_buffer.createIntValue(
-					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+					arg.zext(unsigned(to_type_bit_width)), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
 				)
 			)
 		);
 	}
 
 	auto ComptimeIntrinsicEvaluator::fext(const TypeInfo::ID to_type_id, const core::GenericFloat& arg) -> TermInfo {
+		core::GenericFloat converted_value = [&]() -> core::GenericFloat {
+			switch(this->type_manager.numBits(to_type_id, false)){
+				case 16:  return arg.asF16();
+				case 32:  return arg.asF32();
+				case 64:  return arg.asF64();
+				case 80:  return arg.asF80();
+				case 128: return arg.asF128();
+				default:  evo::debugFatalBreak("Invalid width");
+			}
+		}();
+
+
 		return TermInfo(
 			TermInfo::ValueCategory::EPHEMERAL,
 			true,
@@ -731,7 +761,7 @@ namespace pcit::panther{
 			to_type_id,
 			sema::Expr(
 				this->sema_buffer.createFloatValue(
-					evo::copy(arg), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
+					std::move(converted_value), this->type_manager.getTypeInfo(to_type_id).baseTypeID()
 				)
 			)
 		);

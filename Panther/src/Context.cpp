@@ -2827,15 +2827,6 @@ namespace pcit::panther{
 					),
 					false
 				),
-				BaseType::Struct::MemberVar(
-					AST::VarDef::Kind::VAR,
-					build_module.createString("experimentalF80"),
-					TypeManager::getTypeBool(),
-					BaseType::Struct::MemberVar::DefaultValue(
-						sema::Expr(this->sema_buffer.createBoolValue(true, false)), true
-					),
-					false
-				),
 			}
 		);
 
@@ -3545,10 +3536,6 @@ namespace pcit::panther{
 					BaseType::Enum::Enumerator(
 						pthr_module.createString("ALREADY_UNSAFE"),
 						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::ALREADY_UNSAFE))
-					),
-					BaseType::Enum::Enumerator(
-						pthr_module.createString("EXPERIMENTAL_F80"),
-						core::GenericInt::create<uint32_t>(evo::to_underlying(Warning::EXPERIMENTAL_F80))
 					),
 				},
 				.underlyingTypeID  =
