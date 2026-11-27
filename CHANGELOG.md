@@ -1,6 +1,14 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.439.1"></a>
+## v0.0.439.1
+
+### Panther
+- Fixed incorrect self-dependency checking (such as recursive functions)
+
+
+<!---------------------------------->
 <a name="v0.0.439.0"></a>
 ## v0.0.439.0
 

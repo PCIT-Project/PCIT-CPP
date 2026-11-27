@@ -149,13 +149,22 @@ namespace pcit::panther{
 				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
 			) -> evo::Result<SymbolProc::TermInfoID>;
 
+			[[nodiscard]] auto analyze_expr_decl(
+				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
+			) -> evo::Result<SymbolProc::TermInfoID>;
+
 			template<bool IS_COMPTIME>
 			[[nodiscard]] auto analyze_erroring_expr(
 				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
 			) -> evo::Result<SymbolProc::TermInfoID>;
 
-			template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS>
-			[[nodiscard]] auto analyze_term_impl(
+			[[nodiscard]] auto analyze_erroring_expr_decl(
+				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
+			) -> evo::Result<SymbolProc::TermInfoID>;
+
+			// DO NOT CALL THIS DIRECTLY, USE ONE OF THE ABOVE FUNCTIONS!!!
+			template<bool IS_COMPTIME, bool MUST_BE_EXPR, bool ERRORS, bool NEEDS_DEF>
+			[[nodiscard]] auto _analyze_term_impl(
 				const AST::Node& expr, std::optional<SymbolProc::TermInfoID> assign_target = std::nullopt
 			) -> evo::Result<SymbolProc::TermInfoID>;			
 
