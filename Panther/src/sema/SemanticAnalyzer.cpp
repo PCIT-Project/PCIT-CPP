@@ -10255,6 +10255,83 @@ namespace pcit::panther{
 						this->get_current_scope_level().setFunctionTerminated();
 					} break;
 
+					case IntrinsicFunc::Kind::COMPLETE_INIT: {
+						// TODO(NOW): check if within valid scope/function 
+						if(this->currently_in_func() == false){
+							this->emit_error("Invalid scope for `@completeInit()`", instr.func_call);
+							return Result::ERROR;
+						}
+
+
+						SymbolProc::FuncInfo& func_info = this->symbol_proc.extra_info.as<SymbolProc::FuncInfo>();
+
+						if(func_info.is_constructor() == false){
+							this->emit_error("Invalid scope for `@completeInit()`", instr.func_call);
+							return Result::ERROR;
+						}
+
+
+						if(func_info.num_members_of_initializing_are_uninit == 0){ break; }
+
+
+						const BaseType::Function& current_func_type = this->context.getTypeManager().getFunction(
+							this->get_current_func().typeID
+						);
+
+
+						const TypeInfo& return_type = 
+							this->context.getTypeManager().getTypeInfo(current_func_type.returnTypes[0].asTypeID());
+						const BaseType::Struct& return_struct_type =
+							this->context.getTypeManager().getStruct(return_type.baseTypeID().structID());
+
+						for(size_t member_i = 0; member_i < return_struct_type.memberVars.size(); member_i+=1){
+							if(this->ident_value_state_is_uninit_with_default(
+								sema::ReturnParamAccessorValueStateID(
+									*func_info.constructor_ret_param, uint32_t(member_i)
+								)
+							)){
+								func_info.num_members_of_initializing_are_uninit -= 1;
+
+								const sema::Assign::ID assign_default_value = this->context.sema_buffer.createAssign(
+									this->context.sema_buffer.createAccessor(
+										sema::Expr(*func_info.constructor_ret_param),
+										current_func_type.returnTypes[0].asTypeID(),
+										uint32_t(member_i)
+									),
+									sema::Expr(return_struct_type.memberVars[member_i].defaultValue->value),
+									this->get_sema_location(instr.func_call)
+								);
+
+								this->get_current_scope_level().stmtBlock().emplace_back(assign_default_value);
+							}
+						}
+
+						if(func_info.num_members_of_initializing_are_uninit == 0){
+							this->set_ident_value_state(
+								*func_info.constructor_ret_param, sema::ScopeLevel::ValueState::INIT
+							);
+							
+						}else{
+							if(func_info.num_members_of_initializing_are_uninit == 1){
+								this->emit_error(
+									"Not all members of the output are initialized",
+									instr.func_call,
+									Diagnostic::Info("Missing 1 member")
+								);
+
+							}else if(func_info.num_members_of_initializing_are_uninit > 1){
+								this->emit_error(
+									"Not all members of the output are initialized",
+									instr.func_call,
+									Diagnostic::Info(
+										std::format("Missing {} members", func_info.num_members_of_initializing_are_uninit)
+									)
+								);
+							}
+							return Result::ERROR;
+						}
+					} break;
+
 					default: {
 						const sema::FuncCall::ID sema_func_call_id = this->context.sema_buffer.createFuncCall(
 							intrinsic_kind, std::move(sema_args), this->get_sema_location(location)

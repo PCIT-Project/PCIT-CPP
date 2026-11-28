@@ -5279,6 +5279,20 @@ namespace pcit::panther{
 				.allowedInComptime = true,  .allowedInRuntime = false,
 				.allowedInCompile  = false, .allowedInScript = true, .allowedInBuild = true,
 			};
+
+
+		this->intrinsic_infos[size_t(evo::to_underlying(IntrinsicFunc::Kind::COMPLETE_INIT))] = 
+			IntrinsicFuncInfo{
+				.typeID = create_func_type(
+					evo::SmallVector<BaseType::Function::Param>{},
+					evo::SmallVector<TypeInfo::VoidableID>{TypeInfo::VoidableID::Void()},
+					evo::SmallVector<TypeInfo::VoidableID>{},
+					true,
+					true
+				),
+				.allowedInComptime = true, .allowedInRuntime = true,
+				.allowedInCompile  = true, .allowedInScript = true, .allowedInBuild = true,
+			};
 	
 	
 

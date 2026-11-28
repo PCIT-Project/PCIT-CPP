@@ -33,7 +33,6 @@ namespace pcit::panther{
 			CT_ALLOC,
 			CT_DEALLOC,
 
-
 			// type traits
 			CT_GET_INTEGER_TYPE_ID,
 
@@ -44,8 +43,9 @@ namespace pcit::panther{
 			COMPILER_EXECUTABLE_DIRECTORY,
 			COMPILE_WORKING_DIRECTORY,
 			SET_MODULE_NAME,
+			COMPLETE_INIT,
 
-			_LAST_ = SET_MODULE_NAME,
+			_LAST_ = COMPLETE_INIT,
 		};
 
 		[[nodiscard]] auto lookupKind(std::string_view name) -> std::optional<Kind>;

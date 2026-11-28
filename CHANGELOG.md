@@ -1,6 +1,17 @@
 # Change Log
 
 <!---------------------------------->
+<a name="v0.0.440.0"></a>
+## v0.0.440.0
+
+### Panther
+- Added `@completeInit()`
+
+### Misc
+- Updated to [Panther-std v0.0.81.0](https://github.com/PCIT-Project/Panther-std/blob/main/CHANGELOG.md#v0.0.81.0)
+
+
+<!---------------------------------->
 <a name="v0.0.439.1"></a>
 ## v0.0.439.1
 

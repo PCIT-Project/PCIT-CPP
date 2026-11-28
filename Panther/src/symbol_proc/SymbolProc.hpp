@@ -1923,6 +1923,10 @@ namespace pcit::panther{
 				bool depends_on_panic = false;
 
 				bool currently_rt_diff = false;
+
+				[[nodiscard]] auto is_constructor() const -> bool {
+					return this->constructor_ret_param.has_value();
+				}
 			};
 
 			struct TemplateFuncInfo{

@@ -64,6 +64,7 @@ namespace pcit::panther{
 			{"compilerExecutableDirectory", Kind::COMPILER_EXECUTABLE_DIRECTORY},
 			{"compileWorkingDirectory",     Kind::COMPILE_WORKING_DIRECTORY},
 			{"setModuleName",               Kind::SET_MODULE_NAME},
+			{"completeInit",                Kind::COMPLETE_INIT},
 		};
 
 		intrinsic_kinds_end = intrinsic_kinds.end();
