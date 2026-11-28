@@ -5649,6 +5649,14 @@ namespace pcit::panther{
 			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
 		};
 
+		get_template_intrinsic_info(TemplateIntrinsicFunc::Kind::IMPLEMENTS_INTERFACE) = TemplateIntrinsicFuncInfo{
+			.templateParams = evo::SmallVector<TemplateParam>{TemplateParam::createType(), TemplateParam::createType()},
+			.params         = evo::SmallVector<Param>(),
+			.returns        = evo::SmallVector<Return>{TypeManager::getTypeBool()},
+			.allowedInComptime = true, .allowedInRuntime = true,
+			.allowedInCompile  = true, .allowedInScript  = true, .allowedInBuild = true,
+		};
+
 
 
 

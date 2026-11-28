@@ -140,6 +140,7 @@ namespace pcit::panther{
 			{"_isUnsignedIntegral",              Kind::IS_UNSIGNED_INTEGRAL},
 			{"_isFloatingPoint",                 Kind::IS_FLOATING_POINT},
 			{"_isPointer",                       Kind::IS_POINTER},
+			{"_implementsInterface",             Kind::IMPLEMENTS_INTERFACE},
 
 			{"_bitCast",                         Kind::BIT_CAST},
 			{"_trunc",                           Kind::TRUNC},

@@ -98,6 +98,7 @@ namespace pcit::panther{
 			IS_UNSIGNED_INTEGRAL,
 			IS_FLOATING_POINT,
 			IS_POINTER,
+			IMPLEMENTS_INTERFACE,
 
 			// type conversion
 			BIT_CAST,

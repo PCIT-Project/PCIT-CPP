@@ -13251,7 +13251,10 @@ namespace pcit::panther{
 								const TypeInfo::VoidableID ret_type_id
 								: func_call_impl_res.value().selected_func_type.returnTypes
 							){
-								if(this->context.getTypeManager().isTriviallyDeletable(ret_type_id.asTypeID()) == false){
+								if(
+									this->context.getTypeManager().isTriviallyDeletable(ret_type_id.asTypeID())
+										== false
+								){
 									return false;
 								}
 							}
@@ -15267,7 +15270,9 @@ namespace pcit::panther{
 				}
 
 				if(
-					this->context.getTypeManager().getTypeInfo(template_arg_type_id).baseTypeID().kind()
+					target_term_info.type_id.as<TemplateIntrinsicFunc::Kind>()
+						!= TemplateIntrinsicFunc::Kind::IMPLEMENTS_INTERFACE
+					&& this->context.getTypeManager().getTypeInfo(template_arg_type_id).baseTypeID().kind()
 						== BaseType::Kind::INTERFACE
 				){
 					this->emit_error(
@@ -15772,7 +15777,54 @@ namespace pcit::panther{
 				);
 			} break;
 
+			case TemplateIntrinsicFunc::Kind::IMPLEMENTS_INTERFACE: {
+				const TypeInfo::ID target_type_id = template_args[0].as<TypeInfo::ID>();
+				const TypeInfo::ID interface_type_id = template_args[1].as<TypeInfo::ID>();
 
+				if(
+					this->context.getTypeManager().getTypeInfo(target_type_id).baseTypeID().kind()
+						== BaseType::Kind::INTERFACE
+				){
+					this->emit_error(
+						"This template argument cannot be an interface type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[0]
+					);
+					return Result::ERROR;
+				}
+
+				const TypeInfo& interface_type_info = this->context.getTypeManager().getTypeInfo(interface_type_id);
+				if(
+					interface_type_info.qualifiers().empty() == false
+					|| interface_type_info.baseTypeID().kind() != BaseType::Kind::INTERFACE
+				){
+					this->emit_error(
+						"This template argument must be an interface type",
+						this->source.getASTBuffer().getTemplatedExpr(instr.func_call.target).args[1]
+					);
+					return Result::ERROR;
+				}
+
+				const evo::Expected<bool, Result> implements_result = this->type_implements_interface(
+					this->context.getTypeManager().getInterface(interface_type_info.baseTypeID().interfaceID()),
+					target_type_id,
+					this->get_location(instr.func_call)
+				);
+
+				if(implements_result.has_value() == false){ return implements_result.error(); }
+
+				const sema::BoolValue::ID bool_value_id = this->context.sema_buffer.createBoolValue(
+					implements_result.value(), false
+				);
+
+				this->return_term_info(instr.output,
+					TermInfo::ValueCategory::EPHEMERAL, 
+					true,
+					true,
+					TermInfo::ValueState::NOT_APPLICABLE,
+					TypeManager::getTypeBool(),
+					sema::Expr(bool_value_id)
+				);
+			} break;
 
 			case TemplateIntrinsicFunc::Kind::BIT_CAST: {
 				const TypeInfo::ID from_type_id = template_args[0].as<TypeInfo::ID>();
